@@ -103,10 +103,10 @@ class Agent:
         self.last_music_composition_time = None  # 上次音乐创作时间
         self.music_composition_limit = 1  # 每小时音乐创作限制次数为1
 
-        # 量子计算相关属性
-        self.quantum_computing_count = 0  # 初始化量子计算计数器
-        self.last_quantum_computing_time = None  # 上次量子计算时间
-        self.quantum_computing_limit = 1  # 每小时量子计算限制次数为1
+        # 文字创作相关属性（兰台书案）
+        self.literary_creation_count = 0  # 初始化文字创作计数器
+        self.last_literary_creation_time = None  # 上次文字创作时间
+        self.literary_creation_limit = 1  # 每小时文字创作限制次数为1
 
     def storage(self, name):
         """获取并确保指定子模块的存储路径存在"""
@@ -322,7 +322,7 @@ class Agent:
         # 定义各种终端的名称列表
         painting_terminals = ["丹青画案"]
         music_terminals = ["焦尾琴"]
-        quantum_terminals = ["太乙推演盘"]
+        literary_terminals = ["兰台书案"]
 
         # 关键修复：验证Agent是否真的在正确的终端位置
         current_tile = self.get_tile()
@@ -347,8 +347,8 @@ class Agent:
             self._handle_painting_action()
         elif terminal in music_terminals:
             self._handle_music_action()
-        elif terminal in quantum_terminals:
-            self._handle_quantum_computing_action()
+        elif terminal in literary_terminals:
+            self._handle_literary_creation_action()
 
     def _handle_painting_action(self):
         """处理绘画创作活动。"""
@@ -547,62 +547,62 @@ class Agent:
         else:
             self.logger.warning(f"{self.name} 尝试添加音乐创作思考到记忆，但 _add_concept 返回 None。")
 
-    def _handle_quantum_computing_action(self):
-        """处理量子计算活动。"""
-        print(f"检测到 {self.name} 正在使用量子生命终端")
-        
+    def _handle_literary_creation_action(self):
+        """处理文字创作活动（兰台书案）：结合角色个人背景，由其自主选择体裁进行文字创作。"""
+        print(f"检测到 {self.name} 正在兰台书案前进行文字创作")
+
         # 获取计划中的结束时间
         planned_end_time = self.action.start + datetime.timedelta(minutes=self.action.duration)
         current_time_str = planned_end_time.strftime("%Y-%m-%d %H:%M:%S")
 
-        if (self.last_quantum_computing_time is not None and
-            planned_end_time - self.last_quantum_computing_time < datetime.timedelta(hours=self.quantum_computing_limit)):
-            print(f"{self.name} 在过去一小时内已经使用过量子生命终端，需等待后才能再次使用。")
+        if (self.last_literary_creation_time is not None and
+            planned_end_time - self.last_literary_creation_time < datetime.timedelta(hours=self.literary_creation_limit)):
+            print(f"{self.name} 在过去一小时内已经进行过文字创作，需等待后才能再次创作。")
             return
-        
-        self.quantum_computing_count += 1
-        self.last_quantum_computing_time = planned_end_time
-        print(f"{self.name} 第 {self.quantum_computing_count} 次使用量子生命终端")
 
-        # 注意：这里假设你会在 prompt.py 中定义 generate_game_life_rule
-        quantum_computing_prompt = self.completion("generate_game_life_rule", self)
+        self.literary_creation_count += 1
+        self.last_literary_creation_time = planned_end_time
+        print(f"{self.name} 第 {self.literary_creation_count} 次在兰台书案前进行文字创作")
 
-        quantum_records_path = "results/quantum_computing_records.json"
-        quantum_records_dir = os.path.dirname(quantum_records_path)
-        if not os.path.exists(quantum_records_dir):
-            os.makedirs(quantum_records_dir, exist_ok=True)
-        
+        # 结合个人背景（记忆/固有特性/习得知识/生活方式）生成一篇文字创作
+        literary_creation = self.completion("generate_literary_creation", self)
+
+        literary_records_path = "results/literary_records.json"
+        literary_records_dir = os.path.dirname(literary_records_path)
+        if not os.path.exists(literary_records_dir):
+            os.makedirs(literary_records_dir, exist_ok=True)
+
         max_retries = 3
         retry_delay = 0.1
         for attempt in range(max_retries):
             try:
-                if os.path.exists(quantum_records_path):
-                    with open(quantum_records_path, "r", encoding="utf-8") as f:
+                if os.path.exists(literary_records_path):
+                    with open(literary_records_path, "r", encoding="utf-8") as f:
                         try:
                             f.read(50)
                         except UnicodeDecodeError:
-                            print(f"检测到 {quantum_records_path} 文件编码错误，尝试删除...")
-                            os.remove(quantum_records_path)
-                            print(f"已删除 {quantum_records_path} 文件。")
-                            break 
+                            print(f"检测到 {literary_records_path} 文件编码错误，尝试删除...")
+                            os.remove(literary_records_path)
+                            print(f"已删除 {literary_records_path} 文件。")
+                            break
             except PermissionError:
-                print(f"删除 {quantum_records_path} 文件失败，尝试 {attempt + 1}/{max_retries}...")
+                print(f"删除 {literary_records_path} 文件失败，尝试 {attempt + 1}/{max_retries}...")
                 time.sleep(retry_delay)
         else:
-            if os.path.exists(quantum_records_path):
-                 print(f"重试 {max_retries} 次后仍然无法删除 {quantum_records_path} 文件。")
+            if os.path.exists(literary_records_path):
+                 print(f"重试 {max_retries} 次后仍然无法删除 {literary_records_path} 文件。")
 
         try:
-            with open(quantum_records_path, "r", encoding="utf-8", errors="replace") as f:
+            with open(literary_records_path, "r", encoding="utf-8", errors="replace") as f:
                 data = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError, PermissionError):
-            print(f"读取 {quantum_records_path} 文件失败或文件为空/损坏，初始化新列表。")
+            print(f"读取 {literary_records_path} 文件失败或文件为空/损坏，初始化新列表。")
             data = []
 
         similar_record_exists = any(
             record.get("时间") == current_time_str and
             record.get("智能体") == self.name and
-            record.get("量子计算内容") == quantum_computing_prompt
+            record.get("创作内容") == literary_creation
             for record in data
         )
 
@@ -610,36 +610,36 @@ class Agent:
             data.append({
                 "时间": current_time_str,
                 "智能体": self.name,
-                "量子计算内容": quantum_computing_prompt
+                "创作内容": literary_creation
             })
-            with open(quantum_records_path, "w", encoding="utf-8") as f:
+            with open(literary_records_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=4)
         else:
-            print(f"已存在相同或类似的量子计算记录，跳过保存")
+            print(f"已存在相同或类似的文字创作记录，跳过保存")
 
-        quantum_event_description = f"{self.name} 在 {current_time_str} 使用了量子生命终端进行了一次计算，其核心内容是：{quantum_computing_prompt}"
-        
-        quantum_memory_event = memory.Event(
+        literary_event_description = f"{self.name} 在 {current_time_str} 于兰台书案前完成了一篇文字创作，其内容是：{literary_creation}"
+
+        literary_memory_event = memory.Event(
             subject=self.name,
-            predicate="执行了", 
-            object="一次量子计算",   
-            describe=quantum_event_description, 
+            predicate="创作了",
+            object="一篇文字",
+            describe=literary_event_description,
             address=self.get_tile().get_address(),
-            emoji="⚛️"
+            emoji="✍️"
         )
-        
-        new_quantum_memory_concept = self._add_concept("thought", quantum_memory_event)
-        
-        if new_quantum_memory_concept:
-            self.logger.info(f"{self.name} 成功将量子计算思考加入记忆。")
-            self.logger.info(f"  记忆ID: {new_quantum_memory_concept.node_id}")
-            self.logger.info(f"  类型: {new_quantum_memory_concept.node_type}")
-            self.logger.info(f"  创建时间: {new_quantum_memory_concept.create.strftime('%Y-%m-%d %H:%M:%S')}")
-            self.logger.info(f"  描述: {new_quantum_memory_concept.describe[:150]}...")
-            self.logger.info(f"  重要性评分 (Poignancy): {new_quantum_memory_concept.poignancy}")
-            self.logger.info(f"  事件主体: {new_quantum_memory_concept.event.subject}, 谓词: {new_quantum_memory_concept.event.predicate}, 宾语: {new_quantum_memory_concept.event.object}")
+
+        new_literary_memory_concept = self._add_concept("thought", literary_memory_event)
+
+        if new_literary_memory_concept:
+            self.logger.info(f"{self.name} 成功将文字创作思考加入记忆。")
+            self.logger.info(f"  记忆ID: {new_literary_memory_concept.node_id}")
+            self.logger.info(f"  类型: {new_literary_memory_concept.node_type}")
+            self.logger.info(f"  创建时间: {new_literary_memory_concept.create.strftime('%Y-%m-%d %H:%M:%S')}")
+            self.logger.info(f"  描述: {new_literary_memory_concept.describe[:150]}...")
+            self.logger.info(f"  重要性评分 (Poignancy): {new_literary_memory_concept.poignancy}")
+            self.logger.info(f"  事件主体: {new_literary_memory_concept.event.subject}, 谓词: {new_literary_memory_concept.event.predicate}, 宾语: {new_literary_memory_concept.event.object}")
         else:
-            self.logger.warning(f"{self.name} 尝试添加量子计算思考到记忆，但 _add_concept 返回 None。")
+            self.logger.warning(f"{self.name} 尝试添加文字创作思考到记忆，但 _add_concept 返回 None。")
 
     def move(self, coord, path=None):
         """处理智能体的移动和位置更新

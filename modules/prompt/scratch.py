@@ -1457,8 +1457,8 @@ class Scratch:
             "failsafe": f"{agent.name} 正在构思一段旋律",
         }
 
-    def prompt_generate_game_life_rule(self, agent):
-        """生成生命游戏规则提示词
+    def prompt_generate_literary_creation(self, agent):
+        """生成"结合个人背景的文字创作"提示词
         Args:
             agent: 智能体对象
         Returns:
@@ -1486,23 +1486,23 @@ class Scratch:
         }
 
         prompt = self.build_prompt(
-            "generate_game_life_rule", # 这会加载 data/prompts/generate_game_life_rule.txt
+            "generate_literary_creation", # 这会加载 data/prompts/generate_literary_creation.txt
             prompt_data
         )
 
         def _callback(response):
-            """解析LLM响应获取生命游戏规则描述
+            """解析LLM响应获取文字创作正文
             Args:
                 response: LLM的响应文本
             Returns:
-                生命游戏规则描述文本
+                文字创作正文
             """
             return response.strip() # 简单的回调，直接返回去除首尾空格的响应
 
         return {
             "prompt": prompt,
             "callback": _callback,
-            "failsafe": f"{self.name} 正在思考一个全新的生命游戏规则。", # LLM调用失败时的备用回复
+            "failsafe": f"{self.name} 正在兰台书案前凝神构思一篇文字。", # LLM调用失败时的备用回复
         }
 
     def prompt_chat_summary(self, agent_name, other_name, now_summary, events):
