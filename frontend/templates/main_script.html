@@ -1400,7 +1400,12 @@ input[type="text"].ui-input:focus {
         month: "long",                                    
         day: "numeric"                                    
     };
-    var start_datetime = new Date(Date.parse({{ start_datetime|tojson }}));  
+    var start_datetime = new Date(Date.parse({{ start_datetime|tojson }}));
+    // 回放起始时间与起始帧的固定快照（start_datetime 在播放中会不断前进，历史面板需要原始基准换算帧时间）
+    var initial_datetime_ms = start_datetime.getTime();
+    var initial_frame_step = step;
+    // 地图拖拽状态：拖动结束前抑制角色点击
+    var mapDragMoved = false;
 
     // 角色相关变量
     var persona_names = {{ persona_init_pos|tojson }};    
@@ -1570,6 +1575,9 @@ input[type="text"].ui-input:focus {
                 
                 // 添加缩放控制功能
                 setupZoomControls();
+
+                // 鼠标拖动平移 + 滚轮缩放
+                setupMapDragPan();
                 
                 // 监听窗口大小变化，调整画布大小
                 window.addEventListener('resize', handleResize);
@@ -1624,7 +1632,105 @@ input[type="text"].ui-input:focus {
             console.error("设置缩放控制时出错:", error);
         }
     }
-    
+
+    // 获取地图像素尺寸（优先读 tilemap 数据，读不到时退回已知的 12800x6400）
+    function getMapPixelSize() {
+        try {
+            const mapData = app && app.loader && app.loader.resources && app.loader.resources.map && app.loader.resources.map.data;
+            if (mapData && mapData.width && mapData.height && mapData.tilewidth && mapData.tileheight) {
+                return { w: mapData.width * mapData.tilewidth, h: mapData.height * mapData.tileheight };
+            }
+        } catch (e) {}
+        return { w: 12800, h: 6400 };
+    }
+
+    // 计算“整图刚好放进屏幕”的缩放值
+    function getFitZoom() {
+        const size = getMapPixelSize();
+        const fit = Math.min(app.screen.width / size.w, app.screen.height / size.h) * 0.98;
+        return Math.max(0.02, Math.min(1, fit));
+    }
+
+    // 同步底部缩放滑块/输入框的显示值
+    function syncZoomUI(z) {
+        const slider = document.getElementById('zoom-slider');
+        const input = document.getElementById('zoom-input');
+        const display = document.getElementById('zoom-value-display');
+        if (slider) {
+            if (z < parseFloat(slider.min)) slider.min = z.toFixed(2);
+            slider.value = z.toFixed(2);
+        }
+        if (input) input.value = z.toFixed(2);
+        if (display) display.textContent = z.toFixed(2) + 'x';
+    }
+
+    // 一键全景：缩放到整图可见并居中
+    function fitWholeMap() {
+        const size = getMapPixelSize();
+        const fitZoom = getFitZoom();
+        if (isCharacterLocked) { isCharacterLocked = false; currentLockedCharacter = null; }
+        app.stage.position.set(app.screen.width / 2, app.screen.height / 2);
+        app.stage.pivot.set(size.w / 2, size.h / 2);
+        applyHighQualityZoom(fitZoom);
+        syncZoomUI(fitZoom);
+    }
+
+    // 鼠标拖动平移 + 滚轮缩放
+    function setupMapDragPan() {
+        const view = app.view;
+        let dragging = false, lastX = 0, lastY = 0;
+        view.style.cursor = 'grab';
+        view.style.touchAction = 'none';
+
+        view.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return;
+            dragging = true;
+            mapDragMoved = false;
+            lastX = e.clientX; lastY = e.clientY;
+            view.style.cursor = 'grabbing';
+        });
+        window.addEventListener('pointermove', (e) => {
+            if (!dragging) return;
+            const dx = e.clientX - lastX, dy = e.clientY - lastY;
+            lastX = e.clientX; lastY = e.clientY;
+            if (Math.abs(dx) + Math.abs(dy) >= 2) mapDragMoved = true;
+            const z = app.stage.scale.x || 1;
+            app.stage.pivot.x -= dx / z;
+            app.stage.pivot.y -= dy / z;
+            // 手动拖动即解除角色锁定跟随，避免镜头被拉回
+            if (mapDragMoved && isCharacterLocked) {
+                isCharacterLocked = false;
+                currentLockedCharacter = null;
+            }
+        });
+        window.addEventListener('pointerup', () => {
+            if (!dragging) return;
+            dragging = false;
+            view.style.cursor = 'grab';
+            // 稍后复位，让本次手势末尾的 pointertap 仍能感知“刚拖动过”
+            setTimeout(() => { mapDragMoved = false; }, 0);
+        });
+
+        // 滚轮缩放：以鼠标位置为锚点
+        view.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const oldZoom = app.stage.scale.x || 1;
+            const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+            let newZoom = Math.max(getFitZoom() * 0.9, Math.min(1, oldZoom * factor));
+            newZoom = Math.round(newZoom * 100) / 100;
+            if (newZoom === oldZoom) return;
+            // 保持鼠标下的世界坐标不动
+            const rect = view.getBoundingClientRect();
+            const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+            const worldX = app.stage.pivot.x + (sx - app.stage.position.x) / oldZoom;
+            const worldY = app.stage.pivot.y + (sy - app.stage.position.y) / oldZoom;
+            applyHighQualityZoom(newZoom);
+            app.stage.pivot.x = worldX - (sx - app.stage.position.x) / newZoom;
+            app.stage.pivot.y = worldY - (sy - app.stage.position.y) / newZoom;
+            syncZoomUI(newZoom);
+        }, { passive: false });
+    }
+
     // 设置屏幕比例控制 - 修改这个函数来移除游戏内的控制UI
     function setupAspectRatioControls() {
         try {
@@ -2741,6 +2847,7 @@ input[type="text"].ui-input:focus {
                 npc.zIndex = 2;
                 characterContainer.addChild(npc);
                 personas[p] = npc;
+                enableAgentClick(npc, p);
                 
                 // 初始化动画方向字典
                 pre_anims_direction_dict[p] = "d"; // 默认朝下
@@ -2762,6 +2869,7 @@ input[type="text"].ui-input:focus {
                 npc.zIndex = 2;
                 characterContainer.addChild(npc);
                 personas[p] = npc;
+                enableAgentClick(npc, p);
                 
                 // 初始化动画方向字典
                 pre_anims_direction_dict[p] = "d"; // 默认朝下
@@ -3564,8 +3672,9 @@ input[type="text"].ui-input:focus {
         zoomControlContainer.appendChild(zoomLabel);
         
         const zoomSlider = document.createElement('input');
+        zoomSlider.id = 'zoom-slider';
         zoomSlider.type = 'range';
-        zoomSlider.min = '0.1';   // 最小缩放值比例
+        zoomSlider.min = '0.05';  // 最小缩放值比例（足以看到全景）
         zoomSlider.max = '1.0';   // 最大缩放值比例
         zoomSlider.step = '0.01'; // 更精细的步长以匹配输入框
         zoomSlider.value = '0.5';
@@ -3579,12 +3688,14 @@ input[type="text"].ui-input:focus {
         zoomInput.max = '1.0';
         zoomInput.step = '0.01';
         zoomInput.value = '0.5';
+        zoomInput.id = 'zoom-input';
         zoomInput.className = 'ui-input'; // 使用现有的输入框样式
         zoomInput.style.width = '50px'; // 调整宽度
         zoomInput.style.marginLeft = '5px';
         zoomControlContainer.appendChild(zoomInput);
         
         const zoomValueDisplay = document.createElement('span');
+        zoomValueDisplay.id = 'zoom-value-display';
         zoomValueDisplay.textContent = parseFloat(zoomSlider.value).toFixed(2) + 'x'; // 显示两位小数
         zoomValueDisplay.className = 'control-value';
         zoomValueDisplay.style.marginLeft = '5px';
@@ -3602,9 +3713,9 @@ input[type="text"].ui-input:focus {
             if (isNaN(currentZoom)) return; // 如果输入不是数字则忽略
 
             // 限制输入范围
-            if (currentZoom < 0.1) currentZoom = 0.1;
+            if (currentZoom < 0.05) currentZoom = 0.05;
             if (currentZoom > 1.0) currentZoom = 1.0;
-            
+
             zoomInput.value = currentZoom.toFixed(2); // 格式化输入框的值
             zoomSlider.value = currentZoom.toFixed(2);
             zoomValueDisplay.textContent = currentZoom.toFixed(2) + 'x';
@@ -3617,7 +3728,7 @@ input[type="text"].ui-input:focus {
             if (isNaN(currentZoom)) {
                 currentZoom = parseFloat(zoomSlider.value); // 无效输入则恢复滑块值
             } else {
-                if (currentZoom < 0.1) currentZoom = 0.1;
+                if (currentZoom < 0.05) currentZoom = 0.05;
                 if (currentZoom > 1.0) currentZoom = 1.0;
             }
             zoomInput.value = currentZoom.toFixed(2);
@@ -3626,7 +3737,13 @@ input[type="text"].ui-input:focus {
             // applyHighQualityZoom(currentZoom); // 可选：失焦时是否立即应用，通常input事件已处理
         });
         centerControlsContainer.appendChild(zoomControlContainer);
-        
+
+        // 添加全景按钮：缩放到整图可见并居中
+        const fitViewButton = createControlButton("🗺 全景", "btn-fit-view", "ui-button-secondary", () => {
+            fitWholeMap();
+        });
+        centerControlsContainer.appendChild(fitViewButton);
+
         // 添加太乙推演按钮
         const webSimButton = createControlButton("☯ 太乙推演", "btn-web-sim", "ui-button-info", () => {
             toggleWebSimPanel(); // 这个函数名 toggleWebSimPanel 内部的标题也已修改为 "太乙推演"
@@ -3741,6 +3858,169 @@ input[type="text"].ui-input:focus {
         }
     }
     
+    // ===== 角色历史面板：点击地图上的角色查看其全部活动与对话 =====
+    function enableAgentClick(npc, name) {
+        try {
+            npc.interactive = true;
+            npc.buttonMode = true;
+            npc.on('pointertap', () => {
+                if (mapDragMoved) return; // 刚拖动过地图，不算点击
+                showAgentHistoryPanel(name);
+            });
+        } catch (e) {
+            console.error(`为角色 ${name} 绑定点击事件失败:`, e);
+        }
+    }
+
+    // 由帧号换算模拟内时间（基于回放起始时间快照）
+    function frameTimeLabel(frame) {
+        const d = new Date(initial_datetime_ms + (frame - initial_frame_step) * step_size);
+        return d.toLocaleString('zh-CN', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    // conversation 键形如 "20240213-09:40"
+    function convTimeLabel(key) {
+        const m = /^(\d{4})(\d{2})(\d{2})-(\d{2}):(\d{2})$/.exec(key);
+        if (!m) return key;
+        return `${parseInt(m[2])}月${parseInt(m[3])}日 ${m[4]}:${m[5]}`;
+    }
+
+    function escapeHtmlText(s) {
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // 汇总某角色全程的活动（去除相邻重复动作）
+    function collectAgentActivities(name) {
+        const acts = [];
+        const frames = Object.keys(all_movement).filter(k => /^\d+$/.test(k)).map(Number).sort((a, b) => a - b);
+        let lastAction = null;
+        for (const f of frames) {
+            const fd = all_movement[f];
+            const m = fd && (fd[name] || fd[String(name).replace('_', ' ')]);
+            if (!m || !m.action) continue;
+            if (m.action !== lastAction) {
+                acts.push({ frame: f, action: m.action, location: m.location || '' });
+                lastAction = m.action;
+            }
+        }
+        return acts;
+    }
+
+    // 汇总某角色参与的全部对话（按发言人名匹配）
+    function collectAgentConversations(name) {
+        const conv = (all_movement && all_movement['conversation']) || {};
+        const out = [];
+        for (const t of Object.keys(conv).sort()) {
+            const c = conv[t];
+            if (typeof c === 'string' && c && (c.indexOf(name + '：') !== -1 || c.indexOf(name + ':') !== -1)) {
+                out.push({ time: t, text: c });
+            }
+        }
+        return out;
+    }
+
+    function hideAgentHistoryPanel() {
+        const panel = document.getElementById('agent-history-panel');
+        if (panel) panel.remove();
+    }
+
+    function showAgentHistoryPanel(name) {
+        hideAgentHistoryPanel();
+
+        const panel = document.createElement('div');
+        panel.id = 'agent-history-panel';
+        Object.assign(panel.style, {
+            position: 'fixed', top: '70px', right: '12px', bottom: '90px', width: '400px',
+            maxWidth: '90vw', background: 'rgba(20, 22, 30, 0.94)', color: '#eee', zIndex: '10000',
+            borderRadius: '10px', border: '1px solid rgba(255,255,255,0.15)',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.5)', fontSize: '13px'
+        });
+
+        // 头部：头像 + 名字 + 关闭
+        const header = document.createElement('div');
+        Object.assign(header.style, {
+            display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px',
+            background: 'rgba(255,255,255,0.08)', flex: '0 0 auto'
+        });
+        const portrait = document.createElement('img');
+        portrait.src = `/static/assets/village/agents/${name}/portrait.png`;
+        Object.assign(portrait.style, { width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' });
+        portrait.onerror = () => { portrait.style.display = 'none'; };
+        const title = document.createElement('div');
+        title.textContent = name;
+        Object.assign(title.style, { fontSize: '16px', fontWeight: 'bold', flex: '1' });
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '×';
+        Object.assign(closeBtn.style, {
+            background: 'none', border: 'none', color: '#ccc', fontSize: '22px',
+            cursor: 'pointer', lineHeight: '1', padding: '0 4px'
+        });
+        closeBtn.addEventListener('click', hideAgentHistoryPanel);
+        header.appendChild(portrait); header.appendChild(title); header.appendChild(closeBtn);
+        panel.appendChild(header);
+
+        // 页签：活动轨迹 / 对话记录
+        const tabBar = document.createElement('div');
+        Object.assign(tabBar.style, { display: 'flex', flex: '0 0 auto', borderBottom: '1px solid rgba(255,255,255,0.12)' });
+        const body = document.createElement('div');
+        Object.assign(body.style, { flex: '1 1 auto', overflowY: 'auto', padding: '10px 12px' });
+
+        const activities = collectAgentActivities(name);
+        const conversations = collectAgentConversations(name);
+
+        function renderActivities() {
+            if (!activities.length) { body.innerHTML = '<div style="color:#999">暂无活动记录</div>'; return; }
+            body.innerHTML = activities.map(a => `
+                <div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed rgba(255,255,255,0.1)">
+                    <div style="color:#f0c674;font-size:12px">${escapeHtmlText(frameTimeLabel(a.frame))}</div>
+                    <div style="margin-top:2px">${escapeHtmlText(a.action)}</div>
+                    ${a.location ? `<div style="color:#8abeb7;font-size:12px;margin-top:2px">📍 ${escapeHtmlText(a.location)}</div>` : ''}
+                </div>`).join('');
+        }
+
+        function renderConversations() {
+            if (!conversations.length) { body.innerHTML = '<div style="color:#999">暂无对话记录</div>'; return; }
+            const nameRe = new RegExp(escapeHtmlText(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+            body.innerHTML = conversations.map(c => {
+                let text = escapeHtmlText(c.text.trim()).replace(/\n/g, '<br>');
+                text = text.replace(nameRe, `<b style="color:#f0c674">${escapeHtmlText(name)}</b>`);
+                return `
+                <div style="margin-bottom:12px;padding-bottom:10px;border-bottom:1px dashed rgba(255,255,255,0.1)">
+                    <div style="color:#f0c674;font-size:12px;margin-bottom:4px">🕒 ${escapeHtmlText(convTimeLabel(c.time))}</div>
+                    <div style="line-height:1.6">${text}</div>
+                </div>`;
+            }).join('');
+        }
+
+        function makeTab(label, render, active) {
+            const tab = document.createElement('button');
+            tab.textContent = label;
+            Object.assign(tab.style, {
+                flex: '1', padding: '8px 0', background: 'none', border: 'none',
+                color: active ? '#f0c674' : '#aaa', cursor: 'pointer', fontSize: '13px',
+                borderBottom: active ? '2px solid #f0c674' : '2px solid transparent'
+            });
+            tab.addEventListener('click', () => {
+                tabBar.querySelectorAll('button').forEach(b => {
+                    b.style.color = '#aaa'; b.style.borderBottom = '2px solid transparent';
+                });
+                tab.style.color = '#f0c674'; tab.style.borderBottom = '2px solid #f0c674';
+                render();
+                body.scrollTop = 0;
+            });
+            return tab;
+        }
+
+        tabBar.appendChild(makeTab(`活动轨迹 (${activities.length})`, renderActivities, true));
+        tabBar.appendChild(makeTab(`对话记录 (${conversations.length})`, renderConversations, false));
+        panel.appendChild(tabBar);
+        panel.appendChild(body);
+        renderActivities();
+
+        document.body.appendChild(panel);
+    }
+
     // 锁定角色
     function lockCharacter(character, characterName) {
         currentLockedCharacter = character;
@@ -4068,6 +4348,18 @@ input[type="text"].ui-input:focus {
                 toggleDialogBubbles();
             }
             
+            // 空格键：开始/暂停回放（在输入框中打字时不触发）
+            if (e.key === ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                const t = e.target;
+                const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+                if (!typing) {
+                    e.preventDefault();
+                    if (!finished) {
+                        if (paused) buttonPlay.click(); else buttonPause.click();
+                    }
+                }
+            }
+
             // 添加快捷键支持
             if (e.ctrlKey || e.metaKey) {
                 switch(e.key.toLowerCase()) {
@@ -4101,6 +4393,7 @@ input[type="text"].ui-input:focus {
             
             // ESC键隐藏浮动窗口
             if (e.key === 'Escape') {
+                hideAgentHistoryPanel();
                 if (settingsWindow) {
                     toggleSettingsWindow();
                 }
@@ -4123,7 +4416,7 @@ input[type="text"].ui-input:focus {
         });
         
         // 显示快捷键提示
-        showSystemMessage(`快捷键: Ctrl+Space(运行/暂停) Ctrl+D(对话面板) ${dialogBubbleToggleKey.toUpperCase()}键(NPC对话气泡) Ctrl+S(设置) Ctrl+W(太乙推演) ESC(关闭窗口)`, 5000);
+        showSystemMessage(`快捷键: 空格(运行/暂停) Ctrl+D(对话面板) ${dialogBubbleToggleKey.toUpperCase()}键(NPC对话气泡) Ctrl+S(设置) Ctrl+W(太乙推演) ESC(关闭窗口)`, 5000);
     }
 
     // 更新时间显示
@@ -7646,6 +7939,18 @@ input[type="text"].ui-input:focus {
                 toggleDialogBubbles();
             }
             
+            // 空格键：开始/暂停回放（在输入框中打字时不触发）
+            if (e.key === ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                const t = e.target;
+                const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+                if (!typing) {
+                    e.preventDefault();
+                    if (!finished) {
+                        if (paused) buttonPlay.click(); else buttonPause.click();
+                    }
+                }
+            }
+
             // 添加快捷键支持
             if (e.ctrlKey || e.metaKey) {
                 switch(e.key.toLowerCase()) {
@@ -7675,6 +7980,7 @@ input[type="text"].ui-input:focus {
             
             // ESC键隐藏浮动窗口
             if (e.key === 'Escape') {
+                hideAgentHistoryPanel();
                 if (settingsWindow) {
                     toggleSettingsWindow();
                 }
@@ -7694,7 +8000,7 @@ input[type="text"].ui-input:focus {
         });
         
         // 显示快捷键提示
-        showSystemMessage(`快捷键: Ctrl+Space(运行/暂停) Ctrl+D(对话面板) ${dialogBubbleToggleKey.toUpperCase()}键(NPC对话气泡) Ctrl+S(设置) ESC(关闭窗口)`, 5000);
+        showSystemMessage(`快捷键: 空格(运行/暂停) Ctrl+D(对话面板) ${dialogBubbleToggleKey.toUpperCase()}键(NPC对话气泡) Ctrl+S(设置) ESC(关闭窗口)`, 5000);
     }
 
     // 全局变量存储网页模拟数据和状态
