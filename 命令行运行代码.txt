@@ -2,7 +2,7 @@
 虚拟环境
 
 
-conda activate myenv
+conda activate AItown
 
 
 python start.py --name wxr31 --start "20240213-09:30" --step 150 --stride 10

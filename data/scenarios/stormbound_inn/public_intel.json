@@ -1,0 +1,19 @@
+{
+  "public_intel": [
+    {"id": "intel-coroner-needle", "title": "针孔验伤", "category": "forensic", "source": "临时验尸记录", "claim": "死者颈后有一个极细针孔，死亡更像是迟发针毒而非茶中下毒。", "reliability": 0.92},
+    {"id": "intel-gate-log", "title": "门闩记录", "category": "timeline", "source": "店小二证词", "claim": "死者进门后，正门只开启过一次，当时六名住客都仍在客栈内。", "reliability": 0.86},
+    {"id": "intel-stable-count", "title": "马匹清点", "category": "escape", "source": "马夫清点", "claim": "马厩共有七匹马，其中一匹已经提前备好轻鞍。", "reliability": 0.82},
+    {"id": "intel-courier-route", "title": "驿卒来路", "category": "timeline", "source": "驿站旧档", "claim": "陆成傍晚从广陵城东方向独自上路，按脚程应在酉时抵达客栈。", "reliability": 0.88},
+    {"id": "intel-poison-window", "title": "毒发时限", "category": "forensic", "source": "左慈的初步判断", "claim": "此类针毒通常在受伤后半个时辰至一个时辰发作。", "reliability": 0.8},
+    {"id": "intel-badge-workshop", "title": "假腰牌来源", "category": "evidence", "source": "城东工匠口供摘录", "claim": "伪造腰牌使用的旧模泥只在城东两家作坊流通过。", "reliability": 0.78},
+    {"id": "intel-rain-timing", "title": "暴雨时刻", "category": "timeline", "source": "客栈更漏", "claim": "暴雨在酉时三刻骤然加重，此后翻越后墙会留下明显湿痕。", "reliability": 0.9},
+    {"id": "intel-courier-pouch", "title": "空信囊", "category": "evidence", "source": "尸身清点", "claim": "死者腰间信囊内侧有刚被撕走封条的痕迹，原本至少装过一封信。", "reliability": 0.9},
+    {"id": "intel-black-feather", "title": "黑羽纹样", "category": "faction", "source": "绣衣楼旧档", "claim": "黑羽纹并非正式组织徽记，过去常被情报贩子用作临时联络标记。", "reliability": 0.72},
+    {"id": "intel-guest-count", "title": "住客人数", "category": "rule", "source": "掌柜确认", "claim": "案发时后厨、客房和马厩没有第七名住客藏身，凶手就在六人之中。", "reliability": 0.95},
+    {"id": "intel-wall-height", "title": "后墙路线", "category": "escape", "source": "客栈结构图", "claim": "马厩后的矮墙可以翻越，但必须借助短梯或马背。", "reliability": 0.9},
+    {"id": "intel-ledger-ink", "title": "账页墨迹", "category": "evidence", "source": "账房比对", "claim": "残缺账页与失踪页使用同一批墨，但撕裂时间早于今晚。", "reliability": 0.84},
+    {"id": "intel-palace-stitch", "title": "宫制针脚", "category": "identity", "source": "旧衣铺辨认", "claim": "死者袖口的针脚仿照宫中旧制，却有两处外行人才会犯的错。", "reliability": 0.76},
+    {"id": "intel-arrow-fletching", "title": "断箭辨伪", "category": "evidence", "source": "江东军械常识", "claim": "断箭虽装江东箭羽，箭杆长度却不符合江东军制。", "reliability": 0.89},
+    {"id": "intel-vote-rule", "title": "终局表决", "category": "rule", "source": "临时掌柜规则", "claim": "天明前每名仍能表达意见的住客都必须独立写下凶手姓名，得票结果随后公开。", "reliability": 1.0}
+  ]
+}

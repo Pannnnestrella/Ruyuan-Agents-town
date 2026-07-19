@@ -1503,6 +1503,7 @@ class Scratch:
             "prompt": prompt,
             "callback": _callback,
             "failsafe": f"{self.name} 正在兰台书案前凝神构思一篇文字。", # LLM调用失败时的备用回复
+            "temperature": 0.95, # 提高采样温度，避免文字创作产出雷同
         }
 
     def prompt_chat_summary(self, agent_name, other_name, now_summary, events):

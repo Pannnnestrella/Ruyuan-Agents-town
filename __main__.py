@@ -1,6 +1,7 @@
 import os
 import sys
 import argparse
+import subprocess
 
 def main():
     parser = argparse.ArgumentParser(description="AI小镇 - 源码运行入口")
@@ -16,6 +17,7 @@ def main():
     p_start.add_argument("--log", type=str, default="")
 
     sub.add_parser("replay", help="启动回放 Web 服务 (5000)")
+    sub.add_parser("interactive", help="启动互动回合推演服务 (5001)")
 
     args, unknown = parser.parse_known_args()
 
@@ -37,12 +39,17 @@ def main():
             cmd += ["--log", args.log]
     elif args.cmd == "replay":
         cmd = [py, "-u", os.path.join(root, "replay.py")]
+    elif args.cmd == "interactive":
+        cmd = [py, "-u", os.path.join(root, "interactive_server.py")]
     else:
         # 默认展示帮助
         parser.print_help()
         return
 
-    os.execv(py, [py] + cmd[1:])
+    # ``os.execv`` on Windows may flatten the argument vector without quoting
+    # script paths, which breaks this repository's default directory name
+    # (``Ruyuan - Agents-Town``).  ``subprocess`` preserves the list boundary.
+    raise SystemExit(subprocess.call(cmd, cwd=root))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>停云客栈 · 实时地图</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/interactive_live.css') }}">
+</head>
+<body>
+    <section id="live-landing" class="live-landing">
+        <p class="eyebrow">如鸢 · 可交互多智能体剧本杀</p>
+        <h1>暴雨夜 · 停云客栈</h1>
+        <p id="live-premise" class="premise">正在读取情景……</p>
+        <div class="entry-heading">
+            <strong>选择你要代入的角色</strong>
+            <span>选角后，本局只向你展示该角色亲历的信息、记忆与秘密。</span>
+        </div>
+        <div id="role-options" class="role-options"></div>
+        <div class="landing-actions">
+            <button id="live-create" class="secondary" disabled>不选角色 · 全局观察</button>
+            <a href="/interactive/director" class="secondary">进入导演台</a>
+        </div>
+        <p class="hint">角色席负责你的逐次决策；导演台负责每轮公告、公开情报和事件选择。两者可以分别打开。</p>
+    </section>
+
+    <main id="live-app" class="live-app hidden">
+        <header class="live-header">
+            <div>
+                <p class="eyebrow">客栈实况 · 角色视角与全局观察</p>
+                <h1 id="live-title">暴雨夜 · 停云客栈</h1>
+            </div>
+            <div class="header-controls">
+                <span id="live-status" class="live-status"><i></i> 等待导演干预</span>
+                <span class="round-chip">第 <strong id="live-round">0</strong>/<span id="live-max-rounds">10</span> 轮</span>
+                <span id="live-action-step" class="round-chip">行动 0/3</span>
+                <span id="live-view-mode" class="round-chip">全局观察</span>
+                <a href="/interactive/director" class="director-link">导演台</a>
+                <button id="live-new-game" class="director-link" type="button">新开一局</button>
+            </div>
+        </header>
+
+        <section class="rule-strip">
+            <span>凶手就在六人之中</span>
+            <span>正门禁止离开</span>
+            <span>每轮 3 次主要行动 · 移动交谈自由</span>
+            <span id="live-planner">决策引擎读取中</span>
+            <span id="live-game-id"></span>
+        </section>
+
+        <section class="stage-grid">
+            <div class="map-panel">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">场景地图</p>
+                        <h2>人物正在客栈中行动</h2>
+                    </div>
+                    <p>每个回合按行动顺序播放</p>
+                </div>
+                <div id="live-map" class="live-map"></div>
+                <article id="bulletin-board" class="bulletin-board">
+                    <div class="bulletin-heading">
+                        <div><p class="eyebrow">客栈大堂</p><h3>公开公告栏</h3></div>
+                        <span id="bulletin-location-hint">前往大堂后可阅读与张贴</span>
+                    </div>
+                    <div id="bulletin-posts" class="bulletin-posts"></div>
+                    <div id="player-bulletin-composer" class="bulletin-composer hidden">
+                        <textarea id="player-bulletin-content" maxlength="500" rows="2" placeholder="以当前角色的名字公开一条情报。所有后来进入大堂的人也能看到。"></textarea>
+                        <button id="post-player-bulletin" class="secondary" type="button">实名张贴</button>
+                    </div>
+                </article>
+            </div>
+
+            <aside id="player-action-column" class="player-action-column hidden">
+                <article class="story-guide-panel">
+                    <div class="story-guide-heading">
+                        <p class="eyebrow">当前剧情</p>
+                        <span id="story-guide-location">停云客栈</span>
+                    </div>
+                    <h2 id="story-guide-title">风雨将至</h2>
+                    <p id="story-guide-situation" class="story-guide-situation">正在确认你所看见的局势……</p>
+                    <p id="story-guide-recent" class="story-guide-recent hidden"></p>
+                    <div class="story-guide-objective">
+                        <span>现在要做什么</span>
+                        <strong id="story-guide-objective">等待剧情开始</strong>
+                    </div>
+                    <div id="story-guide-suggestions" class="story-guide-suggestions"></div>
+                </article>
+
+                <article class="decision-panel">
+                    <div class="decision-heading">
+                        <div>
+                            <p class="eyebrow">由你决定</p>
+                            <h2 id="decision-title">等待主持人选择事件</h2>
+                        </div>
+                        <span id="decision-location"></span>
+                    </div>
+                    <div id="action-type-grid" class="action-type-grid"></div>
+                    <div id="action-fields" class="action-fields">
+                        <label id="destination-field" class="hidden">前往哪里<select id="action-destination"></select></label>
+                        <label id="target-field" class="hidden">选择对象<select id="action-target"></select></label>
+                        <label id="object-field" class="hidden">选择物品<select id="action-object"></select></label>
+                        <label id="memory-field" class="hidden">主动交换一条记忆（可选）<select id="action-memory"><option value="">只说下面这句话</option></select></label>
+                        <label id="content-field" class="hidden">你准备说什么<textarea id="action-content" maxlength="200" rows="3" placeholder="可以提问、试探、撒谎；若选择交换记忆，对方会真正获得那条信息。"></textarea></label>
+                    </div>
+                    <button id="submit-action" class="primary" type="button" disabled>确认这次行动</button>
+                    <div id="action-progress" class="action-progress hidden" aria-live="polite">
+                        <div class="progress-copy"><strong id="action-progress-label">其他密探正在决定行动</strong><span id="action-progress-count">0/0</span></div>
+                        <div class="progress-track"><i id="action-progress-bar"></i></div>
+                        <div id="action-progress-agents" class="progress-agents"></div>
+                    </div>
+                    <div class="round-control-row">
+                        <button id="end-player-round" class="secondary hidden" type="button">结束本轮</button>
+                        <button id="auto-host-next-round" class="auto-host-button hidden" type="button">自动主持 · 展开下一轮</button>
+                    </div>
+                    <p id="decision-hint" class="hint">移动与交谈可自由进行；搜查等主要行动每轮最多 3 次。</p>
+                </article>
+            </aside>
+
+            <aside id="observer-event-panel" class="event-panel">
+                <div class="section-heading compact">
+                    <div>
+                        <p class="eyebrow">当前镜头</p>
+                        <h2>行动与对话</h2>
+                    </div>
+                </div>
+                <article id="event-focus" class="event-focus idle">
+                    <span id="focus-type">等待</span>
+                    <h3 id="focus-title">导演尚未推进下一轮</h3>
+                    <p id="focus-location">你可以在另一个页面打开导演台。</p>
+                </article>
+                <div class="feed-heading">
+                    <strong>实况记录</strong>
+                    <span>最新在前</span>
+                </div>
+                <div id="live-feed" class="live-feed"></div>
+            </aside>
+        </section>
+
+        <section id="tracks-panel" class="tracks-panel">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">人物追踪</p>
+                    <h2>每个人这一局做了什么</h2>
+                </div>
+                <p>公开的是行动；凶手的身份、动机与内在计划仍然隐藏</p>
+            </div>
+            <div id="agent-tracks" class="agent-tracks"></div>
+        </section>
+
+        <section id="player-vote-panel" class="vote-panel hidden">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">最后一次由你决定</p>
+                    <h2>根据你的记忆，谁是凶手？</h2>
+                </div>
+            </div>
+            <div class="player-vote-form">
+                <select id="player-vote-target"></select>
+                <textarea id="player-vote-reason" maxlength="240" rows="3" placeholder="写下你依据的行动、对话或线索。"></textarea>
+                <button id="submit-player-vote" class="primary" type="button">提交最终指认</button>
+            </div>
+        </section>
+
+        <section id="vote-panel" class="vote-panel hidden">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">终局表决</p>
+                    <h2>六人的记忆给出了不同答案</h2>
+                </div>
+            </div>
+            <div id="vote-result"></div>
+        </section>
+        <section id="conversation-archive" class="conversation-archive hidden">
+            <div class="section-heading">
+                <div><p class="eyebrow">私密案卷</p><h2>对话档案</h2></div>
+                <p>只记录你亲自参与或在现场听见的交谈；交换过的情报可继续转述</p>
+            </div>
+            <div id="conversation-tabs" class="conversation-tabs"></div>
+            <div id="conversation-thread" class="conversation-thread"></div>
+        </section>
+        <section id="final-discussion-panel" class="vote-panel hidden">
+            <div class="section-heading">
+                <div><p class="eyebrow">终局公议</p><h2>所有仍在客栈的人已经回到大堂</h2></div>
+                <p>读完众人的最后陈述后，再进入投票</p>
+            </div>
+            <button id="open-final-voting" class="primary" type="button">结束讨论 · 进入最终投票</button>
+        </section>
+    </main>
+
+    <div id="opening-overlay" class="opening-overlay hidden" aria-hidden="true">
+        <div class="dispatch-rain" aria-hidden="true"></div>
+        <article id="opening-dispatch" class="opening-dispatch" aria-labelledby="opening-title">
+            <div class="scroll-rod top" aria-hidden="true"></div>
+            <p id="opening-classification" class="dispatch-classification">绣衣楼绝密 · 阅后即焚</p>
+            <h1 id="opening-title">西驿急递</h1>
+            <div id="opening-body" class="opening-body"></div>
+            <p id="opening-signature" class="opening-signature"></p>
+            <p id="opening-note" class="opening-note"></p>
+            <button id="enter-from-dispatch" class="dispatch-enter" type="button">按住信纸 · 展开真相</button>
+            <div class="scroll-rod bottom" aria-hidden="true"></div>
+        </article>
+    </div>
+
+    <div id="story-overlay" class="story-overlay hidden" aria-hidden="true">
+        <article id="story-scroll" class="story-scroll" aria-labelledby="story-player-name">
+            <div class="scroll-rod top" aria-hidden="true"></div>
+            <header class="story-scroll-header">
+                <p class="eyebrow">绝密角色卷宗 · 只有你知道</p>
+                <h1 id="story-player-name">尚未入席</h1>
+                <p id="player-role" class="story-role"></p>
+            </header>
+            <blockquote id="story-hook" class="story-hook"></blockquote>
+            <section class="story-section">
+                <h2>你的故事</h2>
+                <div id="story-body" class="story-body"></div>
+            </section>
+            <section id="story-memory-section" class="story-section">
+                <h2>你记得的事</h2>
+                <div id="player-memories" class="inspectable-list"></div>
+            </section>
+            <section class="story-section">
+                <h2>你的专属能力</h2>
+                <div id="player-abilities" class="inspectable-list"></div>
+            </section>
+            <div class="story-private-grid">
+                <section class="story-section secret-section">
+                    <h2>你的秘密</h2>
+                    <div id="player-secrets" class="inspectable-list"></div>
+        </section>
+
+                <section class="story-section task-section">
+                    <h2>你的任务</h2>
+                    <div id="player-goals" class="inspectable-list"></div>
+                </section>
+            </div>
+            <section class="story-section compact-section">
+                <h2>随身物品</h2>
+                <div id="player-inventory" class="inspectable-list inline"></div>
+            </section>
+            <p class="story-close-hint">读完后点击卷宗外的空白处，它会收回页面边缘；游戏中可随时重新展开。</p>
+            <div class="scroll-rod bottom" aria-hidden="true"></div>
+        </article>
+    </div>
+
+    <div id="dossier-edge-tabs" class="dossier-edge-tabs hidden" aria-label="角色私密卷宗">
+        <button id="open-character-scroll" type="button">
+            <span>你的角色</span>
+            <strong id="player-name">尚未入席</strong>
+            <small>得分 <b id="player-score">0</b></small>
+        </button>
+        <button id="open-memory-scroll" type="button">
+            <span>只有你知道</span>
+            <strong id="private-memory-count">0 条记忆</strong>
+            <small>点击展开卷宗</small>
+        </button>
+    </div>
+
+    <div id="detail-overlay" class="detail-overlay hidden" aria-hidden="true">
+        <article class="detail-card">
+            <p id="detail-kicker" class="eyebrow">卷宗细目</p>
+            <h2 id="detail-title"></h2>
+            <p id="detail-body"></p>
+            <button id="detail-close" class="secondary" type="button">收起</button>
+        </article>
+    </div>
+
+    <div id="player-event-feedback" class="player-event-feedback hidden" aria-live="assertive" aria-hidden="true">
+        <article class="player-event-card">
+            <p id="player-event-kicker" class="eyebrow">你亲历的新情况</p>
+            <h2 id="player-event-title">行动结果</h2>
+            <p id="player-event-summary"></p>
+            <p id="player-event-detail" class="player-event-detail hidden"></p>
+            <button id="player-event-reply" class="primary hidden" type="button">立即回应</button>
+            <button id="player-event-close" class="secondary" type="button">我知道了</button>
+        </article>
+    </div>
+
+    <div id="live-dispatch-layer" class="dispatch-layer" aria-live="polite"></div>
+    <div id="live-toast" class="toast hidden"></div>
+    <script src="{{ url_for('static', filename='js/interactive_live.js') }}"></script>
+</body>
+</html>

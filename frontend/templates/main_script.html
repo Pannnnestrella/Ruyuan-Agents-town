@@ -1427,6 +1427,11 @@ input[type="text"].ui-input:focus {
     let player;
     let mapContainer;
     let uiContainer;
+    // 地图风格切换：大地图图片（1.png / 2.png 同尺寸）作为整图瓦片集使用，
+    // 切换时只需把每个瓦片精灵的纹理换到另一张图的同一位置区域
+    const MAP_STYLE_KEYS = ['tilemap_1', 'tilemap_2'];
+    let currentMapStyle = 0;
+    const bigMapTileSprites = [];  // 从大地图上切出的所有瓦片精灵
     let currentTimeText = null;
     let conversationText;
     let buttonPlay, buttonPause, buttonShowConversation, buttonHideConversation, buttonShowCollision, buttonHideCollision, buttonClearConversation;
@@ -2138,7 +2143,7 @@ input[type="text"].ui-input:focus {
         // 加载地图瓦片
         // Dynamically load PNGs found in the tilemap directory
         // Based on the files found in 'generative_agents/frontend/static/assets/village/tilemap/'
-        const tilemapPngFiles = ["1.png", "色表.png"]; // Detected PNG files
+        const tilemapPngFiles = ["1.png", "2.png", "色表.png"]; // Detected PNG files
         tilemapPngFiles.forEach(fileName => {
             // Extract the name without extension to use as a resource key
             // Replace non-alphanumeric characters from filename for a valid key if necessary.
@@ -3019,11 +3024,15 @@ input[type="text"].ui-input:focus {
                                                 new PIXI.Rectangle(tileX, tileY, tileset.tilewidth, tileset.tileheight)
                                             );
                                             const tile = new PIXI.Sprite(texture);
-                                            
+
                                             // 设置瓦片位置
                                             tile.x = x * tile_width;
                                             tile.y = y * tile_width;
-                                            
+
+                                            // 大地图瓦片登记在册，供地图风格切换时换纹理
+                                            if (textureKey === MAP_STYLE_KEYS[0]) {
+                                                bigMapTileSprites.push(tile);
+                                            }
                                             layerContainer.addChild(tile);
                                         } catch (error) {
                                             console.error(`创建瓦片时出错 (图层: ${layer.name}, 位置: ${x},${y}, 瓦片ID: ${tileId}):`, error);
@@ -3055,10 +3064,61 @@ input[type="text"].ui-input:focus {
             app.stage.position.set(app.screen.width / 2, app.screen.height / 2);
             app.stage.pivot.set(2500, 2500);
 
+            // 地图风格切换按钮（有第二套地图纹理时才显示）
+            createMapStyleButton();
+
         } catch (error) {
             console.error("创建地图失败:", error);
             createSimpleBackground();
         }
+    }
+
+    // ---- 地图风格切换 ---------------------------------------------------- //
+    // 1.png / 2.png 尺寸一致（12800x6400），瓦片是按 32px 网格从整图上切的，
+    // 因此切换风格 = 用另一张图的 baseTexture 重建每个瓦片的同位置纹理。
+    function switchMapStyle() {
+        const resources = app.loader.resources;
+        const next = (currentMapStyle + 1) % MAP_STYLE_KEYS.length;
+        const res = resources[MAP_STYLE_KEYS[next]];
+        if (!res || !res.texture || !res.texture.valid) {
+            showSystemMessage(`地图风格 ${next + 1} 的图片未加载`);
+            return;
+        }
+        const base = res.texture.baseTexture;
+        bigMapTileSprites.forEach(sp => {
+            const frame = sp.texture.frame;
+            const old = sp.texture;
+            sp.texture = new PIXI.Texture(base, frame);
+            old.destroy(false);  // 只销毁切片纹理，不动 baseTexture
+        });
+        currentMapStyle = next;
+        const btn = document.getElementById('map-style-btn');
+        if (btn) btn.textContent = `🗺️ 地图风格 ${currentMapStyle + 1}`;
+        console.log(`地图风格已切换为 ${MAP_STYLE_KEYS[next]}（${bigMapTileSprites.length} 个瓦片）`);
+    }
+
+    function createMapStyleButton() {
+        const container = document.getElementById('game-container');
+        if (!container || document.getElementById('map-style-btn')) return;
+        // 只有一张地图图片时不显示按钮
+        const loadedStyles = MAP_STYLE_KEYS.filter(k => {
+            const r = app.loader.resources[k];
+            return r && r.texture && r.texture.valid;
+        });
+        if (loadedStyles.length < 2) return;
+        const btn = document.createElement('button');
+        btn.id = 'map-style-btn';
+        btn.textContent = `🗺️ 地图风格 ${currentMapStyle + 1}`;
+        btn.style.cssText = [
+            'position:absolute', 'top:12px', 'right:12px', 'z-index:20',
+            'padding:6px 14px', 'border-radius:8px', 'cursor:pointer',
+            'background:linear-gradient(145deg,#2a2a2a,#1a1a1a)',
+            'border:1px solid #4a3f2a', 'color:#f4e4c1',
+            'font-size:13px', 'font-weight:500',
+            'box-shadow:0 2px 8px rgba(212,175,55,0.15)',
+        ].join(';');
+        btn.onclick = switchMapStyle;
+        container.appendChild(btn);
     }
     
     

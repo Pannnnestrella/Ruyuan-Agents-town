@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "id": "guangling_inn",
+  "name": "停云客栈",
+  "description": "广陵城外驿道旁的一座两层客栈。暴雨冲毁道路后，客栈与外界暂时隔绝。",
+  "default_notice_location": "lobby",
+  "locations": [
+    {
+      "id": "front_gate",
+      "name": "客栈正门",
+      "description": "厚重木门已经落闩，门外是被暴雨吞没的驿道。",
+      "connections": ["lobby", "stable"],
+      "public": true,
+      "searchable": true,
+      "capacity": 4,
+      "tags": ["exit", "rain_exposed"],
+      "layout": {"floor": 1, "x": 2, "y": 4, "w": 2, "h": 1}
+    },
+    {
+      "id": "lobby",
+      "name": "客栈大堂",
+      "description": "大堂中央燃着炭盆，柜台旁悬着供住客阅看的公告板。",
+      "connections": ["front_gate", "kitchen", "courtyard", "stairs"],
+      "public": true,
+      "searchable": true,
+      "capacity": 10,
+      "tags": ["meeting", "notice_board"],
+      "layout": {"floor": 1, "x": 2, "y": 2, "w": 2, "h": 2}
+    },
+    {
+      "id": "kitchen",
+      "name": "后厨",
+      "description": "灶火未熄，药材、酒坛和食材混放在高低不同的木架上。",
+      "connections": ["lobby", "courtyard", "cellar"],
+      "public": false,
+      "searchable": true,
+      "capacity": 4,
+      "tags": ["food", "medicine", "fire"],
+      "layout": {"floor": 1, "x": 4, "y": 2, "w": 2, "h": 1}
+    },
+    {
+      "id": "cellar",
+      "name": "地窖",
+      "description": "通往地窖的石阶狭窄湿滑，酒瓮后方似乎还有被遮住的空间。",
+      "connections": ["kitchen"],
+      "public": false,
+      "searchable": true,
+      "capacity": 3,
+      "tags": ["dark", "concealment"],
+      "layout": {"floor": 1, "x": 5, "y": 3, "w": 1, "h": 1}
+    },
+    {
+      "id": "courtyard",
+      "name": "后院",
+      "description": "雨水沿屋檐汇入青石院落，水井、柴堆和马厩门都在视线之内。",
+      "connections": ["lobby", "kitchen", "stable"],
+      "public": true,
+      "searchable": true,
+      "capacity": 8,
+      "tags": ["rain_exposed", "well"],
+      "layout": {"floor": 1, "x": 1, "y": 1, "w": 3, "h": 1}
+    },
+    {
+      "id": "stable",
+      "name": "马厩",
+      "description": "几匹坐骑因雷声不安地刨着地面，草料间留有新旧不一的脚印。",
+      "connections": ["front_gate", "courtyard"],
+      "public": false,
+      "searchable": true,
+      "capacity": 5,
+      "tags": ["animals", "exit_route"],
+      "layout": {"floor": 1, "x": 4, "y": 1, "w": 2, "h": 1}
+    },
+    {
+      "id": "stairs",
+      "name": "木梯",
+      "description": "木梯连接大堂与二层回廊，每一步都会发出难以掩饰的吱呀声。",
+      "connections": ["lobby", "upper_hall"],
+      "public": true,
+      "searchable": true,
+      "capacity": 2,
+      "tags": ["chokepoint"],
+      "layout": {"floor": 1, "x": 1, "y": 2, "w": 1, "h": 2}
+    },
+    {
+      "id": "upper_hall",
+      "name": "二层回廊",
+      "description": "回廊可以看到大堂的一角，四间客房分列两侧。",
+      "connections": ["stairs", "room_east", "room_west", "room_north", "study"],
+      "public": true,
+      "searchable": true,
+      "capacity": 6,
+      "tags": ["overlook"],
+      "layout": {"floor": 2, "x": 1, "y": 2, "w": 6, "h": 1}
+    },
+    {
+      "id": "room_east",
+      "name": "东字客房",
+      "description": "靠近楼梯的客房，窗户朝向驿道，室内陈设简朴。",
+      "connections": ["upper_hall"],
+      "public": false,
+      "searchable": true,
+      "lockable": true,
+      "capacity": 3,
+      "tags": ["guest_room"],
+      "layout": {"floor": 2, "x": 1, "y": 1, "w": 2, "h": 1}
+    },
+    {
+      "id": "room_west",
+      "name": "西字客房",
+      "description": "房内熏香尚未散尽，窗下能看见后院与马厩。",
+      "connections": ["upper_hall"],
+      "public": false,
+      "searchable": true,
+      "lockable": true,
+      "capacity": 3,
+      "tags": ["guest_room", "courtyard_view"],
+      "layout": {"floor": 2, "x": 3, "y": 1, "w": 2, "h": 1}
+    },
+    {
+      "id": "room_north",
+      "name": "北字客房",
+      "description": "最偏僻的一间客房，房门内侧有一道不明显的刮痕。",
+      "connections": ["upper_hall"],
+      "public": false,
+      "searchable": true,
+      "lockable": true,
+      "capacity": 3,
+      "tags": ["guest_room", "quiet"],
+      "layout": {"floor": 2, "x": 5, "y": 1, "w": 2, "h": 1}
+    },
+    {
+      "id": "study",
+      "name": "掌柜账房",
+      "description": "狭小房间里堆满账簿、住客名册和待送往广陵的货单。",
+      "connections": ["upper_hall"],
+      "public": false,
+      "searchable": true,
+      "lockable": true,
+      "capacity": 3,
+      "tags": ["records", "restricted"],
+      "layout": {"floor": 2, "x": 1, "y": 3, "w": 2, "h": 1}
+    }
+  ]
+}

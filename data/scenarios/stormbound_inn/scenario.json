@@ -1,0 +1,1127 @@
+{
+  "schema_version": 1,
+  "id": "stormbound_inn",
+  "title": "暴雨夜·停云客栈",
+  "world_id": "guangling_inn",
+  "event_cards_file": "event_cards.json",
+  "public_intel_file": "public_intel.json",
+  "max_rounds": 6,
+  "actions_per_round": 3,
+  "round_minutes": 30,
+  "premise": "暴雨冲毁驿道，六名身份各异的住客被困停云客栈。携带伪造绣衣楼腰牌的驿卒陆成倒毙大堂，死前只留下半句“鸢报有假”。验伤确认他在进入客栈后遭人暗算：凶手就在六名住客之中，正隐藏身份并寻找逃脱机会。天明前，所有人都必须追查、交涉并投出自己认定的凶手。",
+  "opening_dispatch": {
+    "classification": "绣衣楼绝密 · 阅后即焚",
+    "title": "西驿急递",
+    "body": [
+      "董卓密使已潜入广陵，持黑羽铜符，将于停云客栈与内应接头。",
+      "请绣衣楼即刻调离城东守备，封锁西驿道，并于天明前拘捕客栈内可疑住客。",
+      "此报不得复核来路，不得转录；见报后立即焚毁。"
+    ],
+    "signature": "广陵西驿 · 子时急递",
+    "dead_note": "陆成临终留下的最后一句：鸢报有假。"
+  },
+  "player_role": {
+    "id": "host",
+    "display_name": "临时掌柜",
+    "permissions": ["publish_notice", "select_event_card", "advance_round"],
+    "description": "玩家负责维持客栈秩序，可以发布公开公告并选择每轮的局势事件，但不能直接修改角色记忆或核心真相。"
+  },
+  "public_facts": [
+    "暴雨冲毁了通往广陵的驿道，天明前无人能够安全离开。",
+    "陌生死者携带一枚做工粗糙的绣衣楼腰牌。",
+    "死者临终前说出了“鸢报有假”四个字。",
+    "客栈正门已经落闩，后院马匹仍在马厩中。",
+    "凶手就在六名住客之中，并会隐藏作案信息、误导他人或尝试逃脱。",
+    "任何人不得从正门离开客栈；天明前每名仍能表达意见的人都要独立投票指认凶手。"
+  ],
+  "game_rules": [
+    "全局共六轮，每轮分为三个连续主要行动阶段；角色席玩家可自由移动与交谈，搜查、交付、藏匿、治疗、冲突和逃脱等主要行动每轮最多三次，并可主动结束本轮。",
+    "移动、搜查、交谈、交付、藏匿、治疗、冲突与逃脱尝试都会向玩家公开呈现。",
+    "角色只根据自己的记忆、亲眼所见、听闻和公开情报判断，不会读取客观真相。",
+    "调查线索、发现他人秘密、交换有效情报、保护自身秘密以及终局投票都会进入个人计分。",
+    "凶手知道自己的身份、动机和手段；其他角色不知道凶手身份。",
+    "第六轮的第三个行动结束后，全员依据个人记忆独立投票；玩家角色必须亲自投票，之后才揭示凶手。"
+  ],
+  "killer_setup": {
+    "weapon_object_id": "poison_needle",
+    "candidates": [
+      {
+        "agent_id": "傅融",
+        "case_id": "east-safehouse-letter",
+        "motive": "陆成带来的真信会暴露城东安全屋与数十名暗线。你认定只有让他永远闭嘴，才能保住更多人的性命。",
+        "method": "陆成进入大堂后，你借整理衣领之机用淬毒细针刺入他颈后，并取走了信囊中的真信。",
+        "escape_plan": "伺机经马厩后墙离开，并把怀疑引向异常军饷。",
+        "private_facts": [
+          "你从陆成身上取走的是城东安全屋撤离名单，名单仍藏在你的袖袋里。",
+          "行凶时袖口被细针勾断一缕深青丝线；你不知道它是否落在了大堂。"
+        ],
+        "stolen_item": {
+          "id": "east_safehouse_list",
+          "name": "城东安全屋撤离名单",
+          "holder_id": "$killer",
+          "hidden": true,
+          "discovered_by": ["$killer"],
+          "tags": ["document", "evidence", "case_variant"],
+          "metadata": {
+            "case_id": "east-safehouse-letter",
+            "description": "陆成信囊中失踪的真信，边角写有城东暗线的撤离次序。"
+          }
+        },
+        "evidence_objects": [
+          {
+            "id": "dark_teal_silk_thread",
+            "name": "沾有毒渍的深青丝线",
+            "location_id": "lobby",
+            "hidden": true,
+            "tags": ["trace", "evidence", "case_variant"],
+            "metadata": {
+              "case_id": "east-safehouse-letter",
+              "description": "丝线颜色接近傅融常穿的深青外袍，但客栈也用同色线修补账册。",
+              "implicates": "傅融"
+            }
+          }
+        ],
+        "innocent_explanation": "异常军饷确实由你调拨，但全部用于转移城东安全屋人员；你必须在不暴露地址的前提下解释账目。"
+      },
+      {
+        "agent_id": "孙策",
+        "case_id": "jiangdong-forged-order",
+        "motive": "陆成掌握一份足以引发广陵与江东误战的伪令。你判断公开它会害死更多士卒，于是选择灭口并独自追查幕后人。",
+        "method": "你以检查死者肩伤为掩护，用缴获的淬毒细针刺伤他，并取走了伪令正文。",
+        "escape_plan": "利用自己熟悉马匹的优势从马厩脱身，再追回幕后接应者。",
+        "private_facts": [
+          "你取走的伪令正文能调动一支冒充江东军的队伍，现在被你折在护腕夹层中。",
+          "你行凶后去马厩确认退路，途中马刺扣磕在石阶上缺了一角。"
+        ],
+        "stolen_item": {
+          "id": "jiangdong_forged_order",
+          "name": "调动江东军的伪令正文",
+          "holder_id": "$killer",
+          "hidden": true,
+          "discovered_by": ["$killer"],
+          "tags": ["document", "evidence", "case_variant"],
+          "metadata": {
+            "case_id": "jiangdong-forged-order",
+            "description": "陆成携带的伪令正文，印泥和措辞都在刻意模仿江东军令。"
+          }
+        },
+        "evidence_objects": [
+          {
+            "id": "chipped_spur_buckle",
+            "name": "带新鲜缺口的马刺扣",
+            "location_id": "courtyard",
+            "hidden": true,
+            "tags": ["trace", "evidence", "case_variant"],
+            "metadata": {
+              "case_id": "jiangdong-forged-order",
+              "description": "扣面是江东常见式样，缺口可以与孙策马刺上的断面吻合，但同式马具并不罕见。",
+              "implicates": "孙策"
+            }
+          }
+        ],
+        "innocent_explanation": "断箭使用江东箭羽，却不是江东军制；你昨夜去马厩只是检查坐骑，并亲眼看见披蓑衣的人翻过后墙。"
+      },
+      {
+        "agent_id": "袁基",
+        "case_id": "yuan-branch-purchase",
+        "motive": "陆成携带的真信能坐实袁氏旁支参与购买假腰牌。你为阻止家族立刻被卷入清洗而杀他灭口。",
+        "method": "你假意替陆成擦去雨水，趁近身时用藏在袖中的淬毒细针刺入他颈后，并取走了真信。",
+        "escape_plan": "等待外部驿铃接应，经马厩后墙离开，同时让失踪账页吸引众人注意。",
+        "private_facts": [
+          "你取走的是旁支门客购买假腰牌的往来底信，底信还裹在你随身携带的香囊夹层里。",
+          "你曾用袁氏水纹蜡纸包住毒针，行凶后把蜡纸丢回西字客房的炭盆旁。"
+        ],
+        "stolen_item": {
+          "id": "yuan_purchase_correspondence",
+          "name": "袁氏旁支购牌往来底信",
+          "holder_id": "$killer",
+          "hidden": true,
+          "discovered_by": ["$killer"],
+          "tags": ["document", "evidence", "case_variant"],
+          "metadata": {
+            "case_id": "yuan-branch-purchase",
+            "description": "陆成携带的底信，能证明有人借袁氏旁支名义购买伪造腰牌。"
+          }
+        },
+        "evidence_objects": [
+          {
+            "id": "yuan_watermark_wax_paper",
+            "name": "残留针痕的水纹蜡纸",
+            "location_id": "room_west",
+            "hidden": true,
+            "tags": ["trace", "evidence", "case_variant"],
+            "metadata": {
+              "case_id": "yuan-branch-purchase",
+              "description": "蜡纸带袁氏常用水纹，中央有包裹细针留下的压痕；这种纸也会流入旁支门客手中。",
+              "implicates": "袁基"
+            }
+          }
+        ],
+        "innocent_explanation": "门客密信能证明有人借袁氏旁支名义购牌，却不能证明你知情；信末落款不合家规，很可能经过转抄或嫁祸。"
+      }
+    ]
+  },
+  "director_deduction": {
+    "shared_foundation": [
+      {
+        "step": "封闭嫌疑圈",
+        "requires": ["front_gate_latch_mud", "study_guest_register", "intel-guest-count"],
+        "reasoning": "门闩内侧没有案发后开合痕迹，住客名册又证明陆成抵达时六人已经在店内；先排除所谓店外刺客，确认凶手就在六名住客中。"
+      },
+      {
+        "step": "确认死亡方式",
+        "requires": ["courier_body", "poison_needle", "stairs_poison_oil", "intel-coroner-needle", "intel-poison-window"],
+        "reasoning": "尸体颈后针孔、细针形状和楼梯封针蜡相互吻合，毒发又有延迟；因此倒下地点不是行凶地点，茶水和普通药物也不是直接死因。"
+      },
+      {
+        "step": "确认死者任务",
+        "requires": ["intel-courier-pouch", "fake_badge", "cellar_dispatch_seal", "north_room_cipher_draft"],
+        "reasoning": "空信囊说明关键文书被取走；假腰牌、废封泥和暗码草稿共同证明鸢报是诱饵，真正被拿走的文书才是凶手必须灭口的原因。"
+      },
+      {
+        "step": "把秘密与谋杀分开",
+        "requires": ["missing_ledger_page", "zuoci_toxin_sample", "sunce_spur_cloth", "west_room_burnt_letter"],
+        "reasoning": "傅融的账、左慈的毒样、孙策的马厩行踪和袁基的旁支联络都是真秘密，却不自动等于杀人。只有同时满足近身机会、毒针物证、杀人动机和失踪物持有四项，才能锁定凶手。"
+      }
+    ],
+    "variant_guides": [
+      {
+        "case_id": "east-safehouse-letter",
+        "killer_id": "傅融",
+        "title": "城东安全屋撤离名单案",
+        "chain": [
+          {
+            "step": "找到近身机会",
+            "requires": ["courier_body", "upper_hall_courier_button"],
+            "reasoning": "陆成上过二层，傅融又承认曾替他整理衣领；这提供刺入颈后细针所需的近身窗口，但单独不能定罪。"
+          },
+          {
+            "step": "锁定专属痕迹",
+            "requires": ["dark_teal_silk_thread", "relationship-medical-exam"],
+            "reasoning": "大堂的深青丝线带有与凶针相同的毒渍；在验手问伤时比对傅融袖口的新鲜断线，才能排除客栈账册同色装订线造成的混淆。"
+          },
+          {
+            "step": "建立真实动机",
+            "requires": ["missing_ledger_page", "study_private_transfer_stub", "account_fragment"],
+            "reasoning": "三份账目拼出城东安全屋撤离行动。对无辜傅融，这只解释秘密军饷；本变体中，它同时解释他为何不能允许陆成携名单抵达广陵王手中。"
+          },
+          {
+            "step": "完成铁证闭环",
+            "requires": ["intel-courier-pouch", "east_safehouse_list", "relationship-public-inventory"],
+            "reasoning": "信囊有新鲜撕痕，而失踪的撤离名单仍由傅融隐藏持有。公开登记或终局对质一旦发现名单，再与毒丝、近身窗口和账目动机合并，便形成唯一闭环。"
+          }
+        ],
+        "red_herrings": [
+          "深青丝线也可能来自账册装订，必须验证毒渍和袖口断面。",
+          "异常军饷本身是保护安全屋的善意秘密，不能把违规账目直接当成杀人证据。",
+          "左慈持有同类毒样，但样本剂量不足且不能解释傅融手中的撤离名单。"
+        ],
+        "decisive_conclusion": "傅融具有近身机会；毒丝与袖口相合；账目给出名单泄露动机；最关键的是失踪名单仍在他手中。四项同时成立才应投傅融。",
+        "recommended_host_cards": ["relationship-medical-exam", "relationship-public-inventory", "relationship-evidence-exchange"]
+      },
+      {
+        "case_id": "jiangdong-forged-order",
+        "killer_id": "孙策",
+        "title": "江东伪令正文案",
+        "chain": [
+          {
+            "step": "找到近身机会",
+            "requires": ["courier_body", "upper_hall_courier_button"],
+            "reasoning": "陆成毒发前上过二层，孙策曾以查看肩伤为由靠近他；验尸能证明这种接触足以完成针刺。"
+          },
+          {
+            "step": "还原案后路线",
+            "requires": ["wet_footprints", "sunce_spur_cloth", "chipped_spur_buckle"],
+            "reasoning": "大堂至马厩的脚印、昨夜已经使用过的马刺擦布和后院新鲜缺口马刺扣拼出孙策查看退路的路线；扣件断面需与他的马刺相合。"
+          },
+          {
+            "step": "排除刻意栽赃",
+            "requires": ["broken_arrow", "upper_hall_false_message", "intel-arrow-fletching"],
+            "reasoning": "断箭不合江东军制，“江东接应”纸条又来自公用账册，两者太刻意，只能作为误导；真正有效的是新鲜马刺断面与行动路线。"
+          },
+          {
+            "step": "完成铁证闭环",
+            "requires": ["intel-courier-pouch", "jiangdong_forged_order", "relationship-public-inventory"],
+            "reasoning": "信囊缺失的伪令正文藏在孙策护腕夹层。它说明灭口动机，也与其案后准备马匹的行为相接；找到正文后再合并毒针、近身机会和马刺断面即可锁定。"
+          }
+        ],
+        "red_herrings": [
+          "江东箭羽和直白的接应纸条都是可由任何人布置的栽赃物。",
+          "孙策昨夜去过马厩是个人秘密；只有案发后的湿脚印和新鲜断扣才能把它接到谋杀之后。",
+          "外来马蹄铁已经锈蚀一个月，不能证明今夜存在第七人。"
+        ],
+        "decisive_conclusion": "孙策有近身机会；新鲜断扣、脚印和马刺形成案后路线；护腕中的失踪伪令给出直接动机与占有关系。应依靠这三组相互独立的证据，而不是江东符号投票。",
+        "recommended_host_cards": ["relationship-medical-exam", "relationship-public-inventory", "relationship-exit-watch"]
+      },
+      {
+        "case_id": "yuan-branch-purchase",
+        "killer_id": "袁基",
+        "title": "袁氏旁支购牌底信案",
+        "chain": [
+          {
+            "step": "找到近身机会",
+            "requires": ["courier_body", "upper_hall_courier_button"],
+            "reasoning": "陆成上楼后曾与住客近身；袁基以替他擦去雨水为由接触颈后区域，动作与针孔位置相符。"
+          },
+          {
+            "step": "锁定包针材料",
+            "requires": ["yuan_watermark_wax_paper", "stairs_poison_oil", "relationship-medical-exam"],
+            "reasoning": "西字房的水纹蜡纸有新鲜针痕，残蜡又能与楼梯蓝黑油点和凶针封蜡相互印证；检查袁基香囊与袖口可确认同源纸纤维。"
+          },
+          {
+            "step": "区分家族秘密与杀人动机",
+            "requires": ["west_room_burnt_letter", "west_room_perfume_ash", "yuan_sealed_letter", "fake_badge"],
+            "reasoning": "旁支往来和水纹纸本来只能证明袁基隐瞒家族联络，水纹纸也会流入门客手中；必须再证明死者携带的底信确实落到袁基手里。"
+          },
+          {
+            "step": "完成铁证闭环",
+            "requires": ["intel-courier-pouch", "yuan_purchase_correspondence", "relationship-public-inventory"],
+            "reasoning": "空信囊里的袁氏购牌底信仍藏在袁基香囊夹层。底信、包针蜡纸、近身窗口和假腰牌利益共同成立后，才能排除“门客擅自行动”的清白解释。"
+          }
+        ],
+        "red_herrings": [
+          "普通水纹信纸可由袁氏旁支和门客使用，单凭香灰不能指认袁基。",
+          "未烧尽的回信证明秘密联络，却不等于袁基知道假腰牌买主或实施谋杀。",
+          "傅融的账目与孙策的马厩行踪都是真秘密，但都不能解释袁基香囊中的失踪底信。"
+        ],
+        "decisive_conclusion": "袁基有近身机会；带针痕的同源蜡纸连接凶器；旁支危机提供动机；香囊夹层持有死者失踪底信。只有最后一项出现后，家族秘密才升级为谋杀闭环。",
+        "recommended_host_cards": ["relationship-medical-exam", "relationship-public-inventory", "relationship-room-search"]
+      }
+    ]
+  },
+  "truths": [
+    {
+      "id": "truth-courier",
+      "claim": "死者陆成是受一名绣衣楼旧部所托送信的民间驿卒，并非正式密探。",
+      "author_only": true
+    },
+    {
+      "id": "truth-poison",
+      "claim": "陆成是在进入停云客栈后，被六名住客中的一人用迟发毒针杀害；本局种子会同时固定凶手、动机、失踪关键物、专属痕迹与其他嫌疑人的清白解释。",
+      "author_only": true
+    },
+    {
+      "id": "truth-report",
+      "claim": "所谓董卓密使潜入广陵的鸢报是伪造的，真正目标是诱使绣衣楼调走城东守备。",
+      "author_only": true
+    },
+    {
+      "id": "truth-ledger",
+      "claim": "傅融账目中的异常军饷被秘密用于保护一处即将暴露的绣衣楼安全屋。",
+      "author_only": true
+    },
+    {
+      "id": "truth-yuan-letter",
+      "claim": "袁基持有的信来自袁氏门客，信中暗示有人借袁氏名义购买伪造腰牌，但袁基并不知道买主身份。",
+      "author_only": true
+    }
+  ],
+  "secrets": [
+    {
+      "id": "secret-guangling-itinerary",
+      "owner_id": "广陵王",
+      "title": "三份互不相同的行程",
+      "claim": "广陵王出发前故意向三个据点放出不同版本的行程，用来排查绣衣楼内部泄密者；她不愿让同行者知道自己也在试探他们。",
+      "category": "personal",
+      "conceal_score": 3,
+      "discovery_score": 2
+    },
+    {
+      "id": "secret-fu-safehouse-funds",
+      "owner_id": "傅融",
+      "title": "异常军饷的真实去向",
+      "claim": "傅融私自改动三笔军饷去向，将钱用于转移城东安全屋人员；目的并非贪墨，但手续足以让他获罪。",
+      "category": "personal",
+      "conceal_score": 3,
+      "discovery_score": 2
+    },
+    {
+      "id": "secret-liubian-identity",
+      "owner_id": "刘辩",
+      "title": "贵公子的宫中身份",
+      "claim": "刘辩并非普通贵公子，他熟悉宫中暗语与旧制，随身旧符足以暴露真实身份。",
+      "category": "personal",
+      "conceal_score": 4,
+      "discovery_score": 2
+    },
+    {
+      "id": "secret-sunce-stable",
+      "owner_id": "孙策",
+      "title": "昨夜私自去过马厩",
+      "claim": "孙策昨夜没有告知任何人便去马厩检查坐骑，还看见披蓑衣的人翻墙；这段行踪让他很难证明自己与凶案无关。",
+      "category": "personal",
+      "conceal_score": 3,
+      "discovery_score": 2
+    },
+    {
+      "id": "secret-zuoci-toxin",
+      "owner_id": "左慈",
+      "title": "违禁毒样",
+      "claim": "左慈的药匣夹层存有少量迟发针毒样本，原本用于研制解药；若被发现，他会成为极有说服力的错误嫌疑人。",
+      "category": "personal",
+      "conceal_score": 3,
+      "discovery_score": 2
+    },
+    {
+      "id": "secret-yuanji-contact",
+      "owner_id": "袁基",
+      "title": "未登记的旁支联络",
+      "claim": "袁基曾绕过家族正式渠道与涉事旁支门客通信，虽然他不知道伪腰牌买主是谁，这种联络仍会损害袁氏声誉。",
+      "category": "personal",
+      "conceal_score": 3,
+      "discovery_score": 2
+    }
+  ],
+  "participants": [
+    {
+      "id": "广陵王",
+      "display_name": "广陵王",
+      "public_role": "绣衣楼楼主，因巡视城外据点留宿客栈。",
+      "background_story": [
+        "你执掌绣衣楼已久，习惯从互相矛盾的证词中辨认真正值得相信的部分。此次巡视表面上只是核验城外据点，暗地里却是一次试探：你向三个据点分别放出了不同版本的路线，只有城东版本写着停云客栈。如今你被暴雨困在这里，意味着泄密者至少已经触及城东的消息链。",
+        "死者陆成踉跄进门时，怀里护着一封盖有旧式密纹的鸢报。他没有叫出你的名字，只盯了一眼楼梯方向，便倒在炭盆旁。那句“鸢报有假”让你想起出发前收到的警告——有人希望绣衣楼调走城东守备，而那里恰好藏着尚未撤完的暗线。",
+        "傅融、孙策和刘辩都与你关系匪浅，但亲近并不等于无须查证。今晚你既要保护他们，也必须接受凶手可能就在熟人之中的事实。你的优势不是武力，而是让散落在不同人口中的信息最终汇到你手中。"
+      ],
+      "opening_hook": "陆成倒下前攥住你的衣角，雨水和血沿指节滴落。他只来得及说：鸢报……有假。",
+      "background_memories": [
+        "陆成进门时先看向二层回廊，随后才试图把信囊交给你，说明他上楼见过或寻找过某个人。",
+        "绝密鸢报使用的是绣衣楼半年前停用的封泥配方，真正的急报不该出现这种旧制。"
+      ],
+      "start_location": "lobby",
+      "health": 100,
+      "inventory": ["sealed_dispatch"],
+      "goals": ["判断鸢报真假", "保护同行者", "在天明前找出安全屋是否已经暴露"],
+      "private_facts": [
+        {
+          "claim": "出发前曾故意向不同据点放出三种版本的行程，只有城东版本提到停云客栈。",
+          "source": "自己的安排",
+          "confidence": 1.0,
+          "truth_id": "truth-report"
+        }
+      ],
+      "decision_rules": ["在证据不足时不公开指控", "优先保护普通住客", "涉及绣衣楼内奸时会隐藏部分计划"]
+    },
+    {
+      "id": "傅融",
+      "display_name": "傅融",
+      "public_role": "绣衣楼副官，负责此次行程账目。",
+      "background_story": [
+        "你是绣衣楼副官，也是最清楚这次巡视账目的人。三笔看似去向异常的军饷其实被你绕过常规手续，用来撤离城东安全屋的人员。你没有提前告诉广陵王，因为任何多一个知情者，都可能让撤离名单落入敌手。",
+        "陆成携带的东西很可能与安全屋有关。你曾在他倒下前替他扶正衣领，也因此比任何人都清楚他颈后的伤口有多小。那段近身接触足以使你成为嫌疑人，而失踪的完整账页又会让旁人以为你侵吞军饷。",
+        "你习惯把风险压在自己身上，但今夜沉默本身也会变成证据。你需要追回账页、判断谁能承受部分真相，并在不暴露安全屋地址的前提下协助找出凶手。"
+      ],
+      "opening_hook": "你认出死者信囊的针脚属于城东暗线。若真信已经失踪，数十人的藏身处都可能暴露。",
+      "background_memories": [
+        "陆成倒下前的信囊比寻常急报袋轻，里面原本装着的厚纸或名册很可能已经被人取走。",
+        "客栈账房使用的深青装订线与你的外袍颜色相近，任何同色丝线证据都必须进一步核对来源。"
+      ],
+      "start_location": "study",
+      "health": 100,
+      "inventory": ["account_fragment"],
+      "goals": ["追回缺失账页", "避免安全屋位置泄露", "确认死者腰牌来源"],
+      "private_facts": [
+        {
+          "claim": "三笔异常军饷由自己秘密调拨，用于转移城东安全屋人员。",
+          "source": "亲手经办",
+          "confidence": 1.0,
+          "truth_id": "truth-ledger"
+        },
+        {
+          "claim": "账簿中缺失的一页足以让旁人误以为自己侵吞军饷。",
+          "source": "账目核对",
+          "confidence": 0.95
+        }
+      ],
+      "decision_rules": ["没有实证时不轻信流言", "广陵王面临危险时会优先保护她", "不会主动公开安全屋位置"]
+    },
+    {
+      "id": "刘辩",
+      "display_name": "刘辩",
+      "public_role": "微服出行的刘姓贵公子。",
+      "background_story": [
+        "你以刘姓贵公子的身份微服同行，真正的宫中经历却像一道无法示人的旧伤。那些已经停用的针脚、封泥和暗语，对旁人只是模糊线索，对你却熟悉得近乎刺眼。",
+        "陆成袖口的宫制针脚至少两年前已经废止，临终暗语“雁归北阙”也来自宫中旧有的紧急口信。有人在利用过时但足以唬人的宫廷知识伪造身份；如果你解释得太准确，自己的身份便会先成为众人追问的对象。",
+        "你想保护广陵王，也害怕宫中势力再次借你伤害她。今晚你必须决定何时用玩笑遮掩，何时把只有自己懂的宫中线索交出去。"
+      ],
+      "opening_hook": "“雁归北阙”落入耳中时，你几乎以为自己又站回宫门之内——那句暗语本不该再有人使用。",
+      "background_memories": [
+        "死者袖口针脚虽像宫制，收针方向却错了一边，制作者只见过样本而未真正受过宫中训练。",
+        "太一宫旧符牌一旦被熟悉宫制的人看见，足以证明你并非普通贵公子。"
+      ],
+      "start_location": "room_east",
+      "health": 90,
+      "inventory": ["palace_token"],
+      "goals": ["查清死者暗语来源", "不暴露天子身份", "避免宫中势力借机伤害广陵王"],
+      "private_facts": [
+        {
+          "claim": "死者袖口的针脚是宫中旧制，但至少两年前已经停用。",
+          "source": "幼时宫中记忆",
+          "confidence": 0.85
+        },
+        {
+          "claim": "“雁归北阙”是宫中传递紧急口信的旧暗语。",
+          "source": "宫中经历",
+          "confidence": 1.0
+        }
+      ],
+      "decision_rules": ["用玩笑掩饰敏感信息", "不会轻易承认自己熟悉宫中制度", "广陵王受威胁时可能冒险暴露身份"]
+    },
+    {
+      "id": "孙策",
+      "display_name": "孙策",
+      "public_role": "来自江东、暂住广陵的年轻将领。",
+      "background_story": [
+        "你习惯在战场上用最直接的办法确认危险，却在这间客栈里发现每条线索都可能被人故意摆放。近来有人使用江东箭羽和军令格式制造假象，似乎想让广陵与江东互相猜忌。",
+        "昨夜你没有告诉任何人便去马厩检查坐骑，并看见一个披蓑衣的人翻过后墙。你捡到的断箭有江东箭羽，箭杆却不合江东军制。若把这些事全部说出，别人首先会追问的不是翻墙者，而是你为何深夜独自在马厩。",
+        "你必须保护广陵王、查清是否有人借机调动江东军力，同时避免愤怒替你作出判断。你可以坦率交换线索，但要记得：最像江东证据的东西，也可能正是为你准备的陷阱。"
+      ],
+      "opening_hook": "雷声压过马嘶，你忽然想起昨夜翻墙之人落地时没有惊动任何坐骑——那人熟悉马厩。",
+      "background_memories": [
+        "昨夜翻墙者落地时没有惊动马匹，说明对方熟悉牲口，或提前在身上用了安抚马匹的草药。",
+        "断箭尾羽的绑法故意模仿江东军，却多绕了一圈，这是外行根据成品仿制时常见的错误。"
+      ],
+      "start_location": "stable",
+      "health": 100,
+      "inventory": ["broken_arrow"],
+      "goals": ["确认是否有人借机调动江东军力", "保护广陵王", "找出昨夜从马厩逃走的人"],
+      "private_facts": [
+        {
+          "claim": "昨夜曾独自到马厩查看坐骑，并看见一个披蓑衣的人翻过后墙。",
+          "source": "亲眼所见",
+          "confidence": 0.9
+        },
+        {
+          "claim": "自己捡到的断箭使用江东箭羽，但箭杆并非江东军制。",
+          "source": "军旅经验",
+          "confidence": 0.95
+        }
+      ],
+      "decision_rules": ["倾向直接查证而非长时间猜测", "不会容忍有人嫁祸江东", "对朋友坦率但会隐瞒可能连累部下的细节"]
+    },
+    {
+      "id": "左慈",
+      "display_name": "左慈",
+      "public_role": "游方道者，暂借客栈躲雨。",
+      "background_story": [
+        "你以游方道者身份借宿，药匣里却装着许多人不愿看见的东西：解药、毒样和尚未完成的试方。你研究迟发针毒是为了救人，但在谋杀发生后，这种解释听起来与狡辩几乎没有区别。",
+        "陆成的瞳色、指甲和颈后针孔共同指向迟发针毒，后厨的饮食反而只是容易被利用的错误方向。真正值得追查的是谁能近身、谁知道毒发需要时间，以及凶针最终去了哪里。",
+        "你不愿把推测说成结论，更习惯用问题迫使别人检查自己的因果。今晚除了阻止第二次下毒，你也要决定是否暴露药匣夹层的违禁毒样。"
+      ],
+      "opening_hook": "你只看了一眼陆成的指甲便知道：毒不是刚刚发作，而是在数个时辰前已经进入血中。",
+      "background_memories": [
+        "迟发针毒需要油蜡封住针尖才能安全携带，凶针经过之处可能留下极细的蓝黑油点。",
+        "你的药匣夹层藏有少量同类毒样，分量不足以杀死陆成，但被发现后很难立刻证明用途。"
+      ],
+      "start_location": "kitchen",
+      "health": 100,
+      "inventory": ["antidote_case"],
+      "goals": ["辨明死者所中之毒", "阻止第二次下毒", "观察谁在刻意制造错误因果"],
+      "private_facts": [
+        {
+          "claim": "死者瞳色和指甲变化符合一种数个时辰后发作的针毒。",
+          "source": "验看尸体",
+          "confidence": 0.9,
+          "truth_id": "truth-poison"
+        },
+        {
+          "claim": "此毒并非饮食下毒，客栈后厨很可能只是被用来转移视线。",
+          "source": "医理判断",
+          "confidence": 0.85,
+          "truth_id": "truth-poison"
+        }
+      ],
+      "decision_rules": ["不会把推测说成定论", "优先救治仍可挽救的人", "若他人执意误判会用问题引导而非直接揭底"]
+    },
+    {
+      "id": "袁基",
+      "display_name": "袁基",
+      "public_role": "因驿道中断而滞留的袁氏公子。",
+      "background_story": [
+        "你身为袁氏公子，早已习惯一句话同时包含家族立场、个人判断和不能公开的余地。三日前，旁支门客来信称有人以袁氏名义购买旧式腰牌；你绕过正式渠道回了信，因为一旦走家族公文，消息会先落到多少人手中无人能知。",
+        "那封门客密信的落款并不合袁氏规制，可能经过转抄，也可能从一开始就是引你入局的饵。如今死者身上恰好出现伪造腰牌，任何人找到你的往来信件，都会自然地把两件事连在一起。",
+        "你需要查明谁在借袁氏之名，同时保护家族不被未经证实的指控拖入清洗。交换情报对你从来不是坦白，而是一场衡量：对方能给出什么，又会从你这里拿走什么。"
+      ],
+      "opening_hook": "死者腰牌上的旧纹样，与你三日前密信中提到的采购样式完全相同；有人正等着袁氏被卷进来。",
+      "background_memories": [
+        "购买旧式腰牌的款项被拆成四笔，使用的中间人都与袁氏主家没有直接关系。",
+        "你曾绕过家族正式渠道回复涉事旁支门客，这件事若公开，会被视为私下经营旁支势力。"
+      ],
+      "start_location": "room_west",
+      "health": 100,
+      "inventory": ["yuan_sealed_letter"],
+      "goals": ["查清谁在借袁氏名义购买假腰牌", "避免信件落入敌对势力", "判断是否值得与广陵王交换情报"],
+      "private_facts": [
+        {
+          "claim": "三日前收到门客密信，称有人以袁氏旁支名义大量购买旧式腰牌。",
+          "source": "袁氏门客密信",
+          "confidence": 0.95,
+          "truth_id": "truth-yuan-letter"
+        },
+        {
+          "claim": "密信末尾的落款有一处不合家族规制，可能经过他人转抄。",
+          "source": "家族知识",
+          "confidence": 0.7
+        }
+      ],
+      "decision_rules": ["优先维护袁氏整体利益", "交换情报前会评估对方能提供什么", "即使受到怀疑也很少公开失态"]
+    }
+  ],
+  "objects": [
+    {
+      "id": "courier_body",
+      "name": "陌生驿卒的尸体",
+      "location_id": "lobby",
+      "portable": false,
+      "hidden": false,
+      "tags": ["body", "evidence"],
+      "metadata": {
+        "npc_name": "陆成",
+        "search_priority": 12,
+        "clue_kind": "truth",
+        "truth_id": "truth-poison",
+        "clue_claim": "陆成颈后有一个极细的针孔，伤口周围毒色比口唇更深，说明毒物由针刺进入而非饮食入口。"
+      }
+    },
+    {
+      "id": "sealed_dispatch",
+      "name": "未拆封的绣衣急报",
+      "holder_id": "广陵王",
+      "hidden": false,
+      "tags": ["document", "secret"]
+    },
+    {
+      "id": "account_fragment",
+      "name": "残缺的军饷账页",
+      "holder_id": "傅融",
+      "hidden": false,
+      "tags": ["document", "financial"]
+    },
+    {
+      "id": "palace_token",
+      "name": "太一宫旧符牌",
+      "holder_id": "刘辩",
+      "hidden": true,
+      "discovered_by": ["刘辩"],
+      "tags": ["identity", "secret"]
+    },
+    {
+      "id": "broken_arrow",
+      "name": "带江东箭羽的断箭",
+      "holder_id": "孙策",
+      "hidden": false,
+      "tags": ["weapon", "misdirection"]
+    },
+    {
+      "id": "antidote_case",
+      "name": "左慈的解毒药匣",
+      "holder_id": "左慈",
+      "hidden": false,
+      "tags": ["medicine"]
+    },
+    {
+      "id": "yuan_sealed_letter",
+      "name": "袁氏门客密信",
+      "holder_id": "袁基",
+      "hidden": true,
+      "discovered_by": ["袁基"],
+      "tags": ["document", "secret"]
+    },
+    {
+      "id": "fake_badge",
+      "name": "伪造的绣衣楼腰牌",
+      "location_id": "lobby",
+      "hidden": false,
+      "tags": ["evidence", "forgery"],
+      "metadata": {
+        "search_priority": 11,
+        "clue_kind": "truth",
+        "truth_id": "truth-report",
+        "clue_claim": "腰牌边缘留有翻模黑泥，编号笔势也与绣衣楼旧档不符；它是刻意做旧的伪物。"
+      }
+    },
+    {
+      "id": "poison_needle",
+      "name": "淬毒的细针",
+      "location_id": "kitchen",
+      "hidden": true,
+      "tags": ["evidence", "poison"],
+      "metadata": {
+        "search_priority": 14,
+        "clue_kind": "truth",
+        "truth_id": "truth-poison",
+        "clue_claim": "细针上的残毒与陆成颈后针孔形状吻合，是本案真正的凶器。"
+      }
+    },
+    {
+      "id": "black_feather_token",
+      "name": "刻有黑羽纹的铜片",
+      "location_id": "room_north",
+      "hidden": true,
+      "tags": ["evidence", "organization", "misdirection"],
+      "metadata": {
+        "search_priority": 6,
+        "clue_kind": "decoy",
+        "clue_claim": "黑羽铜片像某个秘密组织的信物，但锈层表明它已在房中放了数月，未必与今夜凶案有关。"
+      }
+    },
+    {
+      "id": "missing_ledger_page",
+      "name": "失踪的完整账页",
+      "location_id": "cellar",
+      "hidden": true,
+      "tags": ["evidence", "financial", "secret"],
+      "metadata": {
+        "search_priority": 10,
+        "clue_kind": "secret",
+        "reveals_secret_id": "secret-fu-safehouse-funds",
+        "clue_claim": "完整账页显示三笔军饷流向同一处用鸟名代称的安全屋，傅融亲笔改过经手人；这不像普通贪墨，却足以证明他隐瞒了用途。"
+      }
+    },
+    {
+      "id": "wet_footprints",
+      "name": "通往马厩的湿脚印",
+      "location_id": "courtyard",
+      "hidden": false,
+      "portable": false,
+      "tags": ["trace", "evidence"],
+      "metadata": {
+        "search_priority": 10,
+        "clue_kind": "truth",
+        "truth_id": "truth-courier",
+        "clue_claim": "脚印从大堂方向通往马厩，却没有从墙外进入的连续痕迹；有人案发后查看或准备过马厩退路。"
+      }
+    },
+    {
+      "id": "front_gate_latch_mud",
+      "name": "门闩内侧的干泥",
+      "location_id": "front_gate",
+      "hidden": true,
+      "portable": false,
+      "tags": ["trace", "timeline", "evidence"],
+      "metadata": {
+        "search_priority": 10,
+        "clue_kind": "truth",
+        "truth_id": "truth-courier",
+        "clue_claim": "门闩内侧积泥完整，没有案发后重新开启的擦痕；凶手仍在客栈，至少没有走正门。"
+      }
+    },
+    {
+      "id": "front_gate_debt_note",
+      "name": "被雨打湿的欠款字条",
+      "location_id": "front_gate",
+      "hidden": true,
+      "tags": ["document", "misdirection"],
+      "metadata": {
+        "search_priority": 3,
+        "clue_kind": "decoy",
+        "clue_claim": "字条写着陆成欠过驿站赌债，却是半年前的旧账；它提供了一个看似合理、实际与今夜无关的私人仇杀方向。"
+      }
+    },
+    {
+      "id": "kitchen_bitter_ash",
+      "name": "灶边的苦艾药灰",
+      "location_id": "kitchen",
+      "hidden": true,
+      "tags": ["medicine", "evidence"],
+      "metadata": {
+        "search_priority": 11,
+        "clue_kind": "truth",
+        "truth_id": "truth-poison",
+        "clue_claim": "药灰能与死者体内的毒产生相似苦味，却不会造成针孔；有人可能故意把调查引向后厨下毒。"
+      }
+    },
+    {
+      "id": "zuoci_toxin_sample",
+      "name": "封在蜡管中的违禁毒样",
+      "location_id": "kitchen",
+      "hidden": true,
+      "tags": ["medicine", "secret", "misdirection"],
+      "metadata": {
+        "search_priority": 8,
+        "clue_kind": "secret",
+        "reveals_secret_id": "secret-zuoci-toxin",
+        "clue_claim": "蜡管标签是左慈的笔迹，里面正是迟发针毒样本；药量不足以完成今夜谋杀，但足以让他成为嫌疑人。"
+      }
+    },
+    {
+      "id": "cellar_dispatch_seal",
+      "name": "酒瓮底的废弃鸢报封泥",
+      "location_id": "cellar",
+      "hidden": true,
+      "tags": ["document", "forgery", "evidence"],
+      "metadata": {
+        "search_priority": 9,
+        "clue_kind": "truth",
+        "truth_id": "truth-report",
+        "clue_claim": "封泥使用客栈常见灯油软化，压纹却来自伪腰牌同一副旧模；假腰牌与假鸢报可能出自同一条线。"
+      }
+    },
+    {
+      "id": "cellar_smuggler_receipt",
+      "name": "走私酒商的收据",
+      "location_id": "cellar",
+      "hidden": true,
+      "tags": ["document", "misdirection"],
+      "metadata": {
+        "search_priority": 2,
+        "clue_kind": "decoy",
+        "clue_claim": "收据证明掌柜私购过一批酒，却早于众人投宿；这是一件真实丑事，但与陆成之死无关。"
+      }
+    },
+    {
+      "id": "courtyard_mold_powder",
+      "name": "井沿被冲淡的黑色模粉",
+      "location_id": "courtyard",
+      "hidden": true,
+      "portable": false,
+      "tags": ["forgery", "evidence"],
+      "metadata": {
+        "search_priority": 9,
+        "clue_kind": "truth",
+        "truth_id": "truth-report",
+        "clue_claim": "黑粉与伪腰牌边缘残泥成分一致，说明伪造物曾在客栈后院被清洗或处理。"
+      }
+    },
+    {
+      "id": "sunce_spur_cloth",
+      "name": "沾着马刺铜屑的擦布",
+      "location_id": "stable",
+      "hidden": true,
+      "tags": ["trace", "secret"],
+      "metadata": {
+        "search_priority": 9,
+        "clue_kind": "secret",
+        "reveals_secret_id": "secret-sunce-stable",
+        "clue_claim": "擦布结法是江东军中习惯，泥水已经干透，证明孙策昨夜便来过马厩，而不只是案发后才到。"
+      }
+    },
+    {
+      "id": "stable_strange_horseshoe",
+      "name": "不属于住客坐骑的旧马蹄铁",
+      "location_id": "stable",
+      "hidden": true,
+      "tags": ["trace", "misdirection"],
+      "metadata": {
+        "search_priority": 5,
+        "clue_kind": "decoy",
+        "clue_claim": "马蹄铁来自北方驿马，像是外部接应留下的东西，但锈迹表明它在草料下至少已有一个月。"
+      }
+    },
+    {
+      "id": "stairs_poison_oil",
+      "name": "扶手缝中的蓝黑油点",
+      "location_id": "stairs",
+      "hidden": true,
+      "portable": false,
+      "tags": ["poison", "trace", "evidence"],
+      "metadata": {
+        "search_priority": 10,
+        "clue_kind": "truth",
+        "truth_id": "truth-poison",
+        "clue_claim": "油点含有与凶针相同的封针蜡，位置说明携针者曾从二层下到大堂，但无法单独指向某一人。"
+      }
+    },
+    {
+      "id": "stairs_torn_route",
+      "name": "夹在踏板下的行程纸角",
+      "location_id": "stairs",
+      "hidden": true,
+      "tags": ["document", "secret"],
+      "metadata": {
+        "search_priority": 7,
+        "clue_kind": "secret",
+        "reveals_secret_id": "secret-guangling-itinerary",
+        "clue_claim": "纸角列出三条互不相同的巡视路线，批注笔迹属于广陵王；她显然在用行程测试某个内部泄密者。"
+      }
+    },
+    {
+      "id": "upper_hall_courier_button",
+      "name": "沾雨的驿卒衣扣",
+      "location_id": "upper_hall",
+      "hidden": true,
+      "tags": ["trace", "timeline", "evidence"],
+      "metadata": {
+        "search_priority": 10,
+        "clue_kind": "truth",
+        "truth_id": "truth-courier",
+        "clue_claim": "衣扣与陆成外衣缺口吻合，表明他倒毙前曾短暂上过二层；凶手有机会在客房或回廊与他近身。"
+      }
+    },
+    {
+      "id": "upper_hall_false_message",
+      "name": "写着“江东接应”的无名纸条",
+      "location_id": "upper_hall",
+      "hidden": true,
+      "tags": ["document", "misdirection"],
+      "metadata": {
+        "search_priority": 4,
+        "clue_kind": "decoy",
+        "clue_claim": "纸条直接写着“江东接应”，措辞刻意得像在栽赃；纸张来自大堂公用账册，任何住客都能取得。"
+      }
+    },
+    {
+      "id": "east_room_imperial_silk",
+      "name": "绣有宫纹的内衬丝角",
+      "location_id": "room_east",
+      "hidden": true,
+      "tags": ["identity", "secret"],
+      "metadata": {
+        "search_priority": 9,
+        "clue_kind": "secret",
+        "reveals_secret_id": "secret-liubian-identity",
+        "clue_claim": "丝角采用停用已久的宫中内衬纹样，与刘辩衣箱里的旧符相互印证；他的身份远不只是微服贵公子。"
+      }
+    },
+    {
+      "id": "east_room_old_stitch",
+      "name": "拆下的旧制针脚样布",
+      "location_id": "room_east",
+      "hidden": true,
+      "tags": ["textile", "evidence"],
+      "metadata": {
+        "search_priority": 7,
+        "clue_kind": "truth",
+        "truth_id": "truth-report",
+        "clue_claim": "样布针脚与死者袖口一致，却标着“两年前废止”；陆成身上的身份包装使用了过时的宫中知识。"
+      }
+    },
+    {
+      "id": "west_room_burnt_letter",
+      "name": "未烧尽的旁支回信",
+      "location_id": "room_west",
+      "hidden": true,
+      "tags": ["document", "secret"],
+      "metadata": {
+        "search_priority": 9,
+        "clue_kind": "secret",
+        "reveals_secret_id": "secret-yuanji-contact",
+        "clue_claim": "回信证明袁基绕过家族正式信使与涉事旁支保持联络；它不能证明杀人，却足以解释他为何隐瞒密信来源。"
+      }
+    },
+    {
+      "id": "west_room_perfume_ash",
+      "name": "混有水纹纸屑的香灰",
+      "location_id": "room_west",
+      "hidden": true,
+      "tags": ["trace", "misdirection"],
+      "metadata": {
+        "search_priority": 5,
+        "clue_kind": "decoy",
+        "clue_claim": "香灰中有袁氏常见水纹纸屑，但同类信纸可由旁支和门客使用，无法单凭它证明袁基作案。"
+      }
+    },
+    {
+      "id": "north_room_cipher_draft",
+      "name": "被弃用的鸢报暗码草稿",
+      "location_id": "room_north",
+      "hidden": true,
+      "tags": ["document", "evidence"],
+      "metadata": {
+        "search_priority": 10,
+        "clue_kind": "truth",
+        "truth_id": "truth-report",
+        "clue_claim": "草稿把真正军情与假鸢报逐句对照，最终目的不是传信，而是诱使绣衣楼调走城东守备。"
+      }
+    },
+    {
+      "id": "study_private_transfer_stub",
+      "name": "未入总账的转款存根",
+      "location_id": "study",
+      "hidden": true,
+      "tags": ["financial", "secret"],
+      "metadata": {
+        "search_priority": 9,
+        "clue_kind": "secret",
+        "reveals_secret_id": "secret-fu-safehouse-funds",
+        "clue_claim": "存根由傅融签押，钱款送往以鸟名代称的住址；这是他在正规账目之外调钱的直接证据。"
+      }
+    },
+    {
+      "id": "study_guest_register",
+      "name": "被改过时辰的住客名册",
+      "location_id": "study",
+      "hidden": true,
+      "tags": ["timeline", "evidence"],
+      "metadata": {
+        "search_priority": 8,
+        "clue_kind": "truth",
+        "truth_id": "truth-courier",
+        "clue_claim": "名册显示陆成入店时六名住客都已在客栈范围内；有人把时辰改晚一刻，试图模糊他与住客接触的窗口。"
+      }
+    }
+  ],
+  "initial_flags": {
+    "road_blocked": true,
+    "front_gate_locked": true,
+    "courier_death_known": true,
+    "guards_arrival_round": null,
+    "second_poisoning_risk": false
+  },
+  "event_cards": [
+    {
+      "id": "pressure-guards",
+      "title": "官兵叩门",
+      "category": "pressure",
+      "description": "门外传来官兵呼喊，他们声称两轮后将强行进入客栈搜查。",
+      "impact_preview": "建立搜查期限，持有敏感物品的角色可能转移或隐藏证据。",
+      "hidden_consequence": "若官兵抵达时伪造腰牌仍公开可见，所有绣衣楼相关角色将承受额外怀疑。",
+      "preconditions": {"min_round": 2, "flag_absent": "guards_arrival_round"},
+      "effects": [
+        {"type": "set_deadline", "flag": "guards_arrival_round", "rounds_from_now": 2},
+        {"type": "public_fact", "claim": "官兵将在两轮后搜查停云客栈。"}
+      ],
+      "once": true
+    },
+    {
+      "id": "pressure-horses",
+      "title": "马匹受惊",
+      "category": "pressure",
+      "description": "马厩传来巨响，一匹坐骑挣断缰绳，后门也被撞开一道缝隙。",
+      "impact_preview": "马厩成为冲突热点，并出现短暂的逃离或追踪机会。",
+      "hidden_consequence": "若无人处理，下一轮马厩中的痕迹可能被破坏。",
+      "preconditions": {"min_round": 1},
+      "effects": [
+        {"type": "set_flag", "flag": "stable_in_disarray", "value": true},
+        {"type": "set_deadline", "flag": "stable_damage_round", "rounds_from_now": 2},
+        {"type": "public_fact", "claim": "马厩中一匹坐骑挣断了缰绳。", "location_id": "stable"}
+      ],
+      "once": true
+    },
+    {
+      "id": "pressure-poisoning",
+      "title": "第二只毒盏",
+      "category": "pressure",
+      "description": "大堂茶案上出现一只散发异味的茶盏，没有人承认碰过它。",
+      "impact_preview": "所有人将重新评估饮食安全，懂医者与接触后厨者受到关注。",
+      "hidden_consequence": "这是细作预先留下的疑阵，并不代表参与者中一定存在下毒者。",
+      "preconditions": {"min_round": 3, "flag_equals": {"second_poisoning_risk": false}},
+      "effects": [
+        {"type": "set_flag", "flag": "second_poisoning_risk", "value": true},
+        {"type": "public_fact", "claim": "大堂出现了一只疑似带毒的茶盏。", "location_id": "lobby"}
+      ],
+      "once": true
+    },
+    {
+      "id": "information-well",
+      "title": "井沿黑痕",
+      "category": "information",
+      "description": "雨势稍缓，井沿露出一小片被冲淡的黑色粉末。",
+      "impact_preview": "后院水井获得新的调查线索。",
+      "hidden_consequence": "黑粉来自伪造腰牌时使用的旧模泥，可以与尸体腰牌对应。",
+      "preconditions": {"min_round": 1},
+      "effects": [
+        {"type": "public_fact", "claim": "后院井沿发现来源不明的黑色粉末。", "location_id": "courtyard"},
+        {"type": "set_flag", "flag": "well_mark_discovered", "value": true}
+      ],
+      "once": true
+    },
+    {
+      "id": "information-ledger",
+      "title": "酒瓮后的纸角",
+      "category": "information",
+      "description": "地窖酒瓮后露出一截被水浸湿的纸角。",
+      "impact_preview": "公开提示地窖可能藏有与账目相关的物品。",
+      "hidden_consequence": "完整账页可以证明钱款流向安全屋，但也会暴露安全屋代号。",
+      "preconditions": {"min_round": 2, "object_undiscovered": "missing_ledger_page"},
+      "effects": [
+        {"type": "reveal_object_hint", "object_id": "missing_ledger_page", "location_id": "cellar"}
+      ],
+      "once": true
+    },
+    {
+      "id": "information-last-words",
+      "title": "断续的暗语",
+      "category": "information",
+      "description": "店小二回忆起死者昏迷前似乎还说过“雁归北阙”。",
+      "impact_preview": "一条与死者身份相关的新暗语成为公共信息。",
+      "hidden_consequence": "刘辩知道暗语来源，却必须决定是否暴露自己的宫中经历。",
+      "preconditions": {"min_round": 2, "flag_absent": "last_words_revealed"},
+      "effects": [
+        {"type": "set_flag", "flag": "last_words_revealed", "value": true},
+        {"type": "public_fact", "claim": "死者昏迷前还说过“雁归北阙”。"}
+      ],
+      "once": true
+    },
+    {
+      "id": "relationship-public-accounts",
+      "title": "公开账目",
+      "category": "relationship",
+      "description": "掌柜提议将所有住客的投宿与货物记录贴到公告板上。",
+      "impact_preview": "部分行踪公开，可能减少猜疑，也可能暴露谎言。",
+      "hidden_consequence": "袁基的投宿时间与密信送达时间存在值得追问的重合。",
+      "preconditions": {"min_round": 1, "flag_absent": "guest_records_public"},
+      "effects": [
+        {"type": "set_flag", "flag": "guest_records_public", "value": true},
+        {"type": "public_fact", "claim": "客栈住客名册与投宿时间已经公开。", "location_id": "lobby"}
+      ],
+      "once": true
+    },
+    {
+      "id": "relationship-pairing",
+      "title": "两两互证",
+      "category": "relationship",
+      "description": "为防止再生意外，掌柜要求住客暂时两两结伴行动。",
+      "impact_preview": "下一轮独自行动会更困难，秘密交流与互相监视同时增加。",
+      "hidden_consequence": "结伴关系由角色自行选择，可能形成意料之外的联盟。",
+      "preconditions": {"min_round": 2, "flag_absent": "pair_rule_active"},
+      "effects": [
+        {"type": "set_flag", "flag": "pair_rule_active", "value": true},
+        {"type": "public_fact", "claim": "掌柜要求住客下一轮尽量两两结伴行动。"}
+      ],
+      "once": true
+    },
+    {
+      "id": "relationship-accusation",
+      "title": "无名指控",
+      "category": "relationship",
+      "description": "公告板上出现一张来历不明的纸条，声称“账目有鬼，副官有私”。",
+      "impact_preview": "傅融受到公开怀疑，知情者必须决定支持、质疑或保持沉默。",
+      "hidden_consequence": "纸条内容混合了真实异常与错误结论，会加剧对账页的争夺。",
+      "preconditions": {"min_round": 3, "flag_absent": "anonymous_accusation_posted"},
+      "effects": [
+        {"type": "set_flag", "flag": "anonymous_accusation_posted", "value": true},
+        {"type": "public_fact", "claim": "匿名纸条指控傅融隐瞒异常军饷。", "location_id": "lobby"}
+      ],
+      "once": true
+    }
+  ],
+  "round_triggers": [
+    {
+      "id": "guards-arrive",
+      "conditions": {
+        "flag_round_due": "guards_arrival_round",
+        "flag_absent": "guards_arrived"
+      },
+      "effects": [
+        {"type": "set_flag", "flag": "guards_arrived", "value": true},
+        {"type": "public_fact", "claim": "约定的时限已到，官兵强行进入停云客栈并开始搜查。", "location_id": "front_gate"}
+      ]
+    },
+    {
+      "id": "stable-traces-destroyed",
+      "conditions": {
+        "flag_round_due": "stable_damage_round",
+        "object_undiscovered": "wet_footprints"
+      },
+      "effects": [
+        {
+          "type": "remove_object",
+          "object_id": "wet_footprints",
+          "location_id": "courtyard",
+          "summary": "受惊马匹与往来脚步踩乱了后院原有的湿脚印，这条痕迹已经无法辨认。",
+          "reason": "stable_in_disarray",
+          "public": true
+        }
+      ]
+    }
+  ],
+  "ending_questions": [
+    "参与者是否判断出鸢报的真实目的？",
+    "完整账页最终落入谁手中？",
+    "刘辩是否暴露了自己的宫中知识？",
+    "玩家发布的公告与公开情报改变了哪些角色的选择？",
+    "凶手是否尝试或成功逃离客栈？",
+    "每个人最终把票投给了谁，依据是哪段个人记忆？",
+    "是否有人因冲突受伤或死亡？"
+  ]
+}

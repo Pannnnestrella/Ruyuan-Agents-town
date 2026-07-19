@@ -1,0 +1,330 @@
+{
+  "event_cards": [
+    {
+      "id": "pressure-thunder-blackout",
+      "title": "雷火熄灯",
+      "category": "pressure",
+      "description": "一道近雷震灭大堂与回廊的灯火，客栈短暂陷入黑暗。",
+      "impact_preview": "黑暗会鼓励转移、藏匿与试探，也让结伴行动更有价值。",
+      "hidden_consequence": "黑暗本身不制造新证据，只改变人物对风险的判断。",
+      "effects": [
+        {"type": "set_flag", "flag": "lights_dim", "value": true},
+        {"type": "public_fact", "claim": "近雷震灭了大堂与回廊的灯火，客栈暂时昏暗。", "location_id": "lobby"}
+      ]
+    },
+    {
+      "id": "pressure-roof-leak",
+      "title": "账房漏雨",
+      "category": "pressure",
+      "description": "雨水从账房屋顶渗下，几摞名册与货单面临损毁。",
+      "impact_preview": "与账目有关的人会决定抢救、转移或借机销毁纸张。",
+      "hidden_consequence": "漏雨不会自动证明任何账目内容。",
+      "effects": [
+        {"type": "set_flag", "flag": "study_leaking", "value": true},
+        {"type": "public_fact", "claim": "掌柜账房开始漏雨，纸质记录可能受损。", "location_id": "study"}
+      ]
+    },
+    {
+      "id": "pressure-cellar-rumble",
+      "title": "地窖闷响",
+      "category": "pressure",
+      "description": "地窖深处传来酒瓮倒塌的闷响，石阶上落满碎屑。",
+      "impact_preview": "地窖成为新的注意焦点，隐蔽物品可能面临搜查。",
+      "hidden_consequence": "响动来自雨水冲刷，并非有人必然身处地窖。",
+      "effects": [
+        {"type": "set_flag", "flag": "cellar_disturbed", "value": true},
+        {"type": "public_fact", "claim": "地窖传出酒瓮倒塌的闷响。", "location_id": "cellar"}
+      ]
+    },
+    {
+      "id": "pressure-locked-room-cry",
+      "title": "北房惊叫",
+      "category": "pressure",
+      "description": "北字客房方向传来一声短促惊叫，房门随后重重合上。",
+      "impact_preview": "角色可能赶往北房，也可能趁人群转移注意时行动。",
+      "hidden_consequence": "声音来自被风吹倒的木偶架，并不直接指认任何人。",
+      "effects": [
+        {"type": "set_flag", "flag": "north_room_alarm", "value": true},
+        {"type": "public_fact", "claim": "北字客房方向传来短促惊叫。", "location_id": "room_north"}
+      ]
+    },
+    {
+      "id": "pressure-medicine-missing",
+      "title": "药匣少了一格",
+      "category": "pressure",
+      "description": "左慈发现药匣中一格常用药粉被人动过，却无法确认发生在何时。",
+      "impact_preview": "医药与毒理成为焦点，接触药物的人需要解释行动。",
+      "hidden_consequence": "缺失的是止痛药粉，不等同于凶器所用毒物。",
+      "effects": [
+        {"type": "set_flag", "flag": "medicine_tampered", "value": true},
+        {"type": "public_fact", "claim": "左慈的药匣有一格药粉不知去向。"}
+      ]
+    },
+    {
+      "id": "pressure-distant-bell",
+      "title": "三声驿铃",
+      "category": "pressure",
+      "description": "门外雨幕中响起三声驿铃，像是有人在催促约定中的接应。",
+      "impact_preview": "隐藏凶手可能加快逃脱计划，其他人会关注出口。",
+      "hidden_consequence": "驿铃来源无法立即核实，也可能只是风吹旧铃。",
+      "effects": [
+        {"type": "set_flag", "flag": "outside_signal_heard", "value": true},
+        {"type": "public_fact", "claim": "门外雨幕中传来三声驿铃。", "location_id": "front_gate"}
+      ]
+    },
+    {
+      "id": "pressure-fever",
+      "title": "旧伤骤发",
+      "category": "pressure",
+      "description": "刘辩脸色发白，旧伤与寒气令他一度站立不稳。",
+      "impact_preview": "治疗与保护需求上升，队伍可能围绕他的安全重新分配行动。",
+      "hidden_consequence": "这是旧伤发作，不是第二次投毒。",
+      "effects": [
+        {"type": "set_flag", "flag": "liubian_fever", "value": true},
+        {"type": "public_fact", "claim": "刘辩因旧伤与寒气一度站立不稳。"}
+      ]
+    },
+    {
+      "id": "pressure-broken-window",
+      "title": "西窗破裂",
+      "category": "pressure",
+      "description": "狂风撞破西字客房的窗纸与木格，雨水灌入房内。",
+      "impact_preview": "房内物品面临暴露或转移，也出现一个令人不安的临时出口。",
+      "hidden_consequence": "窗洞不足以让人安全离开二层。",
+      "effects": [
+        {"type": "set_flag", "flag": "west_window_broken", "value": true},
+        {"type": "public_fact", "claim": "西字客房的窗格被狂风撞破。", "location_id": "room_west"}
+      ]
+    },
+    {
+      "id": "pressure-traces-fading",
+      "title": "雨水漫过脚印",
+      "category": "pressure",
+      "description": "后院积水迅速上涨，原有脚印再不查验就会被冲淡。",
+      "impact_preview": "制造一轮明确的调查优先级，角色需要在证据与其他目标间取舍。",
+      "hidden_consequence": "只提示证据时效，不自动销毁已经被发现的内容。",
+      "effects": [
+        {"type": "set_deadline", "flag": "stable_damage_round", "rounds_from_now": 1},
+        {"type": "public_fact", "claim": "后院积水正在冲淡原有脚印。", "location_id": "courtyard"}
+      ]
+    },
+
+    {
+      "id": "information-kitchen-ash",
+      "title": "灶灰里的油纸",
+      "category": "information",
+      "description": "后厨灶灰中露出一角没有烧尽的防水油纸。",
+      "impact_preview": "提示有人曾在后厨处理过需要防潮的细小物件。",
+      "hidden_consequence": "油纸曾包裹细针，但卡牌不会直接揭示这一结论。",
+      "effects": [
+        {"type": "set_flag", "flag": "oilpaper_hint", "value": true},
+        {"type": "public_fact", "claim": "后厨灶灰中发现一角未烧尽的防水油纸。", "location_id": "kitchen"}
+      ]
+    },
+    {
+      "id": "information-north-thread",
+      "title": "门缝中的丝线",
+      "category": "information",
+      "description": "北字客房门缝里夹着一缕深色丝线，材质不像普通蓑衣。",
+      "impact_preview": "公开一个可供服饰与行踪推理的新线索。",
+      "hidden_consequence": "丝线可能来自多人共有的旧披风，不能单独定罪。",
+      "effects": [
+        {"type": "set_flag", "flag": "north_thread_found", "value": true},
+        {"type": "public_fact", "claim": "北字客房门缝中发现一缕深色丝线。", "location_id": "room_north"}
+      ]
+    },
+    {
+      "id": "information-saddle-strap",
+      "title": "割断的鞍带",
+      "category": "information",
+      "description": "马厩一副备用鞍带的断口过于整齐，显然不是自然磨损。",
+      "impact_preview": "表明有人提前准备过骑马离开的条件。",
+      "hidden_consequence": "无法仅凭鞍带判断准备逃离的是谁。",
+      "effects": [
+        {"type": "set_flag", "flag": "saddle_cut", "value": true},
+        {"type": "public_fact", "claim": "马厩备用鞍带有被利刃割断的痕迹。", "location_id": "stable"}
+      ]
+    },
+    {
+      "id": "information-stair-wax",
+      "title": "木梯蜡痕",
+      "category": "information",
+      "description": "木梯扶手上留有新鲜封蜡碎屑，颜色与普通客栈账封不同。",
+      "impact_preview": "把密信、封蜡与上下楼行踪联系起来。",
+      "hidden_consequence": "多封信件使用相近封蜡，仍需角色进一步比对。",
+      "effects": [
+        {"type": "set_flag", "flag": "stair_wax_found", "value": true},
+        {"type": "public_fact", "claim": "木梯扶手上发现了新鲜封蜡碎屑。", "location_id": "stairs"}
+      ]
+    },
+    {
+      "id": "information-teacup-mark",
+      "title": "茶盏指印",
+      "category": "information",
+      "description": "死者茶盏边缘残留一枚被刻意擦过却未完全消失的指印。",
+      "impact_preview": "提供可供对照的接触证据，但不会自动锁定凶手。",
+      "hidden_consequence": "茶盏可能被不止一人接触。",
+      "effects": [
+        {"type": "set_flag", "flag": "cup_print_found", "value": true},
+        {"type": "public_fact", "claim": "死者茶盏上发现一枚未擦净的指印。", "location_id": "lobby"}
+      ]
+    },
+    {
+      "id": "information-guestbook-correction",
+      "title": "名册改笔",
+      "category": "information",
+      "description": "投宿名册中一处时辰被改写，原字仍可从墨迹下辨认。",
+      "impact_preview": "公开一段可能被篡改的时间线，促使人物互相核对行踪。",
+      "hidden_consequence": "改笔可能出于掌柜记错，不一定由凶手所为。",
+      "effects": [
+        {"type": "set_flag", "flag": "guestbook_altered", "value": true},
+        {"type": "public_fact", "claim": "投宿名册中有一处时辰遭到改写。", "location_id": "study"}
+      ]
+    },
+    {
+      "id": "information-courier-mud",
+      "title": "靴底红泥",
+      "category": "information",
+      "description": "死者靴底夹着广陵城东才常见的红泥，而驿道附近只有灰土。",
+      "impact_preview": "缩小死者来路，并把城东线索带入所有人的推理。",
+      "hidden_consequence": "红泥能说明来路，不能证明谁与死者同行。",
+      "effects": [
+        {"type": "set_flag", "flag": "courier_red_mud", "value": true},
+        {"type": "public_fact", "claim": "死者靴底带有广陵城东常见的红泥。", "location_id": "lobby"}
+      ]
+    },
+    {
+      "id": "information-wall-scratch",
+      "title": "后墙新痕",
+      "category": "information",
+      "description": "马厩后墙的青苔上留下两道新鲜刮痕，像是有人架过短梯。",
+      "impact_preview": "公开潜在逃离路线，令出口监视与逃脱计划发生变化。",
+      "hidden_consequence": "短梯已经不在现场，使用者仍然未知。",
+      "effects": [
+        {"type": "set_flag", "flag": "back_wall_route_known", "value": true},
+        {"type": "public_fact", "claim": "马厩后墙发现疑似架过短梯的新鲜刮痕。", "location_id": "stable"}
+      ]
+    },
+    {
+      "id": "information-ink-analysis",
+      "title": "两种墨色",
+      "category": "information",
+      "description": "急报纸面在灯下显出两种墨色，后半段明显晚于前文写成。",
+      "impact_preview": "强化伪造情报线索，并促使持有文书的人作出选择。",
+      "hidden_consequence": "只能证明文书被续写，尚不能指出续写者。",
+      "effects": [
+        {"type": "set_flag", "flag": "dispatch_two_inks", "value": true},
+        {"type": "public_fact", "claim": "绣衣急报的前后文字使用了不同墨色。"}
+      ]
+    },
+
+    {
+      "id": "relationship-public-alibi",
+      "title": "逐一报时",
+      "category": "relationship",
+      "description": "掌柜要求每个人公开陈述死者倒下前一刻自己所在的位置。",
+      "impact_preview": "形成可追踪的公开证词，谎言与记忆差异会进入后续讨论。",
+      "hidden_consequence": "角色仍可撒谎或只说部分事实。",
+      "effects": [
+        {"type": "set_flag", "flag": "public_alibi_round", "value": true},
+        {"type": "public_fact", "claim": "掌柜要求所有人公开陈述死者倒下前的所在位置。"}
+      ]
+    },
+    {
+      "id": "relationship-evidence-exchange",
+      "title": "线索交换",
+      "category": "relationship",
+      "description": "众人约定：愿意公开一条线索的人，可以向另一人追问一个问题。",
+      "impact_preview": "鼓励角色交谈与交易，秘密可能以附带条件的方式流动。",
+      "hidden_consequence": "约定没有强制力，凶手也可以借机散布误导。",
+      "effects": [
+        {"type": "set_flag", "flag": "evidence_exchange", "value": true},
+        {"type": "public_fact", "claim": "众人提出用一条线索交换一个问题的回答。"}
+      ]
+    },
+    {
+      "id": "relationship-room-search",
+      "title": "开门验房",
+      "category": "relationship",
+      "description": "掌柜提议由住客自愿开放自己的客房，接受两名见证者搜查。",
+      "impact_preview": "拒绝与接受都会成为公开态度，私人空间的重要性上升。",
+      "hidden_consequence": "自愿规则允许角色提前转移物品。",
+      "effects": [
+        {"type": "set_flag", "flag": "voluntary_room_search", "value": true},
+        {"type": "public_fact", "claim": "掌柜提议由住客自愿开放客房接受见证搜查。"}
+      ]
+    },
+    {
+      "id": "relationship-vote-rehearsal",
+      "title": "第一次试投",
+      "category": "relationship",
+      "description": "有人提议不计结果地写下当前最怀疑的人，以观察意见是否集中。",
+      "impact_preview": "让角色提前考虑终局投票，也可能促成拉票与甩锅。",
+      "hidden_consequence": "试投不会进入最终票数，且不强制公开姓名。",
+      "effects": [
+        {"type": "set_flag", "flag": "vote_rehearsal", "value": true},
+        {"type": "public_fact", "claim": "众人提出进行一次不计结果的怀疑试投。"}
+      ]
+    },
+    {
+      "id": "relationship-exit-watch",
+      "title": "轮守出口",
+      "category": "relationship",
+      "description": "众人商定轮流看守正门与马厩，任何靠近出口的人都要说明理由。",
+      "impact_preview": "逃脱难度提高，出口附近的行动会获得更强叙事意义。",
+      "hidden_consequence": "轮守依赖自觉执行，并非不可突破的世界规则。",
+      "effects": [
+        {"type": "set_flag", "flag": "exit_watch", "value": true},
+        {"type": "public_fact", "claim": "众人决定轮流看守正门与马厩。"}
+      ]
+    },
+    {
+      "id": "relationship-medical-exam",
+      "title": "验手问伤",
+      "category": "relationship",
+      "description": "左慈提议检查每个人的手指、袖口与近期伤痕。",
+      "impact_preview": "身体证据受到关注，拒绝检查可能激化怀疑。",
+      "hidden_consequence": "检查只能提供线索，不能从世界规则直接判定凶手。",
+      "effects": [
+        {"type": "set_flag", "flag": "medical_exam_proposed", "value": true},
+        {"type": "public_fact", "claim": "左慈提议检查所有人的手指、袖口与近期伤痕。"}
+      ]
+    },
+    {
+      "id": "relationship-oath",
+      "title": "灯下立誓",
+      "category": "relationship",
+      "description": "有人要求众人在死者遗物前立誓，不隐瞒与陆成的旧识。",
+      "impact_preview": "迫使人物在名誉、秘密与调查合作之间表态。",
+      "hidden_consequence": "誓言只影响关系，不具备自动辨谎能力。",
+      "effects": [
+        {"type": "set_flag", "flag": "oath_requested", "value": true},
+        {"type": "public_fact", "claim": "有人要求众人公开说明自己是否认识死者陆成。"}
+      ]
+    },
+    {
+      "id": "relationship-public-inventory",
+      "title": "登记随身物",
+      "category": "relationship",
+      "description": "掌柜提出登记每个人愿意公开的随身物品，并由本人签字。",
+      "impact_preview": "物品持有与拒绝登记都会进入公开记录。",
+      "hidden_consequence": "登记仅限主动出示的物品，藏匿物不会自动曝光。",
+      "effects": [
+        {"type": "set_flag", "flag": "inventory_register", "value": true},
+        {"type": "public_fact", "claim": "掌柜开始登记住客主动出示的随身物品。", "location_id": "lobby"}
+      ]
+    },
+    {
+      "id": "relationship-victim-question",
+      "title": "谁认识陆成",
+      "category": "relationship",
+      "description": "广陵王直接询问：谁曾在今晚之前见过陆成，或听说过他的名字？",
+      "impact_preview": "人物与死者的潜在关系成为交谈主题，凶手需要选择回应方式。",
+      "hidden_consequence": "沉默与否认都不等同于定罪。",
+      "effects": [
+        {"type": "set_flag", "flag": "victim_connection_questioned", "value": true},
+        {"type": "public_fact", "claim": "广陵王公开询问谁在今晚之前认识陆成。"}
+      ]
+    }
+  ]
+}

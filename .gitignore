@@ -143,3 +143,6 @@ data/lore/形象素材/
 # 含 API 密钥，不入库
 data/config-gemini.json
 results/checkpoints/
+
+# 互动推演的逐局运行存档由服务自动生成；保留同目录中的文档截图，避免提交本机测试局。
+results/interactive/game-*/

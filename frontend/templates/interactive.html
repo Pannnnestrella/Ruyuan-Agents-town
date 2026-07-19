@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>停云客栈 · 导演台</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/interactive.css') }}">
+</head>
+<body>
+    <main class="app-shell">
+        <section id="landing" class="landing-card">
+            <p class="eyebrow">如鸢·广陵城 AI 小镇</p>
+            <h1>停云客栈导演台</h1>
+            <p id="scenario-premise" class="premise">正在读取情景……</p>
+            <button id="create-game" class="primary-button" disabled>开始新的六轮推演</button>
+            <p class="prototype-note">角色可由本地启发式或项目配置中的 LLM 规划；两种模式共享同一套记忆、行动、逃脱与投票规则。</p>
+            <a class="text-link" href="/interactive">打开实时地图</a>
+        </section>
+
+        <section id="game" class="game-layout hidden">
+            <header class="game-header">
+                <div>
+                    <p class="eyebrow">互动推演进行中</p>
+                    <h1 id="game-title">暴雨夜·停云客栈</h1>
+                </div>
+                <div class="round-badge">第 <strong id="round-number">0</strong> / <span id="max-rounds">6</span> 轮 · 行动 <span id="director-action-step">0/3</span></div>
+            </header>
+
+            <nav class="mode-nav" aria-label="体验页面">
+                <a href="/interactive">实时地图</a>
+                <a class="active" href="/interactive/director">导演台</a>
+                <button id="director-new-game" type="button">新开一局</button>
+            </nav>
+
+            <section class="status-strip">
+                <span id="phase-label">等待主持人干预</span>
+                <span id="selected-card-label">尚未选择事件卡</span>
+                <span id="planner-label">决策引擎读取中</span>
+                <span id="game-id-label"></span>
+            </section>
+
+            <div class="board-grid">
+                <section class="panel locations-panel">
+                    <div class="panel-heading">
+                        <h2>客栈地点</h2>
+                        <span>人物当前位置</span>
+                    </div>
+                    <div id="locations" class="locations-list"></div>
+                </section>
+
+                <section class="panel timeline-panel">
+                    <div class="panel-heading">
+                        <h2>全量推演事件</h2>
+                        <span>含隐藏行动与私人对话</span>
+                    </div>
+                    <div id="timeline" class="timeline"></div>
+                </section>
+
+                <section class="panel agents-panel">
+                    <div class="panel-heading">
+                        <h2>住客状态</h2>
+                        <span>6 名参与者</span>
+                    </div>
+                    <div id="agents" class="agents-list"></div>
+                </section>
+            </div>
+
+            <section id="director-casebook" class="director-casebook hidden">
+                <header class="casebook-header">
+                    <div>
+                        <p class="control-kicker">主持人绝密案卷 · 请勿向角色席展示</p>
+                        <h2>本局客观真相与完整故事脉络</h2>
+                    </div>
+                    <span id="casebook-killer" class="killer-seal">凶手读取中</span>
+                </header>
+                <div class="casebook-grid">
+                    <article class="truth-panel">
+                        <p class="control-kicker">零号时间线</p>
+                        <h3>陆成是怎么遇害的</h3>
+                        <div id="murder-chain" class="murder-chain"></div>
+                    </article>
+                    <article class="truth-panel">
+                        <p class="control-kicker">作案核心</p>
+                        <h3>动机、手段与关键物</h3>
+                        <dl id="case-core" class="case-core"></dl>
+                    </article>
+                    <article class="truth-panel objective-truth-panel">
+                        <p class="control-kicker">作者层事实</p>
+                        <h3>不会随角色误判改变的真相</h3>
+                        <ul id="objective-truths"></ul>
+                    </article>
+                </div>
+                <section class="clue-atlas-section">
+                    <div class="casebook-section-heading">
+                        <div><p class="control-kicker">全知线索地图</p><h3>什么地方有什么，以及现在到了谁手里</h3></div>
+                        <p>位置会随藏匿、交付和发现实时更新</p>
+                    </div>
+                    <div class="clue-legend">
+                        <span class="kind-truth">真相拼图</span><span class="kind-secret">人物秘密</span><span class="kind-decoy">混淆项</span><span class="kind-variant">本局专属</span>
+                    </div>
+                    <div id="director-clue-map" class="director-clue-map"></div>
+                </section>
+                <section class="deduction-section">
+                    <div class="casebook-section-heading">
+                        <div><p class="control-kicker">主持人推理手册</p><h3>好人如何从散片走到唯一凶手</h3></div>
+                        <p>三套种子逻辑全部保留；当前本局会自动标记</p>
+                    </div>
+                    <article class="deduction-foundation">
+                        <h4>三套案件共享的推理地基</h4>
+                        <div id="shared-deduction-foundation" class="deduction-chain"></div>
+                    </article>
+                    <div id="variant-deduction-guides" class="variant-deduction-guides"></div>
+                </section>
+                <div class="casebook-section-heading">
+                    <div><p class="control-kicker">六人全档</p><h3>背景、秘密、记忆、物品、计划与行动</h3></div>
+                    <p>点击人物展开；标红项只属于主持人视角</p>
+                </div>
+                <div id="director-character-files" class="director-character-files"></div>
+            </section>
+
+            <section class="control-deck">
+                <section class="host-console" aria-label="主持人状态">
+                    <div>
+                        <p class="control-kicker">掌柜席 · 你的主持视角</p>
+                        <h2 id="host-round-title">风雨将至，等待第一项决定</h2>
+                        <p id="host-objective">你不替角色决定真相，但可以控制他们共同面对的压力与信息。</p>
+                    </div>
+                    <div class="host-metrics">
+                        <span id="host-reach">公告触达 0/6</span>
+                        <span id="host-pressure">局势：试探</span>
+                        <span id="host-interventions">已干预 0 次</span>
+                    </div>
+                </section>
+
+                <div class="notice-composer">
+                    <div>
+                        <p class="control-kicker">公告板</p>
+                        <h2>向世界发布一条公开信息</h2>
+                    </div>
+                    <div class="notice-row">
+                        <textarea id="notice-content" maxlength="500" rows="2" placeholder="例如：亥时后任何人不得离开客栈。"></textarea>
+                        <button id="post-notice" class="secondary-button">张贴公告</button>
+                    </div>
+                    <div id="notices" class="notice-history"></div>
+                </div>
+
+                <div class="intel-director-area">
+                    <div class="event-card-heading">
+                        <div>
+                            <p class="control-kicker">全局广播</p>
+                            <h2>选择一条公开情报</h2>
+                        </div>
+                        <p>每轮至多一条，六名角色立即获知</p>
+                    </div>
+                    <div id="intel-options" class="intel-options"></div>
+                    <div id="intel-history" class="notice-history"></div>
+                </div>
+
+                <div class="event-card-area">
+                    <div class="event-card-heading">
+                        <div>
+                            <p class="control-kicker">局势导演</p>
+                            <h2>为下一轮选择一张事件卡</h2>
+                        </div>
+                        <p>压力、信息、关系三种方向</p>
+                    </div>
+                    <div id="event-cards" class="event-cards"></div>
+                    <div id="empty-event-option" class="empty-event-option"></div>
+                </div>
+
+                <div class="advance-row">
+                    <p id="action-hint">先发布公告（可选），再选择一张事件卡。</p>
+                    <button id="advance-round" class="primary-button" disabled>开始整轮（3 次行动）</button>
+                    <button id="view-recap" class="primary-button hidden">查看终局复盘</button>
+                </div>
+            </section>
+
+            <section id="recap-panel" class="recap-panel hidden">
+                <div class="recap-header">
+                    <div>
+                        <p class="eyebrow">推演结束</p>
+                        <h2>终局真相与人物结局</h2>
+                    </div>
+                    <button id="close-recap" class="secondary-button">返回棋盘</button>
+                </div>
+                <div id="recap-content" class="recap-content"></div>
+            </section>
+        </section>
+    </main>
+
+    <div id="director-dispatch-layer" class="dispatch-layer" aria-live="polite"></div>
+    <div id="toast" class="toast hidden"></div>
+    <script src="{{ url_for('static', filename='js/interactive.js') }}"></script>
+</body>
+</html>
