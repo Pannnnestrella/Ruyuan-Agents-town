@@ -106,6 +106,9 @@ class InteractiveApiTests(unittest.TestCase):
         self.assertTrue(casebook["method"])
         self.assertEqual(len(casebook["murder_chain"]), 5)
         self.assertEqual(len(casebook["characters"]), 6)
+        self.assertGreaterEqual(len(casebook["objective_timeline"]), 20)
+        self.assertEqual(sum(item["private"] for item in casebook["objective_timeline"]), 1)
+        self.assertTrue(all(item["pregame_timeline"] for item in casebook["characters"]))
         self.assertEqual(sum(item["is_killer"] for item in casebook["characters"]), 1)
         self.assertTrue(all("beliefs" in item["current_state"] for item in casebook["characters"]))
         self.assertTrue(any(item["secrets"] for item in casebook["characters"]))
@@ -148,7 +151,7 @@ class InteractiveApiTests(unittest.TestCase):
         self.assertEqual(restored.status_code, 200)
         self.assertEqual(restored.get_json()["state"]["round_number"], 1)
 
-    def test_player_free_action_auto_host_and_end_round_endpoints(self):
+    def test_player_free_action_manual_host_choice_and_end_round_endpoints(self):
         created = self.client.post(
             "/api/interactive/games",
             json={
@@ -161,10 +164,13 @@ class InteractiveApiTests(unittest.TestCase):
         token = created["player_token"]
         headers = {"X-Player-Token": token}
 
+        player = created["player"]
+        self.assertIsNone(player["active_event_card"])
+        card_id = player["host_options"]["cards"][0]["card_id"]
         hosted = self.client.post(
-            "/api/interactive/games/player-api-test/player/auto-host",
+            "/api/interactive/games/player-api-test/player/host-choice",
             headers=headers,
-            json={},
+            json={"card_id": card_id, "intel_id": None},
         )
         self.assertEqual(hosted.status_code, 200)
         self.assertEqual(hosted.get_json()["player"]["phase"], "ready")

@@ -10,6 +10,9 @@ from typing import Any
 class LifeState(str, Enum):
     ALIVE = "alive"
     INJURED = "injured"
+    SEVERELY_INJURED = "severely_injured"
+    # Kept so old saved games can still be opened. New rounds never create
+    # these two legacy states; persistence normalizes them to severely injured.
     INCAPACITATED = "incapacitated"
     DYING = "dying"
     DEAD = "dead"
@@ -75,7 +78,7 @@ class AgentState:
     @property
     def can_act(self) -> bool:
         return (
-            self.life_state in {LifeState.ALIVE, LifeState.INJURED}
+            self.life_state != LifeState.DEAD
             and "escaped" not in self.conditions
         )
 

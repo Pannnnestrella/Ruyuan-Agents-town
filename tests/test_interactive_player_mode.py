@@ -44,8 +44,12 @@ class PlayerModeTests(unittest.TestCase):
         self.assertEqual(len(view["background"]["story"]), 3)
         self.assertGreaterEqual(len(view["background"]["background_memories"]), 2)
         self.assertIn("鸢报有假", view["opening_dispatch"]["dead_note"])
+        self.assertGreaterEqual(len(view["player_guide"]["principles"]), 6)
         self.assertEqual(view["story_guide"]["title"], "第 1 轮 · 风雨未歇")
-        self.assertIn("自动主持", view["story_guide"]["objective"])
+        self.assertIn("亲自选择", view["story_guide"]["objective"])
+        self.assertGreaterEqual(len(view["background"]["timeline"]), 6)
+        self.assertEqual(len(view["host_options"]["cards"]), 3)
+        self.assertTrue(view["host_options"]["quiet"])
 
         self.select_quiet()
         ready = self.session.player_state(self.token)
@@ -54,6 +58,16 @@ class PlayerModeTests(unittest.TestCase):
             ready["story_guide"]["location_name"],
             self.session.state.locations["lobby"]["name"],
         )
+
+    def test_bulletin_update_marks_unread_without_leaking_remote_content(self):
+        self.session.state.agents["广陵王"].location_id = "room_east"
+        notice = self.session.post_notice("只有回大堂才能读到的测试公告。")
+        view = self.session.player_state(self.token)
+        self.assertTrue(view["bulletin"]["has_unread"])
+        self.assertNotIn(notice.notice_id, {item["notice_id"] for item in view["notices"]})
+        marker = [event for event in view["events"] if event["event_type"] == "bulletin_updated"]
+        self.assertTrue(marker)
+        self.assertNotIn("测试公告", marker[-1]["summary"])
 
     def test_conflict_and_treatment_are_character_specific(self):
         actions = self.session.available_player_actions("广陵王")
@@ -171,8 +185,12 @@ class PlayerModeTests(unittest.TestCase):
         self.assertEqual(investigate.action_step, 1)
         self.assertEqual(self.session.state.action_step, 1)
 
-    def test_player_can_end_round_and_auto_host_the_next_one(self):
-        hosted = self.session.auto_host_next_round(self.token)
+    def test_player_can_choose_the_host_event_and_end_the_round(self):
+        intel = self.session.intel_suggestions()[0]
+        card = self.session.card_suggestions()[0]
+        hosted = self.session.choose_player_host_event(
+            self.token, card["card_id"], intel_id=intel["id"]
+        )
         self.assertTrue(hosted["card"])
         self.assertIsNotNone(hosted["intel"])
         self.assertEqual(self.session.state.phase, GamePhase.READY)
@@ -192,6 +210,16 @@ class PlayerModeTests(unittest.TestCase):
             if event.event_type == "wait" and event.actors == ["广陵王"]
         ]
         self.assertEqual(len(player_waits), 2)
+
+    def test_host_choice_never_publishes_or_selects_anything_until_confirmed(self):
+        view = self.session.player_state(self.token)
+        self.assertIsNone(self.session.state.active_event_card)
+        self.assertFalse(self.session.state.public_intel_history)
+        quiet = view["host_options"]["quiet"]
+        hosted = self.session.choose_player_host_event(self.token, quiet["card_id"])
+        self.assertIsNone(hosted["intel"])
+        self.assertEqual(hosted["card"]["category"], "quiet")
+        self.assertFalse(self.session.state.public_intel_history)
 
     def test_player_sees_departure_from_same_room_but_not_remote_actions(self):
         self.session.state.agents["傅融"].location_id = "lobby"

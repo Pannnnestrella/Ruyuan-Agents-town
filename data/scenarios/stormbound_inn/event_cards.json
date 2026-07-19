@@ -81,6 +81,7 @@
       "hidden_consequence": "这是旧伤发作，不是第二次投毒。",
       "effects": [
         {"type": "set_flag", "flag": "liubian_fever", "value": true},
+        {"type": "set_health_state", "agent_id": "刘辩", "life_state": "injured", "summary": "刘辩旧伤骤发，当前受伤，在接受救治前无法搜查。"},
         {"type": "public_fact", "claim": "刘辩因旧伤与寒气一度站立不稳。"}
       ]
     },
@@ -312,6 +313,17 @@
       "effects": [
         {"type": "set_flag", "flag": "inventory_register", "value": true},
         {"type": "public_fact", "claim": "掌柜开始登记住客主动出示的随身物品。", "location_id": "lobby"}
+      ]
+    },
+    {
+      "id": "pressure-collision-drop",
+      "title": "惊雷失手",
+      "category": "pressure",
+      "description": "惊雷震落灯架，人群闪避碰撞；有人衣袋中的一件随身物意外掉在当场。",
+      "impact_preview": "随机一名住客掉落一件真实随身物；同室者会看见，但物品不会被自动定罪。",
+      "hidden_consequence": "掉落对象由当前真实持有状态决定，可能是普通私人物，也可能成为新的对质材料。",
+      "effects": [
+        {"type": "drop_random_carried_item"}
       ]
     },
     {

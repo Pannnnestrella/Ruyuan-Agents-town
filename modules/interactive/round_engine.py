@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import random
-from typing import Iterable
+from typing import Any, Iterable
 
 from .models import (
     ActionIntent,
@@ -178,6 +178,15 @@ class RoundEngine:
             return "only one major action is allowed per actor in one action phase"
         if not action_is_authorized(state, intent):
             return "actor does not have the required character ability"
+        severe_states = {
+            LifeState.SEVERELY_INJURED,
+            LifeState.INCAPACITATED,
+            LifeState.DYING,
+        }
+        if intent.action_type == ActionType.INVESTIGATE and actor.life_state != LifeState.ALIVE:
+            return "injured characters cannot investigate until fully treated"
+        if intent.action_type in {ActionType.MOVE, ActionType.ESCAPE} and actor.life_state in severe_states:
+            return "severely injured characters cannot move without treatment"
         if intent.action_type == ActionType.MOVE:
             if intent.location_id not in state.locations:
                 return "unknown destination"
@@ -190,9 +199,73 @@ class RoundEngine:
                 return "bulletin content cannot be empty"
         if intent.target_id and intent.target_id not in state.agents:
             return "unknown target agent"
+        if intent.action_type in {ActionType.TALK, ActionType.ATTACK, ActionType.TRANSFER}:
+            target = state.agents.get(intent.target_id or "")
+            if target is None or target.agent_id == actor.agent_id:
+                return "target must be another character"
+            if target.location_id != actor.location_id:
+                return "target is not in the same location"
+        if intent.action_type == ActionType.TALK:
+            shared_id = str(intent.metadata.get("share_belief_id") or "")
+            if shared_id:
+                shared = next(
+                    (belief for belief in actor.beliefs if belief.belief_id == shared_id),
+                    None,
+                )
+                if shared is None:
+                    return "shared memory does not belong to actor"
+                if intent.target_id in shared.shared_with:
+                    return "the same memory was already shared with this character"
+                shared_fingerprint = self._normalize_dialogue(shared.claim)
+                if any(
+                    self._normalize_dialogue(known.claim) == shared_fingerprint
+                    for known in target.beliefs[-60:]
+                ):
+                    return "the target already knows equivalent information"
+            normalized = self._normalize_dialogue(intent.content)
+            if normalized and any(
+                event.event_type == "conversation"
+                and event.payload.get("speaker_id") == actor.agent_id
+                and event.payload.get("listener_id") == intent.target_id
+                and self._normalize_dialogue(str(event.payload.get("content") or "")) == normalized
+                for event in state.events[-80:]
+            ):
+                return "the same statement was already made to this character"
         if intent.object_id and intent.object_id not in state.objects:
             return "unknown object"
+        if intent.action_type == ActionType.ATTACK:
+            active_round = str(state.round_number + 1)
+            attacked = state.flags.get("attacks_by_round", {}).get(active_round, [])
+            if actor.agent_id in attacked:
+                return "each character may attempt at most one attack per round"
         return None
+
+    @staticmethod
+    def _normalize_dialogue(value: str) -> str:
+        text = str(value).strip()
+        for _ in range(8):
+            previous = text
+            for prefix in (
+                "我把这条情报告诉你：", "我把这条情报告诉你:",
+                "我愿意把这条情报告诉你：", "我愿意把这条情报告诉你:",
+                "我愿意分享一条尚未与你核对的信息：",
+                "我愿意分享一条尚未与你核对的信息:",
+            ):
+                if text.startswith(prefix):
+                    text = text[len(prefix):].strip()
+            for suffix in (
+                "。你是否有能相互印证的线索？", "。你有能相互印证的线索吗？",
+                "你是否有能相互印证的线索？", "你有能相互印证的线索吗？",
+            ):
+                if suffix in text:
+                    text = text.split(suffix, 1)[0].strip()
+            if text == previous:
+                break
+        compact = "".join(
+            character for character in text
+            if not character.isspace() and character not in "，。！？；：“”‘’、,.!?;:"
+        )
+        return compact[:240]
 
     def _resolve_intent(
         self,
@@ -270,6 +343,17 @@ class RoundEngine:
                 ),
             )[0]
             item.discovered_by.append(actor.agent_id)
+            previous_searcher = self._record_search(state, actor.agent_id, location_id, round_number)
+            remaining = sum(
+                1 for candidate in state.objects.values()
+                if candidate.location_id == location_id
+                and actor.agent_id not in candidate.discovered_by
+            )
+            progress_hint = (
+                "搜查尚未到底：此处仍有可疑角落没有核清。"
+                if remaining
+                else "就你目前能辨认的范围而言，此处暂时没有更多未见物证。"
+            )
             clue_claim = str(
                 item.metadata.get("clue_claim")
                 or item.metadata.get("description")
@@ -292,17 +376,62 @@ class RoundEngine:
                     "clue_kind": item.metadata.get("clue_kind", "evidence"),
                     "ability_id": intent.metadata.get("ability_id"),
                     "ability_label": intent.metadata.get("ability_label"),
+                    "search_progress": progress_hint,
+                    "evidence_remaining": bool(remaining),
+                    "previous_searcher_id": previous_searcher,
                 },
             )
+        search_history = state.flags.get("location_search_history", {}).get(location_id, [])
+        previous_entry = next(
+            (entry for entry in reversed(search_history) if entry.get("agent_id") != actor.agent_id),
+            None,
+        )
+        previous_id = str((previous_entry or {}).get("agent_id") or "")
+        previous_name = state.agents[previous_id].display_name if previous_id in state.agents else "另一名住客"
+        observations = list(state.locations[location_id].get("search_observations", []))
+        observation_index = len(search_history) % len(observations) if observations else 0
+        observation = (
+            str(observations[observation_index]).format(previous_name=previous_name)
+            if observations
+            else f"器物的位置并非全然自然；{previous_name}留下的翻动痕迹尚未被雨气掩去。"
+        )
+        self._record_search(state, actor.agent_id, location_id, round_number)
+        progress_hint = "没有找到新物品；现有痕迹表明这里暂时没有尚未辨认的物证。"
         return self._event(
             round_number,
             "investigation_empty",
-            f"{actor.display_name} 搜查了{state.locations[location_id]['name']}，没有发现新的物品。",
+            f"{actor.display_name} 搜查了{state.locations[location_id]['name']}，没有发现新物品，但注意到：{observation}",
             actors=[actor.agent_id],
             location_id=location_id,
             public=True,
             witnesses=state.occupants(location_id, include_dead=False),
+            payload={
+                "disturbance_trace": observation,
+                "search_progress": progress_hint,
+                "evidence_remaining": False,
+                "previous_searcher_id": previous_id or None,
+            },
         )
+
+    @staticmethod
+    def _record_search(
+        state: GameState,
+        actor_id: str,
+        location_id: str,
+        round_number: int,
+    ) -> str | None:
+        histories = state.flags.setdefault("location_search_history", {})
+        history = histories.setdefault(location_id, [])
+        previous = next(
+            (entry for entry in reversed(history) if entry.get("agent_id") != actor_id),
+            None,
+        )
+        history.append({
+            "agent_id": actor_id,
+            "round_number": round_number,
+            "action_step": state.action_step + 1,
+        })
+        return str(previous.get("agent_id")) if previous else None
 
     def _resolve_talk(self, state: GameState, intent: ActionIntent, round_number: int) -> EventRecord:
         actor = state.agents[intent.actor_id]
@@ -319,6 +448,18 @@ class RoundEngine:
             )
         if shared_belief and not intent.content.strip():
             topic = f"我愿意把这条情报告诉你：{shared_belief.claim}"
+        displayed_item = None
+        display_object_id = str(intent.metadata.get("display_object_id") or "")
+        item_disposition = str(intent.metadata.get("item_disposition") or "none")
+        if display_object_id:
+            candidate = state.objects.get(display_object_id)
+            if candidate and candidate.holder_id == actor.agent_id:
+                displayed_item = candidate
+                item_disposition = "show"
+                viewers = state.occupants(actor.location_id, include_dead=False)
+                displayed_item.discovered_by = list(dict.fromkeys([
+                    *displayed_item.discovered_by, *viewers,
+                ]))
         return self._event(
             round_number,
             "conversation",
@@ -335,6 +476,12 @@ class RoundEngine:
                 "shared_claim": shared_belief.claim if shared_belief else None,
                 "shared_truth_id": shared_belief.truth_id if shared_belief else None,
                 "shared_confidence": shared_belief.confidence if shared_belief else None,
+                "displayed_object_id": displayed_item.object_id if displayed_item else None,
+                "displayed_object_name": displayed_item.name if displayed_item else None,
+                "item_disposition": "show" if displayed_item else (
+                    item_disposition if item_disposition == "refuse" else "none"
+                ),
+                "_host_item_disposition": item_disposition,
             },
         )
 
@@ -406,6 +553,12 @@ class RoundEngine:
         if target is None or target.location_id != actor.location_id or target.life_state == LifeState.DEAD:
             return self._failed_event(round_number, actor.agent_id, actor.display_name, "攻击", "目标不在场", actor.location_id)
 
+        round_attacks = state.flags.setdefault("attacks_by_round", {}).setdefault(
+            str(round_number), []
+        )
+        if actor.agent_id not in round_attacks:
+            round_attacks.append(actor.agent_id)
+
         base_chance = float(intent.metadata.get("success_chance", 0.7))
         if self.random.random() > max(0.0, min(1.0, base_chance)):
             return self._event(
@@ -418,12 +571,37 @@ class RoundEngine:
                 witnesses=state.occupants(actor.location_id),
             )
 
-        damage = max(1, int(intent.metadata.get("damage", 25)))
-        target.health = max(0, target.health - damage)
-        target.life_state = self._life_state_for_health(target.health)
+        before_state = target.life_state
+        severe_states = {
+            LifeState.SEVERELY_INJURED,
+            LifeState.INCAPACITATED,
+            LifeState.DYING,
+        }
+        if before_state == LifeState.INJURED or before_state in severe_states:
+            target.life_state = LifeState.DEAD
+            target.health = 0
+        elif intent.metadata.get("first_hit_state") == LifeState.SEVERELY_INJURED.value:
+            target.life_state = LifeState.SEVERELY_INJURED
+            target.health = min(target.health, 30)
+        else:
+            target.life_state = LifeState.INJURED
+            target.health = min(target.health, 65)
         condition = intent.metadata.get("condition")
         if condition and condition not in target.conditions:
             target.conditions.append(str(condition))
+        dropped_items: list[str] = []
+        if target.life_state == LifeState.DEAD:
+            witnesses = state.occupants(actor.location_id)
+            for object_id in list(target.inventory):
+                item = state.objects.get(object_id)
+                if item is None:
+                    continue
+                item.holder_id = None
+                item.location_id = actor.location_id
+                item.hidden = False
+                item.discovered_by = list(dict.fromkeys([*item.discovered_by, *witnesses]))
+                dropped_items.append(object_id)
+            target.inventory.clear()
         return self._event(
             round_number,
             "attack",
@@ -438,10 +616,11 @@ class RoundEngine:
                 "life_state": target.life_state.value,
             }],
             payload={
-                "damage": damage,
+                "previous_life_state": before_state.value,
                 "ability_id": intent.metadata.get("ability_id"),
                 "ability_label": intent.metadata.get("ability_label"),
                 "condition": condition,
+                "dropped_object_ids": dropped_items,
             },
         )
 
@@ -450,10 +629,10 @@ class RoundEngine:
         target = state.agents.get(intent.target_id or actor.agent_id)
         if target is None or target.location_id != actor.location_id or target.life_state == LifeState.DEAD:
             return self._failed_event(round_number, actor.agent_id, actor.display_name, "治疗", "目标不在场或已经死亡", actor.location_id)
-        amount = max(1, int(intent.metadata.get("amount", 15)))
         before = target.health
-        target.health = min(100, target.health + amount)
-        target.life_state = self._life_state_for_health(target.health)
+        target.health = 100
+        target.life_state = LifeState.ALIVE
+        target.conditions = [condition for condition in target.conditions if condition == "escaped"]
         return self._event(
             round_number,
             "treatment",
@@ -535,10 +714,8 @@ class RoundEngine:
     def _life_state_for_health(health: int) -> LifeState:
         if health <= 0:
             return LifeState.DEAD
-        if health <= 15:
-            return LifeState.DYING
         if health <= 35:
-            return LifeState.INCAPACITATED
+            return LifeState.SEVERELY_INJURED
         if health <= 70:
             return LifeState.INJURED
         return LifeState.ALIVE

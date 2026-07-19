@@ -36,6 +36,9 @@ class LoadedScenario:
             location["id"]: dict(location)
             for location in self.world["locations"]
         }
+        for location_id, observations in self.scenario.get("search_observations", {}).items():
+            if location_id in locations:
+                locations[location_id]["search_observations"] = list(observations)
         agents: dict[str, AgentState] = {}
         for participant in self.scenario["participants"]:
             beliefs = [
@@ -146,6 +149,7 @@ class LoadedScenario:
                 objects[object_id].location_id = None
 
         flags = dict(self.scenario.get("initial_flags", {}))
+        flags["seed"] = seed
         killer_setup = self.scenario.get("killer_setup") or {}
         killer_candidates = list(killer_setup.get("candidates", []))
         if killer_candidates:
@@ -291,6 +295,29 @@ class LoadedScenario:
                 if weapon_id not in killer.inventory:
                     killer.inventory.append(weapon_id)
 
+        character_timelines, objective_timeline = self._materialize_timelines(
+            str((flags.get("case_manifest") or {}).get("case_id") or "")
+        )
+        flags["character_timelines"] = character_timelines
+        flags["objective_timeline"] = objective_timeline
+        for agent_id, entries in character_timelines.items():
+            agent = agents.get(agent_id)
+            if agent is None:
+                continue
+            for entry in entries:
+                agent.beliefs.append(Belief(
+                    belief_id=f"belief-{agent_id}-timeline-{entry['id']}",
+                    claim=str(entry["text"]),
+                    source=f"timeline:{entry['id']}",
+                    confidence=1.0,
+                    stance="knows",
+                    learned_round=0,
+                    truth_id=(
+                        "truth-killer"
+                        if entry.get("kind") == "killer-private" else None
+                    ),
+                ))
+
         return GameState(
             game_id=game_id,
             scenario_id=self.scenario["id"],
@@ -307,6 +334,40 @@ class LoadedScenario:
             flags=flags,
         )
 
+    def _materialize_timelines(
+        self,
+        active_case_id: str,
+    ) -> tuple[dict[str, list[dict[str, Any]]], list[dict[str, Any]]]:
+        """Build six matching personal chronologies from one authored event list."""
+
+        timeline = dict(self.scenario.get("timeline", {}))
+        participant_ids = [item["id"] for item in self.scenario.get("participants", [])]
+        location_names = {
+            item["id"]: item.get("name", item["id"])
+            for item in self.world.get("locations", [])
+        }
+        base_events = [deepcopy(item) for item in timeline.get("events", [])]
+        selected_variant = dict(
+            (timeline.get("killer_variants", {}) or {}).get(active_case_id, {})
+        )
+        variant_events = [deepcopy(item) for item in selected_variant.get("events", [])]
+        all_events = [*base_events, *variant_events]
+        for event in all_events:
+            event["location_name"] = location_names.get(
+                event.get("location_id"), event.get("location_id", "")
+            )
+            event["case_id"] = active_case_id if event in variant_events else None
+            event["private"] = event.get("kind") == "killer-private"
+        all_events.sort(key=lambda item: (int(item.get("order", 0)), str(item.get("id", ""))))
+        character_timelines = {
+            agent_id: [
+                deepcopy(event) for event in all_events
+                if agent_id in event.get("participants", [])
+            ]
+            for agent_id in participant_ids
+        }
+        return character_timelines, all_events
+
 
 class ScenarioLoader:
     def __init__(self, project_root: str | Path):
@@ -319,6 +380,36 @@ class ScenarioLoader:
         scenario = self._read_json(scenario_path)
         self._extend_scenario_list(scenario, scenario_path, "event_cards", "event_cards_file")
         self._extend_scenario_list(scenario, scenario_path, "public_intel", "public_intel_file")
+        observations_path = scenario.get("search_observations_file")
+        if observations_path:
+            extra_path = scenario_path.parent / str(observations_path)
+            if not extra_path.is_file():
+                raise FileNotFoundError(f"Scenario data file not found: {extra_path}")
+            raw_observations = self._read_json(extra_path)
+            observations = raw_observations.get("search_observations", raw_observations)
+            if not isinstance(observations, dict):
+                raise ScenarioValidationError("search_observations_file must contain an object")
+            scenario["search_observations"] = observations
+        guide_path = scenario.get("player_guide_file")
+        if guide_path:
+            extra_path = scenario_path.parent / str(guide_path)
+            if not extra_path.is_file():
+                raise FileNotFoundError(f"Scenario data file not found: {extra_path}")
+            raw_guide = self._read_json(extra_path)
+            guide = raw_guide.get("player_guide", raw_guide)
+            if not isinstance(guide, dict):
+                raise ScenarioValidationError("player_guide_file must contain an object")
+            scenario["player_guide"] = guide
+        timeline_path = scenario.get("timeline_file")
+        if timeline_path:
+            extra_path = scenario_path.parent / str(timeline_path)
+            if not extra_path.is_file():
+                raise FileNotFoundError(f"Scenario data file not found: {extra_path}")
+            raw_timeline = self._read_json(extra_path)
+            timeline = raw_timeline.get("timeline", raw_timeline)
+            if not isinstance(timeline, dict):
+                raise ScenarioValidationError("timeline_file must contain an object")
+            scenario["timeline"] = timeline
         world_id = scenario.get("world_id")
         if not world_id:
             raise ScenarioValidationError("scenario.world_id is required")
@@ -446,6 +537,53 @@ class ScenarioLoader:
         intel_ids = {item.get("id") for item in public_intel}
         if len(intel_ids) != len(public_intel):
             errors.append("public intel ids must be unique")
+
+        timeline = scenario.get("timeline") or {}
+        timeline_events = list(timeline.get("events", []))
+        timeline_event_ids: set[str] = set()
+        for event in timeline_events:
+            event_id = str(event.get("id") or "")
+            if not event_id or event_id in timeline_event_ids:
+                errors.append("timeline event ids must be present and unique")
+            timeline_event_ids.add(event_id)
+            if event.get("location_id") not in location_ids:
+                errors.append(f"timeline event {event_id} references unknown location")
+            event_participants = list(event.get("participants", []))
+            if not event_participants or any(
+                agent_id not in participant_ids for agent_id in event_participants
+            ):
+                errors.append(f"timeline event {event_id} has unknown participants")
+            if not str(event.get("time") or "").strip() or not str(event.get("text") or "").strip():
+                errors.append(f"timeline event {event_id} requires time and text")
+
+        candidates_by_case = {
+            str(candidate.get("case_id")): candidate
+            for candidate in (scenario.get("killer_setup") or {}).get("candidates", [])
+        }
+        variants = timeline.get("killer_variants", {}) or {}
+        if timeline and set(variants) != set(candidates_by_case):
+            errors.append("timeline killer variants must cover every killer case exactly once")
+        for case_id, variant in variants.items():
+            candidate = candidates_by_case.get(str(case_id), {})
+            if variant.get("killer_id") != candidate.get("agent_id"):
+                errors.append(f"timeline variant {case_id} has the wrong killer_id")
+            for event in variant.get("events", []):
+                event_id = str(event.get("id") or "")
+                if not event_id or event_id in timeline_event_ids:
+                    errors.append("timeline event ids must be present and unique")
+                timeline_event_ids.add(event_id)
+                if event.get("kind") != "killer-private":
+                    errors.append(f"timeline variant {case_id} must contain private killer events")
+                if event.get("participants") != [variant.get("killer_id")]:
+                    errors.append(f"timeline variant {case_id} may only be visible to its killer")
+                if event.get("location_id") not in location_ids:
+                    errors.append(f"timeline event {event_id} references unknown location")
+
+        for location_id, observations in scenario.get("search_observations", {}).items():
+            if location_id not in location_ids:
+                errors.append(f"search observations reference unknown location {location_id}")
+            if not isinstance(observations, list) or len(observations) < 3:
+                errors.append(f"search observations for {location_id} require at least three entries")
 
         killer_setup = scenario.get("killer_setup") or {}
         candidates = killer_setup.get("candidates", [])

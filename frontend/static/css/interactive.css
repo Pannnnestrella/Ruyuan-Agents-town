@@ -136,6 +136,14 @@ button:disabled { opacity: .38; cursor: not-allowed; }
 .casebook-section-heading { padding: 17px 0 12px; border-top: 1px solid var(--line); }
 .casebook-section-heading h3 { margin-bottom: 0; }
 .casebook-section-heading > p { color: var(--muted); font-size: 12px; }
+.objective-timeline-section { border-top: 1px solid var(--line); }
+.casebook-objective-timeline { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; max-height: 560px; overflow: auto; padding-bottom: 17px; }
+.casebook-objective-timeline article { display: grid; grid-template-columns: 82px 1fr; gap: 10px; padding: 10px; border-left: 2px solid rgba(214,173,98,.35); background: rgba(0,0,0,.14); }
+.casebook-objective-timeline article.private { border-left-color: #b75148; background: rgba(151,48,42,.11); }
+.casebook-objective-timeline time { color: var(--gold); font-size: 10px; }
+.casebook-objective-timeline strong { color: #eadbc2; font-size: 11px; }
+.casebook-objective-timeline p { margin: 4px 0; color: var(--muted); font-size: 11px; line-height: 1.65; }
+.casebook-objective-timeline small { color: #887b69; font-size: 9px; }
 .clue-atlas-section, .deduction-section { border-top: 1px solid var(--line); }
 .clue-legend { display: flex; flex-wrap: wrap; gap: 7px; margin: -2px 0 13px; }
 .clue-legend span { padding: 4px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 10px; }
@@ -210,6 +218,12 @@ button:disabled { opacity: .38; cursor: not-allowed; }
 .file-block p, .file-block li, .file-block blockquote { color: var(--muted); font-size: 12px; line-height: 1.7; }
 .file-block p { margin: 6px 0; }
 .file-block ul, .file-block ol { margin: 0; padding-left: 20px; }
+.pregame-ledger { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; padding: 0 !important; list-style: none; }
+.pregame-ledger li { display: grid; grid-template-columns: 76px 1fr; gap: 6px 10px; padding: 9px; border-left: 2px solid rgba(214,173,98,.3); background: rgba(0,0,0,.14); }
+.pregame-ledger li.private { border-left-color: #b75148; background: rgba(151,48,42,.09); }
+.pregame-ledger time { color: var(--gold); font-size: 10px; }
+.pregame-ledger span { color: var(--muted); font-size: 11px; line-height: 1.65; }
+.pregame-ledger small { grid-column: 2; color: #887b69; font-size: 9px; }
 .file-block blockquote { margin: 0 0 10px; padding: 9px 12px; border-left: 2px solid var(--gold); background: rgba(214, 173, 98, .06); }
 .secret-block { border-color: rgba(169, 75, 66, .3); }
 .secret-block li strong, .secret-block li span, .secret-block li small { display: block; }
@@ -227,6 +241,9 @@ button:disabled { opacity: .38; cursor: not-allowed; }
 .host-console p { margin-bottom: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .host-metrics { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; min-width: 330px; }
 .host-metrics span { padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; color: #d8c29b; background: rgba(15, 13, 11, .42); font-size: 11px; white-space: nowrap; }
+.planner-switcher { display: grid; grid-template-columns: 1fr 180px minmax(210px, 1fr) auto; gap: 10px; align-items: end; margin: 0 0 22px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: rgba(28,24,21,.72); }
+.planner-switcher h2 { margin: 4px 0 0; font-size: 16px; font-weight: 500; }
+.planner-switcher select, .planner-switcher input { min-height: 42px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: #171411; }
 .notice-composer, .event-card-area { padding-bottom: 20px; }
 .notice-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-top: 12px; }
 textarea { width: 100%; resize: vertical; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #171411; color: var(--ink); outline: none; }
@@ -305,7 +322,7 @@ textarea:focus { border-color: rgba(214, 173, 98, .58); }
     .recap-content, .recap-character-grid { grid-template-columns: 1fr; }
     .recap-section.full { grid-column: auto; }
     .casebook-header, .casebook-section-heading { align-items: flex-start; flex-direction: column; }
-    .casebook-grid, .character-file-body, .belief-ledger, .action-ledger { grid-template-columns: 1fr; }
+    .casebook-grid, .character-file-body, .belief-ledger, .action-ledger, .casebook-objective-timeline, .pregame-ledger { grid-template-columns: 1fr; }
     .director-clue-map { grid-template-columns: 1fr; }
     .objective-truth-panel, .file-block.full { grid-column: auto; }
     .director-character-file > summary { grid-template-columns: 44px 1fr; }

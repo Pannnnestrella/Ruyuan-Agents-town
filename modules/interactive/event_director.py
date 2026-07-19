@@ -6,7 +6,7 @@ import random
 from collections import defaultdict
 from typing import Any, Iterable
 
-from .models import EventCard, EventRecord, GamePhase, GameState
+from .models import EventCard, EventRecord, GamePhase, GameState, LifeState
 
 
 class EventDirector:
@@ -153,6 +153,65 @@ class EventDirector:
                         payload={"object_id": item.object_id, "source_card_id": card.card_id},
                     )
                 )
+            elif effect_type == "set_health_state":
+                agent = state.agents[effect["agent_id"]]
+                if agent.life_state != LifeState.DEAD:
+                    target_state = LifeState(str(effect.get("life_state", "injured")))
+                    agent.life_state = target_state
+                    agent.health = {
+                        LifeState.ALIVE: 100,
+                        LifeState.INJURED: 65,
+                        LifeState.SEVERELY_INJURED: 30,
+                        LifeState.DEAD: 0,
+                    }.get(target_state, 30)
+                    health_event = self._event(
+                        event_round,
+                        "health_changed",
+                        str(effect.get("summary") or f"{agent.display_name}当前状态变为{target_state.value}。"),
+                        public=True,
+                        location_id=agent.location_id,
+                        payload={
+                            "agent_id": agent.agent_id,
+                            "life_state": target_state.value,
+                            "source_card_id": card.card_id,
+                        },
+                    )
+                    health_event.actors = [agent.agent_id]
+                    health_event.witnesses = state.occupants(agent.location_id, include_dead=False)
+                    events.append(health_event)
+            elif effect_type == "drop_random_carried_item":
+                candidates = [
+                    (holder, state.objects[object_id])
+                    for holder in state.agents.values()
+                    if holder.life_state != LifeState.DEAD
+                    for object_id in holder.inventory
+                    if object_id in state.objects and state.objects[object_id].portable
+                ]
+                if candidates:
+                    holder, item = self.random.choice(sorted(
+                        candidates, key=lambda pair: (pair[0].agent_id, pair[1].object_id)
+                    ))
+                    holder.inventory.remove(item.object_id)
+                    item.holder_id = None
+                    item.location_id = holder.location_id
+                    item.hidden = False
+                    witnesses = state.occupants(holder.location_id, include_dead=False)
+                    item.discovered_by = list(dict.fromkeys([*item.discovered_by, *witnesses]))
+                    drop_event = self._event(
+                        event_round,
+                        "object_dropped",
+                        f"一阵突如其来的碰撞中，{holder.display_name}随身的{item.name}掉落在{state.locations[holder.location_id]['name']}。",
+                        public=True,
+                        location_id=holder.location_id,
+                        payload={
+                            "object_id": item.object_id,
+                            "holder_id": holder.agent_id,
+                            "source_card_id": card.card_id,
+                        },
+                    )
+                    drop_event.actors = [holder.agent_id]
+                    drop_event.witnesses = witnesses
+                    events.append(drop_event)
             else:
                 raise ValueError(f"Unsupported event-card effect: {effect_type}")
 

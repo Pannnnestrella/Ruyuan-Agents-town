@@ -36,7 +36,10 @@ const liveUi = {
     playerSecrets: document.getElementById('player-secrets'),
     playerInventory: document.getElementById('player-inventory'),
     playerMemories: document.getElementById('player-memories'),
+    playerPregameTimeline: document.getElementById('player-pregame-timeline'),
     playerAbilities: document.getElementById('player-abilities'),
+    playerGuideSummary: document.getElementById('player-guide-summary'),
+    playerGuidePrinciples: document.getElementById('player-guide-principles'),
     privateMemoryCount: document.getElementById('private-memory-count'),
     storyGuideTitle: document.getElementById('story-guide-title'),
     storyGuideLocation: document.getElementById('story-guide-location'),
@@ -93,11 +96,15 @@ const liveUi = {
     actionProgressBar: document.getElementById('action-progress-bar'),
     actionProgressAgents: document.getElementById('action-progress-agents'),
     endPlayerRound: document.getElementById('end-player-round'),
-    autoHostNextRound: document.getElementById('auto-host-next-round'),
+    playerHostChoice: document.getElementById('player-host-choice'),
+    playerHostIntel: document.getElementById('player-host-intel'),
+    playerHostCards: document.getElementById('player-host-cards'),
+    confirmPlayerHost: document.getElementById('confirm-player-host'),
     decisionHint: document.getElementById('decision-hint'),
     playerVotePanel: document.getElementById('player-vote-panel'),
     playerVoteTarget: document.getElementById('player-vote-target'),
     playerVoteReason: document.getElementById('player-vote-reason'),
+    playerGoalAssessments: document.getElementById('player-goal-assessments'),
     submitPlayerVote: document.getElementById('submit-player-vote'),
     finalDiscussionPanel: document.getElementById('final-discussion-panel'),
     openFinalVoting: document.getElementById('open-final-voting'),
@@ -118,7 +125,7 @@ const actionLabels = {
     treatment: '治疗', wait: '观察', action_failed: '行动失败', escape: '逃脱',
     final_discussion: '终局公议',
     escape_failed: '逃脱未遂', public_fact: '局势', public_intel: '公开情报',
-    event_card_selected: '事件卡', notice_posted: '公告', vote_cast: '投票', killer_revealed: '揭晓',
+    event_card_selected: '事件卡', notice_posted: '公告', bulletin_updated: '公告提醒', vote_cast: '投票', killer_revealed: '揭晓',
 };
 const intentLabels = {
     move: '移动', investigate: '搜查', talk: '交谈', transfer: '交付', hide: '藏匿',
@@ -142,6 +149,7 @@ let pendingPlayerEntry = null;
 let feedbackDismiss = null;
 let pendingReplyEvent = null;
 let selectedConversationKey = null;
+let selectedHostCardId = null;
 
 function escapeHtml(value) {
     return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;')
@@ -365,9 +373,17 @@ function showPlayerEventFeedback(event) {
     liveUi.playerEventSummary.textContent = (isReply || invitesReply)
         ? (event.payload?.content || event.summary)
         : event.summary;
-    const detail = ownAction && event.event_type === 'discovery'
-        ? String(event.payload?.clue_claim || '')
-        : '';
+    const detailParts = [];
+    if (ownAction && event.event_type === 'discovery' && event.payload?.clue_claim) {
+        detailParts.push(String(event.payload.clue_claim));
+    }
+    if (ownAction && ['discovery', 'investigation_empty'].includes(event.event_type) && event.payload?.search_progress) {
+        detailParts.push(String(event.payload.search_progress));
+    }
+    if (event.payload?.displayed_object_name) {
+        detailParts.push(`${speakerName}当面出示了：${event.payload.displayed_object_name}（物品仍由原持有人保管）`);
+    }
+    const detail = detailParts.join('\n\n');
     liveUi.playerEventDetail.textContent = detail;
     liveUi.playerEventDetail.classList.toggle('hidden', !detail || detail === event.summary);
     liveUi.playerEventReply?.classList.toggle('hidden', !invitesReply);
@@ -398,8 +414,9 @@ function buildMap(state) {
         .map(([floor, locations]) => {
             const roomHtml = locations.map(location => {
                 const layout = location.layout || {x: 1, y: 1, w: 1, h: 1};
-                return `<article class="live-room" data-location-id="${escapeHtml(location.id)}" style="grid-column:${layout.x} / span ${layout.w};grid-row:${layout.y} / span ${layout.h}">
-                    <div class="room-name"><span>${escapeHtml(location.name)}</span><small>${location.public ? '公开' : '隐蔽'}</small></div>
+                const unread = location.id === 'lobby' && state.bulletin?.has_unread;
+                return `<article class="live-room ${unread ? 'has-unread-bulletin' : ''}" data-location-id="${escapeHtml(location.id)}" style="grid-column:${layout.x} / span ${layout.w};grid-row:${layout.y} / span ${layout.h}">
+                    <div class="room-name"><span>${escapeHtml(location.name)}${unread ? '<b class="bulletin-unread">新公告</b>' : ''}</span><small>${location.public ? '公开' : '隐蔽'}</small></div>
                     <div class="room-description">${escapeHtml(location.description)}</div>
                     <div class="token-layer"></div>
                 </article>`;
@@ -427,6 +444,17 @@ function renderTokens(state) {
         token.innerHTML = `<span class="portrait">${escapeHtml(agent.display_name.slice(0, 1))}</span><span>${escapeHtml(agent.display_name)}</span>`;
         layer.appendChild(token);
     });
+}
+
+function updateBulletinMarker(state) {
+    const lobby = liveUi.map.querySelector('[data-location-id="lobby"]');
+    if (!lobby) return;
+    const hasUnread = Boolean(state.bulletin?.has_unread);
+    lobby.classList.toggle('has-unread-bulletin', hasUnread);
+    const name = lobby.querySelector('.room-name span');
+    let badge = name?.querySelector('.bulletin-unread');
+    if (hasUnread && name && !badge) name.insertAdjacentHTML('beforeend', '<b class="bulletin-unread">新公告</b>');
+    if (!hasUnread && badge) badge.remove();
 }
 
 async function animateMove(event) {
@@ -574,6 +602,13 @@ function renderPlayerPrivateState(state) {
         `${ability.description}\n\n使用方式：在行动区点击带“专属”标记的“${ability.label}”。基础行动仍会单独保留。`,
         ability.hidden ? '只有你知道的能力' : '人物专属能力',
     )).join('') || '<p class="hint">这个角色没有需要主动触发的专属能力。</p>';
+    const playerGuide = state.player_guide || {};
+    liveUi.playerGuideSummary.textContent = playerGuide.summary || '';
+    liveUi.playerGuidePrinciples.innerHTML = (playerGuide.principles || []).map(item => inspectableTag(
+        item.title,
+        item.body,
+        playerGuide.title || '密探行动指引',
+    )).join('');
     liveUi.playerScore.textContent = String(actor.score || 0);
     liveUi.playerSecrets.innerHTML = (state.known_secrets || []).map(secret => inspectableTag(
         `${secret.owner_id === actor.agent_id ? '我的秘密' : `发现了${secret.owner_id}的秘密`} · ${secret.title}`,
@@ -590,15 +625,20 @@ function renderPlayerPrivateState(state) {
         : '<p class="hint">你没有随身物品。</p>';
     const conversationSources = new Set((state.conversations || []).map(item => item.event_id));
     const memories = [...(actor.beliefs || [])]
-        .filter(memory => !conversationSources.has(memory.source))
+        .filter(memory => !conversationSources.has(memory.source) && !String(memory.source || '').startsWith('timeline:'))
         .reverse();
     liveUi.playerMemories.innerHTML = memories.map((memory, index) => inspectableTag(
         `记忆 ${memories.length - index} · ${memory.claim.slice(0, 28)}${memory.claim.length > 28 ? '…' : ''}`,
         `${memory.claim}\n\n来源：${memory.source}；可信度 ${Math.round(Number(memory.confidence || 0) * 100)}%；第 ${memory.learned_round} 轮获得。`,
         memory.learned_round === 0 ? '入局前的记忆' : `第 ${memory.learned_round} 轮的新记忆`,
     )).join('');
+    liveUi.playerPregameTimeline.innerHTML = (background.timeline || []).map(entry => `
+        <article class="${entry.private ? 'private' : ''}">
+            <time>${escapeHtml(entry.time)}<br>${escapeHtml(entry.location_name || '')}</time>
+            <p>${escapeHtml(entry.text)}</p>
+        </article>`).join('') || '<p class="hint">没有记录到案发前经历。</p>';
     liveUi.privateMemoryCount.textContent = `${memories.length} 条记忆`;
-    [liveUi.playerGoals, liveUi.playerSecrets, liveUi.playerInventory, liveUi.playerMemories, liveUi.playerAbilities]
+    [liveUi.playerGoals, liveUi.playerSecrets, liveUi.playerInventory, liveUi.playerMemories, liveUi.playerAbilities, liveUi.playerGuidePrinciples]
         .forEach(bindInspectableTags);
     renderConversationArchive(state);
     renderBulletin(state);
@@ -621,8 +661,7 @@ function renderPlayerPrivateState(state) {
                 : '等待主持人选择本轮事件卡';
     liveUi.endPlayerRound.classList.toggle('hidden', !available.can_end_round);
     liveUi.endPlayerRound.disabled = !available.can_end_round;
-    liveUi.autoHostNextRound.classList.toggle('hidden', !available.can_auto_host);
-    liveUi.autoHostNextRound.disabled = !available.can_auto_host;
+    renderPlayerHostChoice(state);
     renderActionComposer(state);
     renderPlayerVoting(state);
     liveUi.finalDiscussionPanel.classList.toggle('hidden', !state.can_open_voting);
@@ -633,6 +672,42 @@ function renderPlayerPrivateState(state) {
             ? '请先读完所有人的终局陈述'
             : '结束讨论 · 进入最终投票';
     }
+}
+
+function renderPlayerHostChoice(state) {
+    const options = state.host_options;
+    const available = Boolean(state.available_actions?.can_auto_host && options);
+    liveUi.playerHostChoice.classList.toggle('hidden', !available);
+    if (!available) {
+        selectedHostCardId = null;
+        return;
+    }
+    const intel = options.intel || [];
+    const currentIntel = liveUi.playerHostIntel.value;
+    liveUi.playerHostIntel.innerHTML = '<option value="">不发布公开情报</option>' + intel.map(item =>
+        `<option value="${escapeHtml(item.id)}">${escapeHtml(item.title)} · ${escapeHtml(item.source || '来源不明')}</option>`
+    ).join('');
+    if ([...liveUi.playerHostIntel.options].some(option => option.value === currentIntel)) {
+        liveUi.playerHostIntel.value = currentIntel;
+    }
+    const cards = [...(options.cards || []), ...(options.quiet ? [options.quiet] : [])];
+    if (!cards.some(card => card.card_id === selectedHostCardId)) selectedHostCardId = null;
+    liveUi.playerHostCards.innerHTML = cards.map(card => `
+        <button type="button" class="player-host-card ${card.card_id === selectedHostCardId ? 'selected' : ''}" data-card-id="${escapeHtml(card.card_id)}">
+            <strong>${escapeHtml(card.title)}</strong>
+            <span>${escapeHtml(card.description || '')}</span>
+            <span>${escapeHtml(card.impact_preview || '')}</span>
+        </button>`).join('');
+    liveUi.playerHostCards.querySelectorAll('.player-host-card').forEach(button => {
+        button.addEventListener('click', () => {
+            selectedHostCardId = button.dataset.cardId;
+            liveUi.playerHostCards.querySelectorAll('.player-host-card').forEach(item =>
+                item.classList.toggle('selected', item === button)
+            );
+            liveUi.confirmPlayerHost.disabled = false;
+        });
+    });
+    liveUi.confirmPlayerHost.disabled = !selectedHostCardId;
 }
 
 function portraitUrl(name) {
@@ -690,7 +765,11 @@ function renderBulletin(state) {
     `).join('') : '<p class="hint">公告栏还是空的。</p>';
     const canPost = Boolean(state.available_actions?.can_post_notice);
     liveUi.playerBulletinComposer.classList.toggle('hidden', viewMode !== 'player' || !canPost);
-    liveUi.bulletinLocationHint.textContent = canPost ? '你正在大堂，可以实名张贴' : '前往大堂后可阅读与张贴';
+    liveUi.bulletinLocationHint.textContent = canPost
+        ? '你正在大堂，可以实名张贴'
+        : state.bulletin?.has_unread
+            ? `大堂有 ${state.bulletin.unread_count} 条未读张贴；回到大堂查看原文`
+            : '前往大堂后可阅读与张贴';
 }
 
 function renderActionComposer(state) {
@@ -705,6 +784,7 @@ function renderActionComposer(state) {
     if (!inventory.length) ['hide', 'transfer'].forEach(type => disabledTypes.add(type));
     if (!people.length || !inventory.length) disabledTypes.add('transfer');
     if (!available.can_escape) disabledTypes.add('escape');
+    if (!available.can_attack_this_round) disabledTypes.add('attack');
     const baseTypes = (available.types || []).filter(type => !['attack', 'treat'].includes(type));
     const baseButtons = baseTypes.map(type => `
         <button type="button" data-intent-type="${escapeHtml(type)}"
@@ -743,7 +823,7 @@ function renderActionComposer(state) {
             : state.phase === 'voting'
             ? '行动阶段已经结束。'
             : available.can_auto_host
-                ? '没有主持人也可以继续：由你点击“自动主持”，系统会随机展开一条相关情报与事件。'
+                ? '主持权在你手中：事件与公开情报都不会自动发生，请在下方亲自选择。'
                 : '主持人需要先选择本轮事件卡。';
     } else if (selectedActionType) {
         selectActionType(selectedActionType, state, selectedAbilityId);
@@ -793,6 +873,12 @@ function renderPlayerVoting(state) {
     liveUi.playerVotePanel.classList.remove('hidden');
     liveUi.playerVoteTarget.innerHTML = (state.voting_candidates || []).map(item => `
         <option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} · ${escapeHtml(item.role)}</option>`).join('');
+    liveUi.playerGoalAssessments.innerHTML = `<strong>主持人逐项询问：你的个人目标实现了吗？</strong>` +
+        (state.background?.goals || []).map((goal, index) => `
+            <label class="goal-assessment" data-goal="${escapeHtml(goal)}">
+                <span><input type="checkbox" name="goal-achieved-${index}"> ${escapeHtml(goal)}</span>
+                <input type="text" maxlength="180" placeholder="写下可核对的完成依据；未完成也可以说明原因">
+            </label>`).join('');
 }
 
 function playerSyntheticState(state) {
@@ -862,6 +948,7 @@ function receiveState(state, {initial = false} = {}) {
         });
         buildMap(state);
     }
+    updateBulletinMarker(state);
     if (!initial || historyCursor < state.events.length) {
         state.events.slice(historyCursor).forEach(event => {
             if (!queuedIds.has(event.event_id)) {
@@ -1071,20 +1158,26 @@ liveUi.endPlayerRound?.addEventListener('click', async () => {
     }
 });
 
-liveUi.autoHostNextRound?.addEventListener('click', async () => {
+liveUi.confirmPlayerHost?.addEventListener('click', async () => {
     if (!gameId) return;
-    liveUi.autoHostNextRound.disabled = true;
-    liveUi.decisionHint.textContent = '自动主持人正在从当前局势中抽取情报与事件……';
+    if (!selectedHostCardId) return showLiveToast('请先选择一张事件卡或“无事件”。');
+    liveUi.confirmPlayerHost.disabled = true;
+    liveUi.decisionHint.textContent = '正在按你的主持选择展开本轮局势……';
     try {
-        const data = await playerApi(`/api/interactive/games/${gameId}/player/auto-host`, {
+        const data = await playerApi(`/api/interactive/games/${gameId}/player/host-choice`, {
             method: 'POST',
-            body: '{}',
+            body: JSON.stringify({
+                card_id: selectedHostCardId,
+                intel_id: liveUi.playerHostIntel.value || null,
+            }),
         });
+        const publishedIntel = Boolean(data.intel);
+        selectedHostCardId = null;
         receivePlayerState(data.player);
-        showLiveToast(data.intel ? '自动主持已发布一条情报，并展开了本轮事件。' : '自动主持已展开本轮事件。');
+        showLiveToast(publishedIntel ? '你发布了公开情报，并展开了选定事件。' : '你展开了选定事件。');
     } catch (error) {
         showLiveToast(error.message);
-        liveUi.autoHostNextRound.disabled = false;
+        liveUi.confirmPlayerHost.disabled = false;
     }
 });
 
@@ -1096,6 +1189,11 @@ liveUi.submitPlayerVote?.addEventListener('click', async () => {
             body: JSON.stringify({
                 suspect_id: liveUi.playerVoteTarget.value,
                 reason: liveUi.playerVoteReason.value,
+                goal_assessments: [...liveUi.playerGoalAssessments.querySelectorAll('.goal-assessment')].map(row => ({
+                    goal: row.dataset.goal,
+                    achieved: row.querySelector('input[type="checkbox"]').checked,
+                    reason: row.querySelector('input[type="text"]').value,
+                })),
             }),
         });
         const result = await waitForPlayerTask(queued.task_id);

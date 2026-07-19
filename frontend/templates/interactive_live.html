@@ -111,8 +111,18 @@
                     </div>
                     <div class="round-control-row">
                         <button id="end-player-round" class="secondary hidden" type="button">结束本轮</button>
-                        <button id="auto-host-next-round" class="auto-host-button hidden" type="button">自动主持 · 展开下一轮</button>
                     </div>
+                    <section id="player-host-choice" class="player-host-choice hidden">
+                        <div class="host-choice-heading">
+                            <div><p class="eyebrow">临时主持权</p><h3>亲自选择下一轮发生什么</h3></div>
+                            <span>不会自动抽取</span>
+                        </div>
+                        <label>本轮公开情报（可不发布）
+                            <select id="player-host-intel"><option value="">不发布公开情报</option></select>
+                        </label>
+                        <div id="player-host-cards" class="player-host-cards"></div>
+                        <button id="confirm-player-host" class="auto-host-button" type="button" disabled>确认主持选择 · 展开下一轮</button>
+                    </section>
                     <p id="decision-hint" class="hint">移动与交谈可自由进行；搜查等主要行动每轮最多 3 次。</p>
                 </article>
             </aside>
@@ -158,6 +168,7 @@
             <div class="player-vote-form">
                 <select id="player-vote-target"></select>
                 <textarea id="player-vote-reason" maxlength="240" rows="3" placeholder="写下你依据的行动、对话或线索。"></textarea>
+                <div id="player-goal-assessments" class="goal-assessment-list"></div>
                 <button id="submit-player-vote" class="primary" type="button">提交最终指认</button>
             </div>
         </section>
@@ -220,8 +231,17 @@
                 <div id="player-memories" class="inspectable-list"></div>
             </section>
             <section class="story-section">
+                <h2>案发前时间线</h2>
+                <div id="player-pregame-timeline" class="pregame-timeline"></div>
+            </section>
+            <section class="story-section">
                 <h2>你的专属能力</h2>
                 <div id="player-abilities" class="inspectable-list"></div>
+            </section>
+            <section class="story-section">
+                <h2>密探行动指引</h2>
+                <p id="player-guide-summary" class="hint"></p>
+                <div id="player-guide-principles" class="inspectable-list"></div>
             </section>
             <div class="story-private-grid">
                 <section class="story-section secret-section">

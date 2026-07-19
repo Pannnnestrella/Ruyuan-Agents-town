@@ -188,11 +188,14 @@ class LLMIntentPlanner:
         scenario: dict[str, Any],
         progress_callback: Callable[[dict[str, Any]], None] | None = None,
         actor_ids: list[str] | None = None,
+        force_major: bool = False,
     ) -> list[ActionIntent]:
         requested = set(actor_ids) if actor_ids is not None else set(state.agents)
         fallback_by_agent = {
             intent.actor_id: intent
-            for intent in self.fallback.plan(state, scenario, actor_ids=list(requested))
+            for intent in self.fallback.plan(
+                state, scenario, actor_ids=list(requested), force_major=force_major
+            )
         }
         participants = {item["id"]: item for item in scenario["participants"]}
         active_agent_ids = [
@@ -202,7 +205,9 @@ class LLMIntentPlanner:
         # Freeze all six scoped contexts before starting any request. No model
         # completion can influence the prompt another character receives.
         prompts = {
-            agent_id: self._build_prompt(state, scenario, participants[agent_id])
+            agent_id: self._build_prompt(
+                state, scenario, participants[agent_id], force_major=force_major
+            )
             for agent_id in active_agent_ids
         }
         intents_by_agent: dict[str, ActionIntent] = {}
@@ -322,6 +327,8 @@ class LLMIntentPlanner:
                 "claim": belief.claim,
                 "confidence": belief.confidence,
                 "stance": belief.stance,
+                "shared_with": list(belief.shared_with),
+                "origin_type": "conversation" if str(belief.source).startswith("event-") else "authored_or_observed",
             }
             for belief in speaker.beliefs[-20:]
         ]
@@ -339,6 +346,15 @@ class LLMIntentPlanner:
                 "message": player_message,
             },
             "private_memories": memories,
+            "player_guide": scenario.get("player_guide", {}),
+            "carried_items": [
+                {
+                    "object_id": object_id,
+                    "name": state.objects[object_id].name,
+                    "description": state.objects[object_id].metadata.get("description", ""),
+                }
+                for object_id in speaker.inventory if object_id in state.objects
+            ],
             "secrets_to_protect": [
                 {"title": secret.title, "claim": secret.claim}
                 for secret in state.secrets.values()
@@ -364,9 +380,11 @@ class LLMIntentPlanner:
         prompt = f"""你正在扮演密探“{speaker.display_name}”，玩家刚刚与你当面交谈。
 只依据 JSON 中属于你的记忆、目标和秘密作出一句自然回应。你可以回避、反问、撒谎或交换情报，但不得知道客观真相，也不得替玩家行动。若愿意交出一条真实记忆，只能填写 private_memories 中存在、且此前没有交给该玩家的 belief_id；否则为 null。不要逐字重复 recent_dialogue_with_player 中已经说过的话。
 
+如果玩家在对话中要求查看随身物品，你可以根据目标选择：自愿出示 carried_items 中真实存在的一件（item_disposition="show" 并填写 display_object_id）、明确拒绝（"refuse"）、或在台词中撒谎（"lie"，但不得填写不存在的 display_object_id）。这仍然只是交谈，不是强制检查；不得自动夺取、交付物品。
+
 {json.dumps(context, ensure_ascii=False, indent=2)}
 
-只输出 JSON：{{"content":"不超过一百八十字的当面回应","share_belief_id":null}}"""
+只输出 JSON：{{"content":"不超过一百八十字的当面回应","share_belief_id":null,"item_disposition":"none|show|refuse|lie","display_object_id":null}}"""
         try:
             response = self.model.completion(
                 prompt,
@@ -382,6 +400,13 @@ class LLMIntentPlanner:
             data = json.loads(text)
             content = str(data.get("content") or "").strip()[:180]
             belief_id = str(data.get("share_belief_id") or "")[:160]
+            disposition = str(data.get("item_disposition") or "none")
+            object_id = str(data.get("display_object_id") or "")[:160]
+            valid_object_ids = set(speaker.inventory)
+            if disposition != "show" or object_id not in valid_object_ids:
+                object_id = ""
+            if disposition not in {"none", "show", "refuse", "lie"}:
+                disposition = "none"
             valid_ids = {
                 belief.belief_id for belief in speaker.beliefs
                 if player_id not in belief.shared_with
@@ -391,6 +416,11 @@ class LLMIntentPlanner:
             return {
                 "content": content,
                 "share_belief_id": belief_id if belief_id in valid_ids else None,
+                "display_object_id": object_id or None,
+                "item_disposition": "show" if object_id else (
+                    disposition if disposition in {"refuse", "lie"} else "none"
+                ),
+                "_host_item_disposition": disposition,
             }
         except Exception:
             return self.fallback.respond_to_player(
@@ -438,7 +468,14 @@ class LLMIntentPlanner:
                 and target.location_id == actor.location_id
             )
             if not grounded or intent.action_type != ActionType.TALK:
+                if grounded and intent.action_type == ActionType.ATTACK:
+                    return actor.agent_id not in state.flags.get(
+                        "attacks_by_round", {}
+                    ).get(str(state.round_number + 1), [])
                 return grounded
+            display_id = str(intent.metadata.get("display_object_id") or "")
+            if display_id and display_id not in actor.inventory:
+                return False
             shared_id = str(intent.metadata.get("share_belief_id") or "")
             if not shared_id:
                 return True
@@ -446,7 +483,15 @@ class LLMIntentPlanner:
                 (belief for belief in actor.beliefs if belief.belief_id == shared_id),
                 None,
             )
-            return bool(shared and target.agent_id not in shared.shared_with)
+            return bool(
+                shared
+                and target.agent_id not in shared.shared_with
+                and not any(
+                    LLMIntentPlanner._dialogue_fingerprint(known.claim)
+                    == LLMIntentPlanner._dialogue_fingerprint(shared.claim)
+                    for known in target.beliefs[-60:]
+                )
+            )
         if intent.action_type == ActionType.POST_NOTICE:
             return bool(
                 actor.location_id == "lobby"
@@ -477,12 +522,23 @@ class LLMIntentPlanner:
             return actor.location_id in {"front_gate", "stable"}
         return intent.action_type == ActionType.WAIT
 
+    @staticmethod
+    def _dialogue_fingerprint(value: str) -> str:
+        text = str(value)
+        for prefix in (
+            "我把这条情报告诉你：", "我愿意把这条情报告诉你：",
+            "我愿意分享一条尚未与你核对的信息：",
+        ):
+            text = text.replace(prefix, "")
+        text = re.split(r"你(?:是否)?有能相互印证的线索", text, maxsplit=1)[0]
+        return re.sub(r"[\s，。！？；：“”‘’、,.!?;:]", "", text)[:240]
+
     def vote(
         self,
         state: GameState,
         scenario: dict[str, Any],
         voter_id: str,
-    ) -> dict[str, str]:
+    ) -> dict[str, Any]:
         voter = state.agents[voter_id]
         candidates = [
             {"id": agent.agent_id, "name": agent.display_name, "role": agent.public_role}
@@ -494,17 +550,24 @@ class LLMIntentPlanner:
             "candidates": candidates,
             "personal_memories": [belief.to_dict() for belief in voter.beliefs[-32:]],
             "rules": scenario.get("game_rules", []),
+            "personal_goals": next(
+                (
+                    item.get("goals", []) for item in scenario.get("participants", [])
+                    if item["id"] == voter_id
+                ),
+                [],
+            ),
         }
         if voter_id == state.flags.get("killer_id"):
             context["private_role"] = "你是隐藏凶手。为了避免被多数票指认，你可以把票投给最容易被怀疑的其他人。"
         prompt = f"""你正在扮演“{voter.display_name}”，现在必须独立投票指认凶手。
 
-只能依据 personal_memories 中属于你的记忆判断，不得读取作者真相。即使证据不足也必须从 candidates 中选择一人；理由必须引用你记得的行动、对话或情报，不得编造新事件。
+只能依据 personal_memories 中属于你的记忆判断，不得读取作者真相。即使证据不足也必须从 candidates 中选择一人；理由必须引用你记得的行动、对话或情报，不得编造新事件。投票前，主持人还会逐项询问你的 personal_goals 是否完成：请根据自己的记忆诚实回答 achieved，并给出可核对的简短依据；没有依据就回答 false。
 
 {json.dumps(context, ensure_ascii=False, indent=2)}
 
 只输出 JSON：
-{{"suspect_id":"候选人id","reason":"不超过一百二十字的记忆依据"}}"""
+{{"suspect_id":"候选人id","reason":"不超过一百二十字的记忆依据","goal_assessments":[{{"goal":"逐字复制 personal_goals 中一项","achieved":true,"reason":"不超过一百字的自述依据"}}]}}"""
         try:
             response = self.model.completion(
                 prompt,
@@ -520,9 +583,20 @@ class LLMIntentPlanner:
             suspect_id = str(data.get("suspect_id", ""))
             if suspect_id not in {item["id"] for item in candidates}:
                 raise ValueError("invalid vote target")
+            authored_goals = {str(goal) for goal in context["personal_goals"]}
+            assessments = []
+            for item in data.get("goal_assessments", []):
+                if not isinstance(item, dict) or str(item.get("goal", "")) not in authored_goals:
+                    continue
+                assessments.append({
+                    "goal": str(item["goal"]),
+                    "achieved": bool(item.get("achieved")),
+                    "reason": str(item.get("reason", ""))[:180],
+                })
             return {
                 "suspect_id": suspect_id,
                 "reason": str(data.get("reason", "依据现有记忆作出判断。"))[:180],
+                "goal_assessments": assessments,
             }
         except Exception:
             return self.fallback.vote(state, scenario, voter_id)
@@ -532,6 +606,8 @@ class LLMIntentPlanner:
         state: GameState,
         scenario: dict[str, Any],
         participant: dict[str, Any],
+        *,
+        force_major: bool = False,
     ) -> str:
         agent = state.agents[participant["id"]]
         location = state.locations[agent.location_id]
@@ -556,7 +632,7 @@ class LLMIntentPlanner:
 
         global_event_types = {
             "event_card_selected", "public_fact", "public_intel", "world_trigger",
-            "object_hint", "evidence_lost",
+            "object_hint", "evidence_lost", "bulletin_updated",
         }
         recent_known_events = [
             event.summary for event in state.events
@@ -574,7 +650,7 @@ class LLMIntentPlanner:
                 "confidence": belief.confidence,
                 "stance": belief.stance,
             }
-            for belief in agent.beliefs[-16:]
+            for belief in agent.beliefs[-32:]
         ]
         exhausted_locations = sorted({
             event.location_id for event in state.events
@@ -592,10 +668,14 @@ class LLMIntentPlanner:
             if event.event_type == "conversation"
             and event.payload.get("speaker_id") == agent.agent_id
         ][-12:]
+        can_attack_this_round = agent.agent_id not in state.flags.get(
+            "attacks_by_round", {}
+        ).get(str(state.round_number + 1), [])
         context = {
             "scenario": scenario["premise"],
             "public_facts": scenario.get("public_facts", []),
             "game_rules": scenario.get("game_rules", []),
+            "player_guide": scenario.get("player_guide", {}),
             "round": state.round_number + 1,
             "action_step": state.action_step + 1,
             "actions_per_round": state.actions_per_round,
@@ -645,7 +725,19 @@ class LLMIntentPlanner:
                 for notice in state.notices
                 if agent.agent_id in notice.seen_by
             ],
+            "bulletin_has_unread": any(
+                agent.agent_id not in notice.seen_by for notice in state.notices
+            ),
             "special_abilities": abilities_for(state, agent.agent_id),
+            "can_attack_this_round": can_attack_this_round,
+            "action_budget": (
+                "本次必须选择会消耗次数的主要行动；移动和交谈已在此前作为自由行动完成。"
+                if force_major
+                else "本次可以先选择一次自由移动或自由交谈；它不会消耗主要行动次数，之后仍会再次决策主要行动。"
+            ),
+            "pregame_timeline": list(
+                state.flags.get("character_timelines", {}).get(agent.agent_id, [])
+            ),
         }
         if agent.agent_id == state.flags.get("killer_id"):
             profile = state.flags.get("killer_profile", {})
@@ -660,30 +752,37 @@ class LLMIntentPlanner:
             f"- {ability['action_type']}（{ability['label']}）：{ability['description']}"
             for ability in special_abilities
             if ability["action_type"] in {"attack", "treat"}
+            and not (ability["action_type"] == "attack" and not can_attack_this_round)
         )
-        allowed_types = [
-            "move", "investigate", "talk", "transfer", "hide", "escape", "wait"
-        ]
+        allowed_types = ["investigate", "transfer", "hide", "escape", "wait"]
+        if not force_major and location.get("connections") and agent.life_state.value not in {
+            "severely_injured", "incapacitated", "dying"
+        }:
+            allowed_types.insert(0, "move")
+        if not force_major and visible_people:
+            allowed_types.insert(1 if "move" in allowed_types else 0, "talk")
         if agent.location_id == "lobby":
             allowed_types.append("post_notice")
         for ability in special_abilities:
+            if ability["action_type"] == "attack" and not can_attack_this_round:
+                continue
             if ability["action_type"] not in allowed_types:
                 allowed_types.append(ability["action_type"])
         allowed_type_text = "|".join(allowed_types)
         return f"""你正在扮演互动推演中的角色“{agent.display_name}”。
 
-只根据下面 JSON 中提供给你的信息决定当前行动阶段的一个主要行动。每轮共有 actions_per_round 个连续行动阶段；你会在每一步后重新看到已经变化的世界，因此这次只做一步。你不知道剧本的客观真相，也不得假定未提供的信息为真。公告、流言和他人陈述只是有来源的说法，不是自动成立的事实。
+只根据下面 JSON 中提供给你的信息决定一步。每轮共有 actions_per_round 个会消耗次数的主要行动阶段；移动和交谈是自由行动，不占主要行动次数。系统会在自由行动后让你重新观察现场并继续选择主要行动。严格服从 action_budget：当它要求主要行动时，不得再选择 move 或 talk。你不知道剧本的客观真相，也不得假定未提供的信息为真。公告、流言和他人陈述只是有来源的说法，不是自动成立的事实。
 
-你还要维护一个持续 2—3 轮的私人计划。先检查 current_strategic_plan 与 recent_plan_outcomes：仍然合理的步骤应保留，已经完成、失败或被新情报推翻的部分才修订。计划不是预言，不能宣布尚未发生的结果；它应包含下一步、后续步骤以及至少一种局势变化时的备选方案。角色可以改变怀疑对象，但 revision_reason 必须说明依据。不要在已经确认搜空且没有新物品的地点重复搜查；不要把 prior_exchanges 中已经告诉同一人的同一情报再次复述。
+你还要维护一个持续 2—3 轮的私人计划。先检查 current_strategic_plan 与 recent_plan_outcomes：仍然合理的步骤应保留，已经完成、失败或被新情报推翻的部分才修订。计划不是预言，不能宣布尚未发生的结果；它应包含下一步、后续步骤以及至少一种局势变化时的备选方案。角色可以改变怀疑对象，但 revision_reason 必须说明依据。pregame_timeline 是你亲历的入店与案发前时间线，可用于核对口供。不要在已经确认搜空且没有新物品的地点重复搜查；不要把 prior_exchanges 中已经告诉同一人的同一情报再次复述，也不要把“我曾告诉某人……”这样的对话记录再次包装成新情报。
 
-这是一场有个人目标的情报推理：找到真相碎片、识破别人的秘密、把有效情报交换给尚不知道的人、终局投中凶手都会得分；自己的 personal_secrets_to_protect 若被多人识破会失分。你应主动调查并通过交谈交换有价值的信息，但不要无缘无故公开自己的秘密。凶手的核心目标是避免被多数票锁定，其他角色的核心目标是形成有证据依据的指认。
+把 player_guide 视为所有密探都知道的通用玩法指引，而不是人物性格或强制脚本。你可以依局势自由取舍，但应理解：搜查、交叉核对时辰与物证、主动交谈、共享不涉及自身秘密的可靠情报，都有助于拼合真相；当公开自己的秘密能解释嫌疑时，也可以权衡后坦白。查看随身物品只通过谈话提出，对方可以出示、拒绝或撒谎。bulletin_has_unread 为真只代表大堂有新张贴，未到大堂前不得知道正文。
 
 {json.dumps(context, ensure_ascii=False, indent=2)}
 
 可用行动：
 - move：前往 connected_locations 中一个相邻地点，填写 location_id。
 - investigate：调查当前地点，location_id 必须是当前地点。
-- talk：与 visible_people 中一人交谈，填写 target_id，并在 content 中填写准备说出的具体信息或问题（不超过一百字）。若要交换一条自己确实知道的记忆，可把 private_beliefs 中的 belief_id 填入 share_belief_id；这会把该记忆连同来源交给对方。
+- talk：与 visible_people 中一人交谈，填写 target_id，并在 content 中填写准备说出的具体信息或问题（不超过一百字）。若要交换一条自己确实知道的记忆，可把 private_beliefs 中的 belief_id 填入 share_belief_id；这会把该记忆连同来源交给对方。若你在台词中明确自愿出示 visible_objects 中由自己“持有”的一件物品，可填写 display_object_id 并令 item_disposition="show"；也可以在被要求时拒绝或撒谎，但不得凭空出示物品。
 - post_notice：仅在大堂可用。把一条你愿意实名公开、且 bulletin_posts 中尚未出现的可靠情报写入 content；不得公开自己的秘密或凶手身份。
 - transfer：把自己持有的物品交给同地点角色，填写 target_id 与 object_id。
 - hide：在当前地点藏起自己持有的物品，填写 object_id。
@@ -701,6 +800,8 @@ class LLMIntentPlanner:
   "object_id": null,
   "content": "",
   "share_belief_id": null,
+  "item_disposition": "none|show|refuse|lie",
+  "display_object_id": null,
   "reason": "角色作出这个选择的简短内在理由",
   "plan": {{
     "objective": "未来二至三轮最重要的私人目标",
@@ -748,6 +849,12 @@ class LLMIntentPlanner:
         share_belief_id = str(data.get("share_belief_id") or "")[:160]
         if share_belief_id:
             intent.metadata["share_belief_id"] = share_belief_id
+        display_object_id = str(data.get("display_object_id") or "")[:160]
+        item_disposition = str(data.get("item_disposition") or "")[:20]
+        if display_object_id:
+            intent.metadata["display_object_id"] = display_object_id
+        if item_disposition in {"none", "show", "refuse", "lie"}:
+            intent.metadata["item_disposition"] = item_disposition
         plan = LLMIntentPlanner._sanitize_plan(data.get("plan"))
         if plan:
             intent.metadata["strategic_plan"] = plan

@@ -38,16 +38,27 @@ def create_app(
     planner_mode = (planner_mode or os.environ.get("GA_INTERACTIVE_PLANNER", "auto")).lower()
     llm_provider = os.environ.get("GA_INTERACTIVE_LLM_PROVIDER", "project").lower()
 
+    def build_planner(seed: int, provider: str, model: str = ""):
+        fallback = HeuristicIntentPlanner(seed=seed)
+        provider = provider.lower().strip()
+        if provider == "heuristic":
+            return fallback
+        if provider == "ollama":
+            return LLMIntentPlanner.from_ollama(
+                model.strip() or os.environ.get(
+                    "GA_INTERACTIVE_OLLAMA_MODEL", "qwen2.5:7b-instruct"
+                ),
+                fallback=fallback,
+            )
+        if provider == "project":
+            return LLMIntentPlanner.from_project_config(root, fallback=fallback)
+        raise ValueError("未知决策接口；请选择 heuristic、ollama 或 project")
+
     def planner_factory(seed: int):
         fallback = HeuristicIntentPlanner(seed=seed)
         if planner_mode in {"auto", "llm"}:
             try:
-                if llm_provider == "ollama":
-                    return LLMIntentPlanner.from_ollama(
-                        os.environ.get("GA_INTERACTIVE_OLLAMA_MODEL", "qwen2.5:7b-instruct"),
-                        fallback=fallback,
-                    )
-                return LLMIntentPlanner.from_project_config(root, fallback=fallback)
+                return build_planner(seed, llm_provider)
             except Exception as error:
                 if planner_mode == "llm":
                     raise
@@ -257,6 +268,17 @@ def create_app(
         )
         return jsonify({"notice": notice.to_dict()}), 201
 
+    @app.post("/api/interactive/games/<game_id>/planner")
+    def switch_planner(game_id: str):
+        data = payload()
+        session = game_service().get(game_id)
+        provider = str(data.get("provider", "heuristic"))
+        model = str(data.get("model", ""))
+        planner = build_planner(
+            int(session.state.flags.get("seed", 0)), provider, model
+        )
+        return jsonify(session.set_planner(planner))
+
     @app.post("/api/interactive/games/<game_id>/player/notices")
     def post_player_notice(game_id: str):
         data = payload()
@@ -451,6 +473,24 @@ def create_app(
             "player": session.player_state(token),
         })
 
+    @app.post("/api/interactive/games/<game_id>/player/host-choice")
+    def player_host_choice(game_id: str):
+        session = game_service().get(game_id)
+        token = request.headers.get("X-Player-Token", "")
+        data = payload()
+        with task_lock:
+            if game_id in active_game_tasks:
+                raise ValueError("当前仍有行动正在结算")
+        selection = session.choose_player_host_event(
+            token,
+            str(data.get("card_id", "")),
+            intel_id=str(data.get("intel_id") or "") or None,
+        )
+        return jsonify({
+            **selection,
+            "player": session.player_state(token),
+        })
+
     @app.post("/api/interactive/games/<game_id>/player/open-voting")
     def open_player_voting(game_id: str):
         session = game_service().get(game_id)
@@ -466,6 +506,9 @@ def create_app(
         data = payload()
         suspect_id = str(data.get("suspect_id", ""))
         reason = str(data.get("reason", ""))
+        goal_assessments = data.get("goal_assessments", [])
+        if not isinstance(goal_assessments, list):
+            raise ValueError("个人目标回答格式无效")
         if session.state.phase != GamePhase.VOTING:
             raise ValueError("当前还没有进入终局投票")
         total = sum(
@@ -475,7 +518,9 @@ def create_app(
         )
 
         def resolve_player_vote(report_progress):
-            session.submit_player_vote(token, suspect_id, reason)
+            session.submit_player_vote(
+                token, suspect_id, reason, goal_assessments=goal_assessments
+            )
             return {"player": session.player_state(token)}
 
         return queue_game_operation(

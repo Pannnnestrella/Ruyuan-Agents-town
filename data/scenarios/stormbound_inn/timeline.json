@@ -1,0 +1,232 @@
+{
+  "timeline": {
+    "title": "停云客栈案发前时间线",
+    "description": "所有共同经历只在中央事件表中书写一次，再分发给参与者；因此两人案卷中的同一段交互永远逐字一致。凶手变体只向本局凶手追加对应的私密行凶记录。",
+    "events": [
+      {
+        "id": "arrival-sunce",
+        "order": 10,
+        "time": "前一日·酉初",
+        "location_id": "front_gate",
+        "participants": ["孙策"],
+        "kind": "arrival",
+        "text": "前一日酉初，孙策带着一匹青骢马投宿停云客栈，将马安置在马厩后住进北字客房。"
+      },
+      {
+        "id": "sunce-night-stable",
+        "order": 20,
+        "time": "前一日·子初",
+        "location_id": "stable",
+        "participants": ["孙策"],
+        "kind": "personal",
+        "text": "前一日子初，孙策独自去马厩检查坐骑，看见披蓑衣的人翻过后墙；他在墙根捡到一支绑法刻意模仿江东军的断箭，没有惊动其他住客。"
+      },
+      {
+        "id": "arrival-guangling-furong",
+        "order": 30,
+        "time": "当日·巳正",
+        "location_id": "lobby",
+        "participants": ["广陵王", "傅融"],
+        "kind": "shared",
+        "text": "巳正，广陵王与傅融冒雨一同抵达停云客栈；傅融登记两间客房并接过行程账册，广陵王当着他的面吩咐掌柜：任何急递先送到大堂。"
+      },
+      {
+        "id": "arrival-liubian",
+        "order": 40,
+        "time": "当日·午初",
+        "location_id": "lobby",
+        "participants": ["广陵王", "刘辩"],
+        "kind": "shared",
+        "text": "午初，刘辩以刘姓贵公子的身份来到客栈；广陵王亲自迎他入门，两人约定在人前只谈旅途，不提宫中旧事。"
+      },
+      {
+        "id": "arrival-yuanji",
+        "order": 50,
+        "time": "当日·未初",
+        "location_id": "front_gate",
+        "participants": ["袁基"],
+        "kind": "arrival",
+        "text": "未初，袁基因西驿道积水折返客栈，登记时使用真名，随后把一封袁氏旁支来信锁进西字客房。"
+      },
+      {
+        "id": "arrival-zuoci",
+        "order": 60,
+        "time": "当日·未正",
+        "location_id": "lobby",
+        "participants": ["左慈"],
+        "kind": "arrival",
+        "text": "未正，左慈背着药匣进店避雨，向掌柜说明药匣里有易碎药瓶，之后借用后厨整理药材。"
+      },
+      {
+        "id": "liubian-zuoci-tea",
+        "order": 70,
+        "time": "当日·申初",
+        "location_id": "kitchen",
+        "participants": ["刘辩", "左慈"],
+        "kind": "shared",
+        "text": "申初，刘辩到后厨找热水，左慈当着他的面从普通茶罐取茶、另用清水烫杯；两人共同确认当时后厨没有陌生人进出。"
+      },
+      {
+        "id": "sunce-yuanji-road",
+        "order": 80,
+        "time": "当日·申正",
+        "location_id": "courtyard",
+        "participants": ["孙策", "袁基"],
+        "kind": "shared",
+        "text": "申正，孙策从后院查看驿道回来，在袁基面前抖落蓑衣上的泥水；两人共同确认西驿道已经不能通车，但马厩后墙仍可能供一人翻越。"
+      },
+      {
+        "id": "six-person-supper",
+        "order": 90,
+        "time": "当日·酉初",
+        "location_id": "lobby",
+        "participants": ["广陵王", "傅融", "刘辩", "孙策", "左慈", "袁基"],
+        "kind": "shared",
+        "text": "酉初，六人在大堂同桌用过晚饭；左慈没有碰酒，傅融中途翻看过账册，孙策提到驿道封死，袁基询问过驿卒何时换班，刘辩用玩笑岔开了宫中旧闻。"
+      },
+      {
+        "id": "six-person-dispersal",
+        "order": 100,
+        "time": "当日·酉初三刻",
+        "location_id": "lobby",
+        "participants": ["广陵王", "傅融", "刘辩", "孙策", "左慈", "袁基"],
+        "kind": "shared",
+        "text": "酉初三刻，晚饭散席：广陵王留在大堂等急递，傅融去掌柜账房核账，刘辩回东字客房，孙策去马厩，左慈回后厨，袁基回西字客房。"
+      },
+      {
+        "id": "courier-arrival-signal",
+        "order": 110,
+        "time": "当日·酉正",
+        "location_id": "front_gate",
+        "participants": ["广陵王", "傅融", "刘辩", "孙策", "左慈", "袁基"],
+        "kind": "case",
+        "text": "酉正，正门传来驿卒通用的三短一长叩门声；六人都听见掌柜开门，并听见来客自称西驿送信人陆成。"
+      },
+      {
+        "id": "courier-meets-guangling",
+        "order": 120,
+        "time": "当日·酉正一刻",
+        "location_id": "lobby",
+        "participants": ["广陵王"],
+        "kind": "case",
+        "text": "酉正一刻，广陵王在大堂接到浑身湿透的陆成；陆成没有叫出她的身份，只护住信囊、先看向二层回廊，说要核对一处收信记号后再交件。"
+      },
+      {
+        "id": "courier-passes-liubian",
+        "order": 130,
+        "time": "当日·酉正二刻",
+        "location_id": "upper_hall",
+        "participants": ["刘辩"],
+        "kind": "case",
+        "text": "酉正二刻，刘辩在东字客房门口看见陆成走上二层；陆成袖口用了过时的宫制针脚，收针方向却与真正宫制相反。"
+      },
+      {
+        "id": "courier-yuanji-contact",
+        "order": 140,
+        "time": "当日·酉正三刻",
+        "location_id": "room_west",
+        "participants": ["袁基"],
+        "kind": "case-contact",
+        "text": "酉正三刻，陆成在西字客房门外向袁基询问旧式腰牌纹样；袁基替他擦去后颈雨水，看见信囊封口仍在，随后让他去找真正的收信人。"
+      },
+      {
+        "id": "courier-furong-contact",
+        "order": 150,
+        "time": "当日·酉正四刻",
+        "location_id": "study",
+        "participants": ["傅融"],
+        "kind": "case-contact",
+        "text": "酉正四刻，陆成在掌柜账房门口向傅融核对城东旧账的页码；傅融替他扶正被雨水压皱的衣领，看见信囊比寻常急报袋轻，随后指引他返回大堂。"
+      },
+      {
+        "id": "courier-sunce-contact",
+        "order": 160,
+        "time": "当日·酉末",
+        "location_id": "upper_hall",
+        "participants": ["孙策"],
+        "kind": "case-contact",
+        "text": "酉末，孙策从马厩返回二层时遇见陆成；陆成谎称肩伤复发，孙策隔着湿衣检查他的肩背，没有发现刀伤，随后看着他走下木梯。"
+      },
+      {
+        "id": "courier-asks-water",
+        "order": 170,
+        "time": "当日·戌初",
+        "location_id": "kitchen",
+        "participants": ["左慈"],
+        "kind": "case",
+        "text": "戌初，陆成到后厨向左慈讨了一碗清水；左慈注意到他的指甲边缘已经泛青，但陆成拒绝诊脉，只说旧伤遇雨。"
+      },
+      {
+        "id": "courier-final-return",
+        "order": 180,
+        "time": "当日·戌初一刻",
+        "location_id": "lobby",
+        "participants": ["广陵王"],
+        "kind": "case",
+        "text": "戌初一刻，陆成回到大堂，将那封绝密鸢报递给广陵王；他反复摸索明显变轻的信囊，却没有说明二层见过谁。"
+      },
+      {
+        "id": "characters-at-start-positions",
+        "order": 190,
+        "time": "当日·亥初后",
+        "location_id": "lobby",
+        "participants": ["广陵王", "傅融", "刘辩", "孙策", "左慈", "袁基"],
+        "kind": "shared",
+        "text": "亥初后，客栈重新安静下来：广陵王仍在大堂读鸢报，傅融留在账房，刘辩在东字客房，孙策在马厩，左慈在后厨，袁基在西字客房。"
+      },
+      {
+        "id": "courier-collapse",
+        "order": 200,
+        "time": "当日·亥正",
+        "location_id": "lobby",
+        "participants": ["广陵王", "傅融", "刘辩", "孙策", "左慈", "袁基"],
+        "kind": "case",
+        "text": "亥正，大堂传来瓷碗碎裂和广陵王的呼喊；众人先后得知陆成倒在炭盆旁，临终只攥住广陵王的衣角说出“鸢报有假”。"
+      }
+    ],
+    "killer_variants": {
+      "east-safehouse-letter": {
+        "killer_id": "傅融",
+        "events": [
+          {
+            "id": "crime-furong",
+            "order": 151,
+            "time": "当日·酉正四刻",
+            "location_id": "study",
+            "participants": ["傅融"],
+            "kind": "killer-private",
+            "text": "只有你知道：替陆成扶正衣领时，你用淬毒细针刺入他的颈后，取走城东安全屋撤离名单藏进袖袋；细针勾断了一缕深青袖线。"
+          }
+        ]
+      },
+      "jiangdong-forged-order": {
+        "killer_id": "孙策",
+        "events": [
+          {
+            "id": "crime-sunce",
+            "order": 161,
+            "time": "当日·酉末",
+            "location_id": "upper_hall",
+            "participants": ["孙策"],
+            "kind": "killer-private",
+            "text": "只有你知道：替陆成检查肩背时，你用缴获的淬毒细针刺入他的颈后，取走伪令正文折入护腕；事后赶去马厩确认退路，马刺扣在石阶上磕掉一角。"
+          }
+        ]
+      },
+      "yuan-branch-purchase": {
+        "killer_id": "袁基",
+        "events": [
+          {
+            "id": "crime-yuanji",
+            "order": 141,
+            "time": "当日·酉正三刻",
+            "location_id": "room_west",
+            "participants": ["袁基"],
+            "kind": "killer-private",
+            "text": "只有你知道：替陆成擦去后颈雨水时，你用水纹蜡纸包裹的淬毒细针刺入他颈后，取走袁氏旁支购牌底信藏进香囊夹层；回房后把蜡纸丢在炭盆旁。"
+          }
+        ]
+      }
+    }
+  }
+}

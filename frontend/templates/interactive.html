@@ -91,6 +91,13 @@
                         <ul id="objective-truths"></ul>
                     </article>
                 </div>
+                <section class="objective-timeline-section">
+                    <div class="casebook-section-heading">
+                        <div><p class="control-kicker">全知时序</p><h3>六人到店、送信人与真实行凶窗口</h3></div>
+                        <p>红色记录只存在于本局凶手与主持人的案卷中</p>
+                    </div>
+                    <div id="casebook-objective-timeline" class="casebook-objective-timeline"></div>
+                </section>
                 <section class="clue-atlas-section">
                     <div class="casebook-section-heading">
                         <div><p class="control-kicker">全知线索地图</p><h3>什么地方有什么，以及现在到了谁手里</h3></div>
@@ -132,6 +139,17 @@
                         <span id="host-interventions">已干预 0 次</span>
                     </div>
                 </section>
+
+                <div class="planner-switcher">
+                    <div><p class="control-kicker">决策接口</p><h2>切换后续角色行动使用的模型</h2></div>
+                    <select id="planner-provider">
+                        <option value="ollama">Ollama 本地</option>
+                        <option value="project">项目配置 API</option>
+                        <option value="heuristic">本地规则（无 LLM）</option>
+                    </select>
+                    <input id="planner-model" type="text" placeholder="Ollama 模型名；留空使用启动配置">
+                    <button id="switch-planner" class="secondary-button" type="button">应用切换</button>
+                </div>
 
                 <div class="notice-composer">
                     <div>

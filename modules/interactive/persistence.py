@@ -21,12 +21,15 @@ def game_state_from_dict(data: dict[str, Any]) -> GameState:
     agents: dict[str, AgentState] = {}
     for agent_id, raw in data["agents"].items():
         beliefs = [Belief(**belief) for belief in raw.get("beliefs", [])]
+        raw_life_state = str(raw.get("life_state", "alive"))
+        if raw_life_state in {"incapacitated", "dying"}:
+            raw_life_state = LifeState.SEVERELY_INJURED.value
         agents[agent_id] = AgentState(
             agent_id=raw["agent_id"],
             display_name=raw["display_name"],
             location_id=raw["location_id"],
             health=int(raw.get("health", 100)),
-            life_state=LifeState(raw.get("life_state", "alive")),
+            life_state=LifeState(raw_life_state),
             conditions=list(raw.get("conditions", [])),
             inventory=list(raw.get("inventory", [])),
             beliefs=beliefs,

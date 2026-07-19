@@ -32,9 +32,13 @@ const ui = {
     hostReach: document.getElementById('host-reach'),
     hostPressure: document.getElementById('host-pressure'),
     hostInterventions: document.getElementById('host-interventions'),
+    plannerProvider: document.getElementById('planner-provider'),
+    plannerModel: document.getElementById('planner-model'),
+    switchPlanner: document.getElementById('switch-planner'),
     casebook: document.getElementById('director-casebook'),
     casebookKiller: document.getElementById('casebook-killer'),
     murderChain: document.getElementById('murder-chain'),
+    objectiveTimeline: document.getElementById('casebook-objective-timeline'),
     caseCore: document.getElementById('case-core'),
     objectiveTruths: document.getElementById('objective-truths'),
     clueMap: document.getElementById('director-clue-map'),
@@ -310,6 +314,12 @@ function renderDirectorCasebook(state) {
         <dt>脱身计划</dt><dd>${escapeHtml(casebook.escape_plan)}</dd>`;
     ui.objectiveTruths.innerHTML = (casebook.objective_truths || [])
         .map(truth => `<li>${escapeHtml(truth.claim)}</li>`).join('');
+    ui.objectiveTimeline.innerHTML = (casebook.objective_timeline || []).map(entry => `
+        <article class="${entry.private ? 'private' : ''}">
+            <time>${escapeHtml(entry.time)}</time>
+            <div><strong>${escapeHtml(entry.location_name || '')}</strong><p>${escapeHtml(entry.text)}</p>
+            <small>${escapeHtml((entry.participants || []).join('、'))}${entry.private ? ' · 凶手私密记忆' : ''}</small></div>
+        </article>`).join('');
     renderDirectorClueMap(casebook);
     renderDeductionGuides(casebook);
 
@@ -335,6 +345,9 @@ function renderDirectorCasebook(state) {
                         ${character.opening_hook ? `<blockquote>${escapeHtml(character.opening_hook)}</blockquote>` : ''}
                         ${(character.background_story || []).map(text => `<p>${escapeHtml(text)}</p>`).join('') || '<p>未记录。</p>'}
                     </section>
+                    <section class="file-block full"><h4>案发前个人时间线</h4><ol class="pregame-ledger">${(character.pregame_timeline || []).map(entry => `
+                        <li class="${entry.private ? 'private' : ''}"><time>${escapeHtml(entry.time)}</time><span>${escapeHtml(entry.text)}</span><small>${escapeHtml(entry.location_name || '')}</small></li>
+                    `).join('') || '<li>未记录。</li>'}</ol></section>
                     ${renderFileList('初始记忆', character.background_memories)}
                     ${renderFileList('个人目标', character.goals)}
                     ${renderFileList('决策准则', character.decision_rules)}
@@ -444,7 +457,7 @@ function renderPlan(plan) {
 }
 
 function lifeLabel(value) {
-    return ({alive: '存活', injured: '受伤', incapacitated: '失能', dying: '濒死', dead: '死亡'})[value] || value;
+    return ({alive: '健康', injured: '受伤', severely_injured: '重伤', incapacitated: '重伤', dying: '重伤', dead: '死亡'})[value] || value;
 }
 
 function renderCards(cards, emptyEvent = null, activeCardId = null) {
@@ -598,11 +611,31 @@ ui.postNotice.addEventListener('click', async () => {
         const data = await api(`/api/interactive/games/${gameId}`);
         renderState(data.state);
         renderIntel(data.intel || [], data.state);
-        showToast('公告已张贴；只有看到公告板的角色会立即获知。');
+        showToast('公告已张贴；全员收到更新标记，回到大堂后才能读取正文。');
     } catch (error) {
         showToast(error.message);
     } finally {
         setBusy(false);
+    }
+});
+
+ui.switchPlanner?.addEventListener('click', async () => {
+    if (!gameId) return showToast('请先创建或载入一局游戏。');
+    ui.switchPlanner.disabled = true;
+    try {
+        const data = await api(`/api/interactive/games/${gameId}/planner`, {
+            method: 'POST',
+            body: JSON.stringify({
+                provider: ui.plannerProvider.value,
+                model: ui.plannerModel.value.trim(),
+            }),
+        });
+        ui.planner.textContent = `已切换 · ${data.planner_provider}`;
+        showToast(`后续行动将使用 ${data.planner_provider}`);
+    } catch (error) {
+        showToast(error.message);
+    } finally {
+        ui.switchPlanner.disabled = false;
     }
 });
 

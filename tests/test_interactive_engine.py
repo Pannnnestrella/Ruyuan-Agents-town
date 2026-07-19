@@ -17,6 +17,7 @@ from modules.interactive import (
     ScenarioLoader,
     TriggerResolver,
 )
+from modules.interactive.models import Belief
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -57,6 +58,30 @@ class ScenarioTests(unittest.TestCase):
         public_text = str(self.state.public_view())
         self.assertNotIn("killer_id", public_text)
         self.assertNotIn("凶手记忆", public_text)
+
+    def test_shared_pregame_events_are_identical_in_every_participant_timeline(self):
+        timelines = self.state.flags["character_timelines"]
+        objective = self.state.flags["objective_timeline"]
+        for event in objective:
+            if event["private"]:
+                continue
+            for participant_id in event["participants"]:
+                matching = [
+                    item for item in timelines[participant_id]
+                    if item["id"] == event["id"]
+                ]
+                self.assertEqual(len(matching), 1, (event["id"], participant_id))
+                self.assertEqual(matching[0]["text"], event["text"])
+        killer_id = self.state.flags["killer_id"]
+        private_entries = [
+            (agent_id, entry)
+            for agent_id, entries in timelines.items()
+            for entry in entries if entry["private"]
+        ]
+        self.assertEqual(len(private_entries), 1)
+        self.assertEqual(private_entries[0][0], killer_id)
+        self.assertIn("只有你知道", private_entries[0][1]["text"])
+        self.assertTrue(all(timelines[agent_id] for agent_id in self.state.agents))
 
     def test_seed_selects_a_complete_self_consistent_case_variant(self):
         expected = {
@@ -190,6 +215,39 @@ class RoundEngineTests(unittest.TestCase):
         self.assertEqual(len(result.rejected_intents), 1)
         self.assertIn("one major action", result.rejected_intents[0]["reason"])
 
+    def test_equivalent_intelligence_is_not_echoed_back_but_can_reach_a_new_person(self):
+        self.state.phase = GamePhase.READY
+        for agent_id in ("广陵王", "傅融", "左慈"):
+            self.state.agents[agent_id].location_id = "lobby"
+        original = self.state.agents["广陵王"].beliefs[0]
+        first = self.engine.resolve_free_action(self.state, ActionIntent(
+            "广陵王", ActionType.TALK, target_id="傅融", content="我说一条亲历。",
+            metadata={"share_belief_id": original.belief_id},
+        ))
+        self.assertEqual(len(first.events), 1)
+        # The engine validates exchange lineage; the service normally writes the
+        # listener memory, so emulate that one received claim for this unit test.
+        received = Belief(
+            belief_id="received-test", claim=original.claim,
+            source=first.events[0].event_id, confidence=1.0,
+            shared_with=["广陵王"],
+        )
+        self.state.agents["傅融"].beliefs.append(received)
+        echoed = self.engine.resolve_free_action(self.state, ActionIntent(
+            "傅融", ActionType.TALK, target_id="广陵王", content="再说回给你。",
+            metadata={"share_belief_id": received.belief_id},
+        ))
+        self.assertFalse(echoed.events)
+        self.assertTrue(any(
+            phrase in echoed.rejected_intents[0]["reason"]
+            for phrase in ("already knows", "already shared")
+        ))
+        reshared = self.engine.resolve_free_action(self.state, ActionIntent(
+            "傅融", ActionType.TALK, target_id="左慈", content="这是一条二手消息。",
+            metadata={"share_belief_id": received.belief_id},
+        ))
+        self.assertEqual(len(reshared.events), 1)
+
     def test_attack_is_world_adjudicated_and_updates_life_state(self):
         self.state.agents["孙策"].location_id = "lobby"
         self.state.agents["刘辩"].location_id = "lobby"
@@ -206,10 +264,64 @@ class RoundEngineTests(unittest.TestCase):
                 )
             ],
         )
-        self.assertEqual(self.state.agents["刘辩"].health, 48)
+        self.assertEqual(self.state.agents["刘辩"].health, 60)
         self.assertEqual(self.state.agents["刘辩"].life_state, LifeState.INJURED)
         self.assertEqual(result.events[0].event_type, "attack")
         self.assertEqual(result.events[0].payload["ability_id"], "swift_restraint")
+
+    def test_search_records_room_traces_and_reports_progress(self):
+        actor = self.state.agents["广陵王"]
+        actor.location_id = "front_gate"
+        for item in self.state.objects.values():
+            if item.location_id == "front_gate" and actor.agent_id not in item.discovered_by:
+                item.discovered_by.append(actor.agent_id)
+        result = self.engine.resolve_round(
+            self.state,
+            [ActionIntent("广陵王", ActionType.INVESTIGATE, location_id="front_gate")],
+        )
+        event = result.events[0]
+        self.assertEqual(event.event_type, "investigation_empty")
+        self.assertTrue(event.payload["disturbance_trace"])
+        self.assertFalse(event.payload["evidence_remaining"])
+        history = self.state.flags["location_search_history"]["front_gate"]
+        self.assertEqual(history[-1]["agent_id"], "广陵王")
+
+    def test_attack_is_limited_once_per_round_and_death_drops_inventory(self):
+        self.state.flags["killer_id"] = "孙策"
+        attacker = self.state.agents["孙策"]
+        target = self.state.agents["刘辩"]
+        attacker.location_id = target.location_id = "lobby"
+        target.life_state = LifeState.SEVERELY_INJURED
+        target.health = 30
+        carried = target.inventory[0]
+        self.engine.random.random = lambda: 0.0
+        first = self.engine.resolve_action_phase(
+            self.state,
+            [ActionIntent("孙策", ActionType.ATTACK, target_id="刘辩")],
+        )
+        self.assertEqual(target.life_state, LifeState.DEAD)
+        self.assertNotIn(carried, target.inventory)
+        self.assertEqual(self.state.objects[carried].location_id, "lobby")
+        second = self.engine.resolve_action_phase(
+            self.state,
+            [ActionIntent("孙策", ActionType.ATTACK, target_id="广陵王")],
+        )
+        self.assertIn("at most one attack", second.rejected_intents[0]["reason"])
+
+    def test_authored_events_can_injure_or_accidentally_drop_a_carried_item(self):
+        director = EventDirector(self.loaded.scenario["event_cards"], seed=4)
+        director.apply(self.state, "pressure-fever")
+        self.assertEqual(self.state.agents["刘辩"].life_state, LifeState.INJURED)
+
+        drop_state = self.loaded.create_game_state("drop-event-test", seed=2)
+        before_inventory = sum(len(agent.inventory) for agent in drop_state.agents.values())
+        drop_director = EventDirector(self.loaded.scenario["event_cards"], seed=4)
+        events = drop_director.apply(drop_state, "pressure-collision-drop")
+        self.assertEqual(
+            sum(len(agent.inventory) for agent in drop_state.agents.values()),
+            before_inventory - 1,
+        )
+        self.assertTrue(any(event.event_type == "object_dropped" for event in events))
 
 
 class GameSessionTests(unittest.TestCase):
@@ -253,6 +365,41 @@ class GameSessionTests(unittest.TestCase):
         game_dir = Path(self.temporary_results.name) / "interactive" / "session-test"
         self.assertTrue((game_dir / "state.json").is_file())
         self.assertTrue((game_dir / "round-01.json").is_file())
+
+    def test_ai_free_movement_is_resolved_before_one_major_action(self):
+        class FreeMoveThenMajorPlanner:
+            def __init__(self):
+                self.moved = set()
+
+            def plan(
+                inner_self, state, scenario, progress_callback=None,
+                actor_ids=None, force_major=False,
+            ):
+                intents = []
+                for agent_id in actor_ids or sorted(state.agents):
+                    agent = state.agents[agent_id]
+                    if not force_major and agent_id not in inner_self.moved:
+                        inner_self.moved.add(agent_id)
+                        destination = state.locations[agent.location_id]["connections"][0]
+                        intents.append(ActionIntent(
+                            agent_id, ActionType.MOVE, location_id=destination,
+                        ))
+                    else:
+                        intents.append(ActionIntent(
+                            agent_id, ActionType.INVESTIGATE,
+                            location_id=agent.location_id,
+                        ))
+                return intents
+
+        self.session.planner = FreeMoveThenMajorPlanner()
+        self.session.select_event_card(self.session.empty_event_option()["card_id"])
+        result = self.session._advance_action_phase(player_intent=None)
+        free_moves = [event for event in result.events if event.event_type == "move"]
+        major_events = [event for event in result.events if event.action_step == 1]
+        self.assertEqual(len(free_moves), 6)
+        self.assertTrue(all(event.payload["free_action"] for event in free_moves))
+        self.assertEqual(self.session.state.action_step, 1)
+        self.assertEqual({event.actors[0] for event in major_events}, set(self.session.state.agents))
 
     def test_character_plan_survives_and_accumulates_outcomes_across_rounds(self):
         initial_objective = self.session.state.agents["广陵王"].strategic_plan["objective"]
@@ -342,7 +489,7 @@ class GameSessionTests(unittest.TestCase):
             if belief.source == conversation.event_id
         )
         self.assertEqual(received.stance, "reported")
-        self.assertIn("广陵王声称", received.claim)
+        self.assertIn("据广陵王所说", received.claim)
 
     def test_six_round_game_writes_evidence_based_recap(self):
         self.session.post_notice("所有住客若发现密信，须先在大堂登记。")
