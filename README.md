@@ -56,9 +56,17 @@ https://github.com/user-attachments/assets/5be36847-d0c6-43e9-b31a-92cab4e2f2bd
 
 **AI 讨论与投票**
 
-https://github.com/user-attachments/assets/95e3b62a-40db-4cc3-8d51-72596faaa193
+[https://github.com/user-attachments/assets/95e3b62a-40db-4cc3-8d51-72596faaa193](https://github.com/user-attachments/assets/5cc1c65a-4e1e-4054-9bc6-7edf2f4eb988)
+
+**AI 自主行动界面**
+
+
+
+
 
 ![AI 自主行动界面](github页面图片/行动界面.png)
+
+**角色相遇并交换情报**
 
 ![角色相遇并交换情报](github页面图片/相遇并交谈.png)
 
