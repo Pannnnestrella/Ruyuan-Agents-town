@@ -58,17 +58,9 @@ https://github.com/user-attachments/assets/5be36847-d0c6-43e9-b31a-92cab4e2f2bd
 
 https://github.com/user-attachments/assets/95e3b62a-40db-4cc3-8d51-72596faaa193
 
+![AI 自主行动界面](github页面图片/行动界面.png)
 
-**AI 自主行动界面**
-<p align="center">
-  <img src="github页面图片/行动界面.png" width="49%" alt="AI 自主行动界面">
-</p>
-
-**角色相遇并交换情报**
-<p align="center">
-  <img src="github页面图片/相遇并交谈.png" width="49%" alt="角色相遇并交换情报">
-</p>
-
+![角色相遇并交换情报](github页面图片/相遇并交谈.png)
 
 <p align="center"><em>角色先按各自视角做决定，世界再统一结算。没有人凭空知道自己未曾看见的事。</em></p>
 
