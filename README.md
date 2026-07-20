@@ -51,10 +51,13 @@
 ▶ **观看实机片段：** 
 
 **AI 自主决策**
-https://github.com/user-attachments/assets/95e3b62a-40db-4cc3-8d51-72596faaa193
+
+https://github.com/user-attachments/assets/5be36847-d0c6-43e9-b31a-92cab4e2f2bd
 
 **AI 讨论与投票**
-https://github.com/user-attachments/assets/5be36847-d0c6-43e9-b31a-92cab4e2f2bd
+
+https://github.com/user-attachments/assets/95e3b62a-40db-4cc3-8d51-72596faaa193
+
 
 **AI 自主行动界面**
 <p align="center">
