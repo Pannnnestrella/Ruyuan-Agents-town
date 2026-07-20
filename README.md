@@ -1,3 +1,7 @@
+
+
+https://github.com/user-attachments/assets/de3acd44-4297-4c8d-81fa-d669c492d30f
+
 # 停云客栈 · Agents Town
 
 <p align="center">
@@ -47,12 +51,24 @@
 | **冲突与攻击** | 在规则允许时治疗、阻拦或攻击，并承担真实后果 |
 | **讨论与投票** | 终局公开陈述判断，再依据自己的认知独立投票 |
 
-▶ **观看实机片段：** [AI 自主决策](github页面图片/AI自主决策.mp4) · [AI 讨论与投票](github页面图片/AI讨论投票.mp4)
+▶ **观看实机片段：** 
 
+**[AI 自主决策]**
+https://github.com/user-attachments/assets/95e3b62a-40db-4cc3-8d51-72596faaa193
+
+**[AI 讨论与投票]**
+https://github.com/user-attachments/assets/5be36847-d0c6-43e9-b31a-92cab4e2f2bd
+
+**AI 自主行动界面**
 <p align="center">
   <img src="github页面图片/行动界面.png" width="49%" alt="AI 自主行动界面">
+</p>
+
+**角色相遇并交换情报**
+<p align="center">
   <img src="github页面图片/相遇并交谈.png" width="49%" alt="角色相遇并交换情报">
 </p>
+
 
 <p align="center"><em>角色先按各自视角做决定，世界再统一结算。没有人凭空知道自己未曾看见的事。</em></p>
 
