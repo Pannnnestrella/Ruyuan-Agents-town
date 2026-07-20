@@ -1,7 +1,4 @@
 
-
-https://github.com/user-attachments/assets/de3acd44-4297-4c8d-81fa-d669c492d30f
-
 # 停云客栈 · Agents Town
 
 <p align="center">
@@ -53,10 +50,10 @@ https://github.com/user-attachments/assets/de3acd44-4297-4c8d-81fa-d669c492d30f
 
 ▶ **观看实机片段：** 
 
-**[AI 自主决策]**
+**AI 自主决策**
 https://github.com/user-attachments/assets/95e3b62a-40db-4cc3-8d51-72596faaa193
 
-**[AI 讨论与投票]**
+**AI 讨论与投票**
 https://github.com/user-attachments/assets/5be36847-d0c6-43e9-b31a-92cab4e2f2bd
 
 **AI 自主行动界面**
