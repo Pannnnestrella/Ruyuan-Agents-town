@@ -41,6 +41,7 @@ class OpenAICompatibleChatModel:
         self.api_key = api_key
         self.timeout_seconds = float(timeout_seconds)
         self.client = None
+        self._tls = threading.local()
         try:
             from openai import OpenAI
 
@@ -55,6 +56,30 @@ class OpenAICompatibleChatModel:
             pass
 
     supports_json_mode = True
+
+    def _record_usage(self, usage: Any) -> None:
+        """Stash this thread's last token usage for the caller to consume."""
+
+        try:
+            if usage is None:
+                return
+            if isinstance(usage, dict):
+                prompt_tokens = int(usage.get("prompt_tokens") or 0)
+                completion_tokens = int(usage.get("completion_tokens") or 0)
+            else:
+                prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
+                completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
+            self._tls.usage = {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+            }
+        except Exception:
+            pass
+
+    def consume_last_usage(self) -> dict[str, int] | None:
+        usage = getattr(self._tls, "usage", None)
+        self._tls.usage = None
+        return usage
 
     def completion(self, prompt: str, **kwargs: Any) -> str | None:
         """Run one chat completion with real retry semantics.
@@ -101,6 +126,7 @@ class OpenAICompatibleChatModel:
             if json_mode:
                 request_kwargs["response_format"] = {"type": "json_object"}
             response = self.client.chat.completions.create(**request_kwargs)
+            self._record_usage(getattr(response, "usage", None))
             if not response.choices:
                 return None
             return response.choices[0].message.content
@@ -134,6 +160,7 @@ class OpenAICompatibleChatModel:
         if not response.ok:
             raise RuntimeError(f"LLM endpoint returned HTTP {response.status_code}")
         data = response.json()
+        self._record_usage(data.get("usage"))
         choices = data.get("choices") or []
         if not choices:
             return None
@@ -158,6 +185,33 @@ class LLMIntentPlanner:
         self.error_callback = error_callback
         self.trace_root = Path(trace_root) if trace_root else None
         self._trace_lock = threading.Lock()
+        self._usage_lock = threading.Lock()
+
+    def _accumulate_token_usage(
+        self,
+        state: GameState,
+        agent_id: str,
+        usage: dict[str, int] | None,
+    ) -> None:
+        if not usage:
+            return
+        prompt_tokens = int(usage.get("prompt_tokens") or 0)
+        completion_tokens = int(usage.get("completion_tokens") or 0)
+        if prompt_tokens <= 0 and completion_tokens <= 0:
+            return
+        with self._usage_lock:
+            bucket = state.flags.setdefault("token_usage", {})
+            for scope in (
+                bucket.setdefault("totals", {}),
+                bucket.setdefault("by_agent", {}).setdefault(agent_id, {}),
+            ):
+                scope["prompt_tokens"] = (
+                    int(scope.get("prompt_tokens", 0)) + prompt_tokens
+                )
+                scope["completion_tokens"] = (
+                    int(scope.get("completion_tokens", 0)) + completion_tokens
+                )
+                scope["calls"] = int(scope.get("calls", 0)) + 1
 
     def _write_trace(
         self,
@@ -168,6 +222,7 @@ class LLMIntentPlanner:
         prompt: str,
         response: Any,
         error: Exception | None,
+        usage: dict[str, int] | None = None,
     ) -> None:
         """Append one raw prompt/response pair to the per-game audit log."""
 
@@ -188,6 +243,7 @@ class LLMIntentPlanner:
                 "prompt": prompt,
                 "response": None if response is None else str(response),
                 "error": None if error is None else self.error_details(error),
+                "usage": usage,
             }
             path = trace_dir / f"round-{state.round_number + 1:02d}.jsonl"
             line = json.dumps(record, ensure_ascii=False)
@@ -226,6 +282,9 @@ class LLMIntentPlanner:
             response = self.model.completion(prompt, **kwargs)
         except Exception as exc:
             error = exc
+        consume = getattr(self.model, "consume_last_usage", None)
+        usage = consume() if callable(consume) else None
+        self._accumulate_token_usage(state, agent_id, usage)
         self._write_trace(
             state,
             stage=stage,
@@ -233,6 +292,7 @@ class LLMIntentPlanner:
             prompt=prompt,
             response=response,
             error=error,
+            usage=usage,
         )
         if error is not None:
             raise error

@@ -20,7 +20,9 @@ CREATE TABLE IF NOT EXISTS game_runs (
     killer_evaded_vote INTEGER NOT NULL DEFAULT 0,
     killer_found INTEGER NOT NULL,
     started_at TEXT,
-    finished_at TEXT NOT NULL
+    finished_at TEXT NOT NULL,
+    prompt_tokens INTEGER NOT NULL DEFAULT 0,
+    completion_tokens INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS participant_runs (
     game_id TEXT NOT NULL,
@@ -101,6 +103,14 @@ def record_completed_game(
             connection.execute(
                 "ALTER TABLE game_runs ADD COLUMN killer_evaded_vote INTEGER NOT NULL DEFAULT 0"
             )
+        for token_column in ("prompt_tokens", "completion_tokens"):
+            if token_column not in columns:
+                connection.execute(
+                    f"ALTER TABLE game_runs ADD COLUMN {token_column} INTEGER NOT NULL DEFAULT 0"
+                )
+        token_totals = dict(
+            (state.flags.get("token_usage") or {}).get("totals") or {}
+        )
         values = (
             state.game_id,
             state.scenario_id,
@@ -110,6 +120,8 @@ def record_completed_game(
             int(bool(voting_result.get("killer_found"))),
             str(state.flags.get("created_at", "")) or None,
             _utc_now(),
+            int(token_totals.get("prompt_tokens", 0)),
+            int(token_totals.get("completion_tokens", 0)),
         )
         if "killer_escaped" in columns:
             # Compatibility with databases created before physical escape was removed.
@@ -117,8 +129,9 @@ def record_completed_game(
                 """
                 INSERT OR REPLACE INTO game_runs
                 (game_id, scenario_id, seed, killer_id, killer_evaded_vote,
-                 killer_found, started_at, finished_at, killer_escaped)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+                 killer_found, started_at, finished_at,
+                 prompt_tokens, completion_tokens, killer_escaped)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
                 """,
                 values,
             )
@@ -127,8 +140,9 @@ def record_completed_game(
                 """
                 INSERT OR REPLACE INTO game_runs
                 (game_id, scenario_id, seed, killer_id, killer_evaded_vote,
-                 killer_found, started_at, finished_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 killer_found, started_at, finished_at,
+                 prompt_tokens, completion_tokens)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 values,
             )

@@ -63,6 +63,45 @@ class AdapterRetryTests(unittest.TestCase):
             adapter.completion("hi", retry=2)
 
 
+class UsageScriptedModel(ScriptedModel):
+    def __init__(self, responses: list[str], usage: dict[str, int]):
+        super().__init__(responses)
+        self._usage = usage
+
+    def consume_last_usage(self) -> dict[str, int]:
+        return dict(self._usage)
+
+
+class TokenAccountingTests(unittest.TestCase):
+    def test_adapter_stores_and_consumes_usage_once(self):
+        adapter = OpenAICompatibleChatModel(
+            base_url="http://127.0.0.1:9/v1", model="test", api_key="test",
+        )
+        adapter._record_usage({"prompt_tokens": 5, "completion_tokens": 7})
+        self.assertEqual(
+            adapter.consume_last_usage(),
+            {"prompt_tokens": 5, "completion_tokens": 7},
+        )
+        self.assertIsNone(adapter.consume_last_usage())
+
+    def test_planner_accumulates_usage_into_state_flags(self):
+        loaded = ScenarioLoader(ROOT).load("stormbound_inn")
+        state = loaded.create_game_state("usage-test", seed=4)
+        actor_id = sorted(state.agents)[0]
+        model = UsageScriptedModel(
+            [json.dumps({"action_type": "wait", "reason": "等待"}, ensure_ascii=False)],
+            {"prompt_tokens": 111, "completion_tokens": 22},
+        )
+        planner = LLMIntentPlanner(model)
+        planner.plan(state, loaded.scenario, actor_ids=[actor_id])
+        totals = state.flags["token_usage"]["totals"]
+        self.assertEqual(totals["prompt_tokens"], 111)
+        self.assertEqual(totals["completion_tokens"], 22)
+        self.assertEqual(totals["calls"], 1)
+        per_agent = state.flags["token_usage"]["by_agent"][actor_id]
+        self.assertEqual(per_agent["prompt_tokens"], 111)
+
+
 class PlannerRetryAndTraceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

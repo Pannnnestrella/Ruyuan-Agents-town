@@ -40,7 +40,7 @@
 - 现状:`OpenAICompatibleChatModel.completion` 忽略 `retry/failsafe/caller` kwargs,实际无重试语义。
 - 方案:在适配器内实现真实的重试(含指数退避),或移除误导性参数并统一由 C1 的重试逻辑负责。
 
-**C3. 无 token/成本核算** ☐
+**C3. 无 token/成本核算** ☑ 2026-07-26(flags.token_usage + 历史库 prompt/completion_tokens 列)
 - 现状:`model_usage` 只记次数,不记 token。
 - 方案:从响应的 `usage` 字段采集 prompt/completion tokens,写入 `model_usage` 与 `history.py` 的 sqlite 表。
 
@@ -58,7 +58,7 @@
 - 现状:`_intent_is_grounded`(planner)与 `RoundEngine._validate_intent` 两套规则独立演化;`post_notice` 与 `Notice` 默认值硬编码 `lobby`。
 - 方案:公告地点改由场景配置声明(如 `bulletin_location_id`);合法性预检收敛为调用引擎侧的校验入口。
 
-**D4. 缺批量自博弈评估** ☐
+**D4. 缺批量自博弈评估** ☑ 2026-07-26(scripts/selfplay_eval.py)
 - 现状:只有 smoke 脚本;无法批量统计凶手指认率、回退率、模型对比。
 - 方案:新增 `scripts/selfplay_eval.py`:批量跑 N 局(启发式或指定模型),汇总 `score_history.sqlite3` 输出报表。
 
