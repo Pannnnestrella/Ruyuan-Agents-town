@@ -2753,6 +2753,29 @@ class GameSession:
                 notice.seen_by.extend(unseen)
                 self._add_notice_beliefs(notice, list(notice.seen_by))
 
+    _PLAN_ACTION_KEYWORDS = {
+        "move": ("前往", "移动", "赶到", "转移", "去往", "去"),
+        "investigate": ("调查", "搜查", "搜索", "查看", "勘查", "检查", "搜"),
+        "talk": ("交谈", "询问", "试探", "质问", "对话", "打听", "沟通", "求证", "核对"),
+        "post_notice": ("公告", "张贴", "布告", "公开"),
+        "transfer": ("交给", "交付", "递给", "移交"),
+        "poison": ("下毒", "毒"),
+        "treat": ("治疗", "救治", "诊治", "包扎"),
+        "wait": ("观察", "等待", "静观", "按兵"),
+    }
+
+    @classmethod
+    def _plan_adherence(cls, planned_step: str, action_type: ActionType) -> str:
+        """Advisory check: did the executed action match the planned next step?"""
+
+        step = str(planned_step or "").strip()
+        if not step:
+            return "unknown"
+        keywords = cls._PLAN_ACTION_KEYWORDS.get(action_type.value, ())
+        if any(keyword in step for keyword in keywords):
+            return "followed"
+        return "possibly_deviated"
+
     def _commit_strategic_plans(
         self,
         intents: list[ActionIntent],
@@ -2777,6 +2800,16 @@ class GameSession:
                 if outcome_event
                 else "本轮意图没有形成可识别的世界事件。"
             )
+            previous_steps = [
+                str(step) for step in (agent.strategic_plan.get("steps") or [])
+            ]
+            previous_step = previous_steps[0] if previous_steps else ""
+            if outcome_event is None:
+                execution_status = "no_effect"
+            elif outcome_event.event_type == "action_failed":
+                execution_status = "failed"
+            else:
+                execution_status = "executed"
             active_round = outcome_event.round_number if outcome_event else self.state.round_number + 1
             action_step = outcome_event.action_step if outcome_event else self.state.action_step
             committed = dict(plan)
@@ -2796,6 +2829,11 @@ class GameSession:
                 "objective": committed.get("objective", ""),
                 "intended_action": intent.action_type.value,
                 "outcome": outcome,
+                "execution_status": execution_status,
+                "planned_step": previous_step,
+                "plan_adherence": self._plan_adherence(
+                    previous_step, intent.action_type,
+                ),
                 "revision_reason": committed.get("revision_reason", ""),
                 "source": committed.get("source", "unknown"),
             })

@@ -22,7 +22,7 @@
 
 ### B. 任务规划
 
-**B1. 计划无执行核对闭环** ☐
+**B1. 计划无执行核对闭环** ☑ 2026-07-26(execution_status + plan_adherence 回写并入提示词)
 - 现状:计划仅存储、原样回喂,无人检查上一轮计划步骤是否完成;计划与实际行动无一致性校验。
 - 方案:结算后将本步实际行动与计划第一步做匹配,写入 `plan_history` 条目的 `outcome` 字段(completed/deviated/failed);提示词中的 `recent_plan_outcomes` 改为携带该结果。
 
