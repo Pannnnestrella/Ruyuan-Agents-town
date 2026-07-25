@@ -2911,10 +2911,26 @@ class GameSession:
                         if witness != agent_id
                     ]
                 normalized_claim = self._normalize_dialogue_text(claim)
-                if event.event_type == "conversation" and any(
-                    self._normalize_dialogue_text(existing.claim) == normalized_claim
-                    for existing in agent.beliefs[-40:]
-                ):
+                duplicate = next(
+                    (
+                        existing for existing in agent.beliefs[-60:]
+                        if self._normalize_dialogue_text(existing.claim)
+                        == normalized_claim
+                    ),
+                    None,
+                ) if normalized_claim else None
+                if duplicate is not None:
+                    # Direct observation upgrades earlier hearsay of the same
+                    # claim instead of stacking a redundant belief.
+                    if confidence > duplicate.confidence:
+                        duplicate.confidence = confidence
+                        duplicate.stance = stance
+                        duplicate.confidence_score = max(
+                            duplicate.confidence_score,
+                            max(0, min(5, round(confidence * 5))),
+                        )
+                        if truth_id and not duplicate.truth_id:
+                            duplicate.truth_id = truth_id
                     continue
                 information_type = (
                     "testimony"
@@ -2950,6 +2966,52 @@ class GameSession:
                 agent.information_state.setdefault(bucket, []).append(
                     belief.belief_id
                 )
+        for agent in self.state.agents.values():
+            self._consolidate_agent_beliefs(agent)
+
+    def _consolidate_agent_beliefs(self, agent: AgentState) -> None:
+        """Deterministic corroboration pass over one agent's beliefs.
+
+        Beliefs pointing at the same authored truth, or carrying the same
+        normalized claim from different source events, corroborate each other
+        (``supporting_ids``). Testimony that stays uncorroborated gets one
+        standing verification question so the planner can act on it.
+        Semantic contradictions (``opposing_ids``) are intentionally left to
+        the character's own reasoning; rules only link what is decidable.
+        """
+
+        groups: dict[str, list[Belief]] = {}
+        for belief in agent.beliefs:
+            if belief.truth_id:
+                groups.setdefault(f"truth:{belief.truth_id}", []).append(belief)
+            normalized = self._normalize_dialogue_text(belief.claim)
+            if normalized:
+                groups.setdefault(f"claim:{normalized[:120]}", []).append(belief)
+        for members in groups.values():
+            distinct_sources = {member.source for member in members}
+            if len(members) < 2 or len(distinct_sources) < 2:
+                continue
+            member_ids = [member.belief_id for member in members]
+            for member in members:
+                merged = [
+                    belief_id for belief_id in member.supporting_ids
+                    if belief_id != member.belief_id
+                ]
+                for belief_id in member_ids:
+                    if belief_id != member.belief_id and belief_id not in merged:
+                        merged.append(belief_id)
+                member.supporting_ids = merged[:6]
+        for belief in agent.beliefs:
+            if (
+                belief.information_type == "testimony"
+                and not belief.supporting_ids
+                and not belief.verification_questions
+            ):
+                belief.verification_questions = [
+                    "该说法尚无独立旁证；可通过物证或第三方口供核对后再采信。"
+                ]
+            elif belief.supporting_ids and belief.verification_questions:
+                belief.verification_questions = []
 
     def _award_score(
         self,

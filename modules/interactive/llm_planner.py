@@ -16,6 +16,7 @@ from modules.model.llm_model import create_llm_model
 
 from .models import ActionIntent, ActionType, GameState
 from .abilities import abilities_for, action_is_authorized
+from .belief_select import select_context_beliefs
 from .service import HeuristicIntentPlanner
 
 
@@ -574,7 +575,9 @@ class LLMIntentPlanner:
                 "shared_with": list(belief.shared_with),
                 "origin_type": "conversation" if str(belief.source).startswith("event-") else "authored_or_observed",
             }
-            for belief in speaker.beliefs[-20:]
+            for belief in select_context_beliefs(
+                speaker.beliefs, current_round=state.round_number, limit=20,
+            )
         ]
         context: dict[str, Any] = {
             "speaker": {
@@ -854,7 +857,12 @@ player.message 中⟦玩家台词开始⟧与⟦玩家台词结束⟧之间的�
         context: dict[str, Any] = {
             "voter": {"id": voter.agent_id, "name": voter.display_name},
             "candidates": candidates,
-            "personal_memories": [belief.to_dict() for belief in voter.beliefs[-32:]],
+            "personal_memories": [
+                belief.to_dict()
+                for belief in select_context_beliefs(
+                    voter.beliefs, current_round=state.round_number, limit=32,
+                )
+            ],
             "rules": scenario.get("game_rules", []),
             "final_questions": [],
         }
@@ -1015,8 +1023,11 @@ player.message 中⟦玩家台词开始⟧与⟦玩家台词结束⟧之间的�
                 or event.event_type in global_event_types
             )
         ][-12:]
-        private_beliefs = [
-            {
+        private_beliefs = []
+        for belief in select_context_beliefs(
+            agent.beliefs, current_round=state.round_number, limit=32,
+        ):
+            entry: dict[str, Any] = {
                 "belief_id": belief.belief_id,
                 "claim": belief.claim,
                 "source": belief.source,
@@ -1031,8 +1042,11 @@ player.message 中⟦玩家台词开始⟧与⟦玩家台词结束⟧之间的�
                     set(state.agents) - {agent.agent_id}
                 ).issubset(set(belief.shared_with)),
             }
-            for belief in agent.beliefs[-32:]
-        ]
+            if belief.supporting_ids:
+                entry["corroborated_by"] = list(belief.supporting_ids)
+            if belief.verification_questions:
+                entry["verification_hint"] = belief.verification_questions[0]
+            private_beliefs.append(entry)
         exhausted_locations = sorted({
             event.location_id for event in state.events
             if event.event_type == "investigation_empty"
