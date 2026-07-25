@@ -50,12 +50,19 @@ AI 行为的唯一规范来源是 [`data/rules/agent_behavior_v2.md`](data/rules
 | **治疗与秘密下毒** | 角色可治疗伤者；凶手可秘密下毒，毒性在下一轮发作 |
 | **讨论与投票** | 终局公开陈述判断，再依据自己的认知独立投票 |
 
-▶ **观看实机片段：** [AI 自主决策](github页面图片/AI自主决策.mp4) · [AI 讨论与投票](github页面图片/AI讨论投票.mp4)
+▶ **观看实机片段：** 
 
-<p align="center">
-  <img src="github页面图片/行动界面.png" width="49%" alt="AI 自主行动界面">
-  <img src="github页面图片/相遇并交谈.png" width="49%" alt="角色相遇并交换情报">
-</p>
+**AI 自主决策**
+
+https://github.com/user-attachments/assets/d210de6e-2ee4-41eb-b45f-b5977804043e
+
+**AI 自主行动界面**
+
+![AI 自主行动界面](github页面图片/行动界面.png)
+
+**角色相遇并交换情报**
+
+![角色相遇并交换情报](github页面图片/相遇并交谈.png)
 
 <p align="center"><em>角色先按各自视角做决定，世界再统一结算。没有人凭空知道自己未曾看见的事。</em></p>
 
