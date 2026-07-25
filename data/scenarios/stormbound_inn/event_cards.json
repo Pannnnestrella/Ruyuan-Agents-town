@@ -5,7 +5,7 @@
       "title": "雷火熄灯",
       "category": "pressure",
       "description": "一道近雷震灭大堂与回廊的灯火，客栈短暂陷入黑暗。",
-      "impact_preview": "黑暗会鼓励转移、藏匿与试探，也让结伴行动更有价值。",
+      "impact_preview": "黑暗会鼓励转移、隐瞒与试探，也让结伴行动更有价值。",
       "hidden_consequence": "黑暗本身不制造新证据，只改变人物对风险的判断。",
       "effects": [
         {"type": "set_flag", "flag": "lights_dim", "value": true},
@@ -65,7 +65,7 @@
       "title": "三声驿铃",
       "category": "pressure",
       "description": "门外雨幕中响起三声驿铃，像是有人在催促约定中的接应。",
-      "impact_preview": "隐藏凶手可能加快逃脱计划，其他人会关注出口。",
+      "impact_preview": "隐藏凶手可能加快误导计划，其他人会重新核对行踪。",
       "hidden_consequence": "驿铃来源无法立即核实，也可能只是风吹旧铃。",
       "effects": [
         {"type": "set_flag", "flag": "outside_signal_heard", "value": true},
@@ -81,7 +81,7 @@
       "hidden_consequence": "这是旧伤发作，不是第二次投毒。",
       "effects": [
         {"type": "set_flag", "flag": "liubian_fever", "value": true},
-        {"type": "set_health_state", "agent_id": "刘辩", "life_state": "injured", "summary": "刘辩旧伤骤发，当前受伤，在接受救治前无法搜查。"},
+        {"type": "set_life_state", "agent_id": "刘辩", "life_state": "injured", "summary": "刘辩旧伤骤发，当前受伤，在接受救治前无法搜查。"},
         {"type": "public_fact", "claim": "刘辩因旧伤与寒气一度站立不稳。"}
       ]
     },
@@ -90,7 +90,7 @@
       "title": "西窗破裂",
       "category": "pressure",
       "description": "狂风撞破西字客房的窗纸与木格，雨水灌入房内。",
-      "impact_preview": "房内物品面临暴露或转移，也出现一个令人不安的临时出口。",
+      "impact_preview": "房内物品面临暴露或转移，破窗也会改变房间里的可见范围。",
       "hidden_consequence": "窗洞不足以让人安全离开二层。",
       "effects": [
         {"type": "set_flag", "flag": "west_window_broken", "value": true},
@@ -139,8 +139,8 @@
       "title": "割断的鞍带",
       "category": "information",
       "description": "马厩一副备用鞍带的断口过于整齐，显然不是自然磨损。",
-      "impact_preview": "表明有人提前准备过骑马离开的条件。",
-      "hidden_consequence": "无法仅凭鞍带判断准备逃离的是谁。",
+      "impact_preview": "表明有人提前动过马具，可能是在制造或掩盖马厩行踪。",
+      "hidden_consequence": "无法仅凭鞍带判断动过马具的是谁，也不能证明其目的。",
       "effects": [
         {"type": "set_flag", "flag": "saddle_cut", "value": true},
         {"type": "public_fact", "claim": "马厩备用鞍带有被利刃割断的痕迹。", "location_id": "stable"}
@@ -199,7 +199,7 @@
       "title": "后墙新痕",
       "category": "information",
       "description": "马厩后墙的青苔上留下两道新鲜刮痕，像是有人架过短梯。",
-      "impact_preview": "公开潜在逃离路线，令出口监视与逃脱计划发生变化。",
+      "impact_preview": "公开一条可疑旧路线，促使众人核对昨夜行踪。",
       "hidden_consequence": "短梯已经不在现场，使用者仍然未知。",
       "effects": [
         {"type": "set_flag", "flag": "back_wall_route_known", "value": true},
@@ -269,10 +269,10 @@
     },
     {
       "id": "relationship-exit-watch",
-      "title": "轮守出口",
+      "title": "轮守通道",
       "category": "relationship",
-      "description": "众人商定轮流看守正门与马厩，任何靠近出口的人都要说明理由。",
-      "impact_preview": "逃脱难度提高，出口附近的行动会获得更强叙事意义。",
+      "description": "众人商定轮流看守正门与马厩通道，任何靠近这些区域的人都要说明理由。",
+      "impact_preview": "人员流动更容易被见证，通道附近的旧痕迹也更值得核对。",
       "hidden_consequence": "轮守依赖自觉执行，并非不可突破的世界规则。",
       "effects": [
         {"type": "set_flag", "flag": "exit_watch", "value": true},
@@ -309,7 +309,7 @@
       "category": "relationship",
       "description": "掌柜提出登记每个人愿意公开的随身物品，并由本人签字。",
       "impact_preview": "物品持有与拒绝登记都会进入公开记录。",
-      "hidden_consequence": "登记仅限主动出示的物品，藏匿物不会自动曝光。",
+      "hidden_consequence": "登记仅限主动出示的物品，尚未发现的场景物证不会自动曝光。",
       "effects": [
         {"type": "set_flag", "flag": "inventory_register", "value": true},
         {"type": "public_fact", "claim": "掌柜开始登记住客主动出示的随身物品。", "location_id": "lobby"}
@@ -336,6 +336,116 @@
       "effects": [
         {"type": "set_flag", "flag": "victim_connection_questioned", "value": true},
         {"type": "public_fact", "claim": "广陵王公开询问谁在今晚之前认识陆成。"}
+      ]
+    },
+    {
+      "id": "information-loose-floorboard",
+      "title": "翘起的地板",
+      "category": "information",
+      "description": "一阵积水从门缝涌入，泡胀的地板翘起，把原本藏在房间暗处的一件物证推到明面。",
+      "impact_preview": "从尚未发现的地点物证中随机公开一件，并把它的位置与名称同步给所有人。",
+      "hidden_consequence": "只暴露当前剧本真实存在的物品，不制造新证据，也不说明由谁放置。",
+      "effects": [
+        {"type": "reveal_random_hidden_object"}
+      ]
+    },
+    {
+      "id": "information-wind-lifts-cloth",
+      "title": "风掀遮布",
+      "category": "information",
+      "description": "破窗灌入的风掀翻一块遮布，一件此前无人注意的东西露了出来。",
+      "impact_preview": "随机公开一件仍隐藏的地点物证，为下一轮提供明确的核查目标。",
+      "hidden_consequence": "暴露物由当前种子与剩余证据状态决定，因此不会指向不存在的凶手版本。",
+      "effects": [
+        {"type": "reveal_random_hidden_object"}
+      ]
+    },
+    {
+      "id": "information-drainage-backflow",
+      "title": "暗沟回涌",
+      "category": "information",
+      "description": "雨水冲得客栈暗沟回涌，一件被塞进角落的东西随泥水漂出。",
+      "impact_preview": "直接暴露一件尚未被任何人找到的地点物证，全员同时得知。",
+      "hidden_consequence": "主持人得到的是线索显露机会，不会自动解释物证与案件的关系。",
+      "effects": [
+        {"type": "reveal_random_hidden_object"}
+      ]
+    },
+    {
+      "id": "information-lantern-sweep",
+      "title": "提灯巡检",
+      "category": "information",
+      "description": "掌柜把所有灯笼集中起来逐处照看，阴影里藏着的一件东西终于现形。",
+      "impact_preview": "公开一件剩余隐藏物证；人物仍需讨论来源、时间与可信解释。",
+      "hidden_consequence": "若隐藏地点物证已经全部暴露，本卡只保留叙事效果，不凭空增加物件。",
+      "effects": [
+        {"type": "reveal_random_hidden_object"}
+      ]
+    },
+    {
+      "id": "pressure-falling-rafter",
+      "title": "椽木坠落",
+      "category": "pressure",
+      "description": "暴雨压裂一截旧椽木，混乱中一名仍然健康的住客被擦伤。",
+      "impact_preview": "随机一名健康角色变为受伤，本轮无法搜查；广陵王可以救治使其完全恢复。",
+      "hidden_consequence": "伤者从当前仍健康的人中决定，不会让已经受伤者直接死亡。",
+      "effects": [
+        {"type": "injure_random_agent", "summary_template": "客栈椽木突然坠落，{agent}在{location}闪避不及而受伤。"}
+      ]
+    },
+    {
+      "id": "pressure-stair-slip",
+      "title": "湿阶失足",
+      "category": "pressure",
+      "description": "回廊木阶被雨水打湿，一名住客在奔走时失足扭伤。",
+      "impact_preview": "随机令一名健康角色受伤，迫使众人重新安排搜查与救治。",
+      "hidden_consequence": "意外本身不证明遭到袭击，但伤者可以选择如何解释。",
+      "effects": [
+        {"type": "injure_random_agent", "summary_template": "{agent}在湿滑木阶上失足，回到{location}时已经明显受伤。"}
+      ]
+    },
+    {
+      "id": "pressure-smoke-choke",
+      "title": "烟道倒灌",
+      "category": "pressure",
+      "description": "狂风把灶烟倒压进客栈，一名住客因吸入浓烟而受伤。",
+      "impact_preview": "随机一名健康角色进入受伤状态，制造救治、照料或借伤误导的机会。",
+      "hidden_consequence": "只把角色变为受伤，不自动关联毒药或凶手。",
+      "effects": [
+        {"type": "injure_random_agent", "summary_template": "烟道骤然倒灌，{agent}在{location}吸入浓烟后受伤。"}
+      ]
+    },
+    {
+      "id": "relationship-cloak-snag",
+      "title": "衣角挂钩",
+      "category": "relationship",
+      "description": "众人挤向公告栏时，有人的衣角被木钩扯住，一件随身物掉落当场。",
+      "impact_preview": "随机掉落一件当前真实携带的物品，同地点者立即看见并可据此对质。",
+      "hidden_consequence": "掉落不代表持有人有罪；普通私人物和关键物都可能成为谈资。",
+      "effects": [
+        {"type": "drop_random_carried_item"}
+      ]
+    },
+    {
+      "id": "relationship-seat-change",
+      "title": "围桌换座",
+      "category": "relationship",
+      "description": "临时讨论挤乱座次，一件随身物从某人的袖袋滑到脚边。",
+      "impact_preview": "随机令一名角色掉落一件便携物品，为自愿解释、否认或撒谎创造话题。",
+      "hidden_consequence": "只处理真实库存中的便携物，不强制公开其他随身物。",
+      "effects": [
+        {"type": "drop_random_carried_item"}
+      ]
+    },
+    {
+      "id": "relationship-baggage-shift",
+      "title": "挪动行囊",
+      "category": "relationship",
+      "description": "为了腾出救治位置，众人匆忙挪动行囊，一件原本随身携带的物品意外散落。",
+      "impact_preview": "使一件真实随身物掉到持有人所在地点，并让当场角色看见。",
+      "hidden_consequence": "事件允许意外暴露，不等同于主持人强制搜身。",
+      "effects": [
+        {"type": "drop_random_carried_item"}
       ]
     }
   ]

@@ -10,11 +10,6 @@ from typing import Any
 class LifeState(str, Enum):
     ALIVE = "alive"
     INJURED = "injured"
-    SEVERELY_INJURED = "severely_injured"
-    # Kept so old saved games can still be opened. New rounds never create
-    # these two legacy states; persistence normalizes them to severely injured.
-    INCAPACITATED = "incapacitated"
-    DYING = "dying"
     DEAD = "dead"
 
 
@@ -35,10 +30,8 @@ class ActionType(str, Enum):
     TALK = "talk"
     POST_NOTICE = "post_notice"
     TRANSFER = "transfer"
-    HIDE = "hide"
-    ATTACK = "attack"
+    POISON = "poison"
     TREAT = "treat"
-    ESCAPE = "escape"
     WAIT = "wait"
 
 
@@ -52,6 +45,15 @@ class Belief:
     learned_round: int = 0
     truth_id: str | None = None
     shared_with: list[str] = field(default_factory=list)
+    information_type: str = "fact"
+    source_type: str = "authored"
+    speaker_id: str | None = None
+    learned_location: str | None = None
+    witnesses: list[str] = field(default_factory=list)
+    confidence_score: int = 3
+    supporting_ids: list[str] = field(default_factory=list)
+    opposing_ids: list[str] = field(default_factory=list)
+    verification_questions: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -62,7 +64,6 @@ class AgentState:
     agent_id: str
     display_name: str
     location_id: str
-    health: int = 100
     life_state: LifeState = LifeState.ALIVE
     conditions: list[str] = field(default_factory=list)
     inventory: list[str] = field(default_factory=list)
@@ -74,25 +75,44 @@ class AgentState:
     score: int = 0
     score_breakdown: list[dict[str, Any]] = field(default_factory=list)
     discovered_secret_ids: list[str] = field(default_factory=list)
+    state_schema_version: int = 2
+    identity_state: dict[str, Any] = field(default_factory=dict)
+    location_state: dict[str, Any] = field(default_factory=dict)
+    inventory_state: dict[str, Any] = field(default_factory=dict)
+    information_state: dict[str, Any] = field(default_factory=dict)
+    case_model: dict[str, Any] = field(default_factory=dict)
+    social_model: dict[str, Any] = field(default_factory=dict)
+    strategy_state: dict[str, Any] = field(default_factory=dict)
+    personal_tasks: list[dict[str, Any]] = field(default_factory=list)
+    public_story: dict[str, Any] = field(default_factory=dict)
 
     @property
     def can_act(self) -> bool:
-        return (
-            self.life_state != LifeState.DEAD
-            and "escaped" not in self.conditions
-        )
+        return self.life_state != LifeState.DEAD
 
     def to_dict(self, *, include_private: bool = True) -> dict[str, Any]:
         data = asdict(self)
         data["life_state"] = self.life_state.value
         if not include_private:
-            data.pop("beliefs", None)
-            data.pop("inventory", None)
-            data.pop("strategic_plan", None)
-            data.pop("plan_history", None)
-            data.pop("score", None)
-            data.pop("score_breakdown", None)
-            data.pop("discovered_secret_ids", None)
+            for private_key in {
+                "beliefs",
+                "inventory",
+                "strategic_plan",
+                "plan_history",
+                "score",
+                "score_breakdown",
+                "discovered_secret_ids",
+                "identity_state",
+                "location_state",
+                "inventory_state",
+                "information_state",
+                "case_model",
+                "social_model",
+                "strategy_state",
+                "personal_tasks",
+                "public_story",
+            }:
+                data.pop(private_key, None)
         return data
 
 
@@ -113,6 +133,30 @@ class SecretState:
 
 
 @dataclass(slots=True)
+class ItemHistoryEntry:
+    action: str
+    round_number: int
+    action_step: int = 0
+    actor_id: str | None = None
+    counterparty_id: str | None = None
+    event_id: str | None = None
+    from_location: str | None = None
+    to_location: str | None = None
+    from_holder: str | None = None
+    to_holder: str | None = None
+    hidden_before: bool = False
+    hidden_after: bool = False
+    public: bool = False
+    witnesses: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+_UNCHANGED = object()
+
+
+@dataclass(slots=True)
 class ObjectState:
     object_id: str
     name: str
@@ -123,6 +167,67 @@ class ObjectState:
     discovered_by: list[str] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+    original_location: str | None = None
+    original_holder: str | None = None
+    publicly_revealed_to: list[str] = field(default_factory=list)
+    authenticity: str = "unknown"
+    evidential_value: str = ""
+    secret_value: str = ""
+    history: list[ItemHistoryEntry] = field(default_factory=list)
+
+    def transition(
+        self,
+        action: str,
+        *,
+        round_number: int,
+        action_step: int = 0,
+        actor_id: str | None = None,
+        counterparty_id: str | None = None,
+        event_id: str | None = None,
+        holder_id: str | None | object = _UNCHANGED,
+        location_id: str | None | object = _UNCHANGED,
+        hidden: bool | object = _UNCHANGED,
+        witnesses: list[str] | None = None,
+        public: bool = False,
+    ) -> ItemHistoryEntry:
+        """Apply one auditable item state transition.
+
+        All runtime holder/location/visibility changes go through this method.
+        Initial scenario materialization is the only supported direct assignment.
+        """
+
+        before_holder = self.holder_id
+        before_location = self.location_id
+        before_hidden = self.hidden
+        if holder_id is not _UNCHANGED:
+            self.holder_id = holder_id  # type: ignore[assignment]
+        if location_id is not _UNCHANGED:
+            self.location_id = location_id  # type: ignore[assignment]
+        if hidden is not _UNCHANGED:
+            self.hidden = bool(hidden)
+        readers = list(dict.fromkeys(witnesses or []))
+        if public:
+            self.publicly_revealed_to = list(dict.fromkeys([
+                *self.publicly_revealed_to, *readers,
+            ]))
+        entry = ItemHistoryEntry(
+            action=action,
+            round_number=round_number,
+            action_step=action_step,
+            actor_id=actor_id,
+            counterparty_id=counterparty_id,
+            event_id=event_id,
+            from_location=before_location,
+            to_location=self.location_id,
+            from_holder=before_holder,
+            to_holder=self.holder_id,
+            hidden_before=before_hidden,
+            hidden_after=self.hidden,
+            public=public,
+            witnesses=readers,
+        )
+        self.history.append(entry)
+        return entry
 
     def to_dict(
         self,
@@ -140,6 +245,32 @@ class ObjectState:
                 for key, value in self.metadata.items()
                 if key in {"description", "public_description"}
             }
+            for private_key in {
+                "original_location",
+                "original_holder",
+                "publicly_revealed_to",
+                "authenticity",
+                "evidential_value",
+                "secret_value",
+                "history",
+                "discovered_by",
+            }:
+                data.pop(private_key, None)
+        elif viewer_id is not None:
+            data["history"] = [
+                entry
+                for entry in data["history"]
+                if viewer_id in entry.get("witnesses", [])
+                or viewer_id in {
+                    entry.get("actor_id"),
+                    entry.get("counterparty_id"),
+                }
+            ]
+            data.pop("original_location", None)
+            data.pop("original_holder", None)
+            data.pop("publicly_revealed_to", None)
+            data.pop("secret_value", None)
+            data.pop("discovered_by", None)
         return data
 
 
@@ -197,6 +328,25 @@ class EventRecord:
 
 
 @dataclass(slots=True)
+class ConversationRecord:
+    conversation_id: str
+    event_id: str
+    round_number: int
+    action_step: int
+    speaker_id: str
+    listener_id: str
+    content: str
+    location_id: str
+    witnesses: list[str] = field(default_factory=list)
+    shared_information_id: str | None = None
+    displayed_object_id: str | None = None
+    reply_to_event_id: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
 class EventCard:
     card_id: str
     title: str
@@ -237,6 +387,7 @@ class GameState:
     secrets: dict[str, SecretState] = field(default_factory=dict)
     notices: list[Notice] = field(default_factory=list)
     events: list[EventRecord] = field(default_factory=list)
+    conversations: list[ConversationRecord] = field(default_factory=list)
     used_event_cards: list[str] = field(default_factory=list)
     seen_event_cards: list[str] = field(default_factory=list)
     suggested_event_cards: list[dict[str, Any]] = field(default_factory=list)
@@ -246,6 +397,8 @@ class GameState:
     public_intel_history: list[dict[str, Any]] = field(default_factory=list)
     active_public_intel: str | None = None
     votes: list[dict[str, Any]] = field(default_factory=list)
+    final_submissions: dict[str, dict[str, Any]] = field(default_factory=dict)
+    model_usage: list[dict[str, Any]] = field(default_factory=list)
     flags: dict[str, Any] = field(default_factory=dict)
 
     def occupants(self, location_id: str, *, include_dead: bool = True) -> list[str]:
@@ -302,17 +455,24 @@ class GameState:
                 for key, value in self.agents.items()
             },
             "objects": {
-                key: value.to_dict(
+                key: visible
+                for key, value in self.objects.items()
+                if (visible := value.to_dict(
                     reveal_hidden=include_private,
                     reveal_metadata=include_private,
-                )
-                for key, value in self.objects.items()
+                )) is not None
             },
             "secrets": {
                 key: value.to_dict() for key, value in self.secrets.items()
             } if include_private else {},
             "notices": [notice.to_dict() for notice in self.notices],
-            "events": [event.to_dict() for event in self.events],
+            "events": [
+                event.to_dict() for event in self.events
+                if include_private or event.public
+            ],
+            "conversations": [
+                conversation.to_dict() for conversation in self.conversations
+            ] if include_private else [],
             "used_event_cards": self.used_event_cards,
             "seen_event_cards": self.seen_event_cards,
             "suggested_event_cards": self.suggested_event_cards if include_private else [],
@@ -322,7 +482,9 @@ class GameState:
             "public_intel_history": self.public_intel_history,
             "active_public_intel": self.active_public_intel,
             "votes": self.votes,
-            "flags": self.flags,
+            "final_submissions": self.final_submissions if include_private else {},
+            "model_usage": self.model_usage if include_private else [],
+            "flags": self.flags if include_private else {},
         }
 
 

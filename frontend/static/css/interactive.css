@@ -83,13 +83,19 @@ button:disabled { opacity: .38; cursor: not-allowed; }
 .mode-nav { display: flex; justify-content: flex-end; gap: 8px; margin: -8px 0 12px; }
 .mode-nav a, .mode-nav button { padding: 8px 13px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: transparent; text-decoration: none; font-size: 12px; cursor: pointer; }
 .mode-nav a.active, .mode-nav a:hover, .mode-nav button:hover { color: var(--ink); border-color: var(--gold); }
+.game-layout { display: flex; flex-direction: column; }
 
-.board-grid { display: grid; grid-template-columns: minmax(260px, .9fr) minmax(400px, 1.5fr) minmax(280px, 1fr); gap: 14px; }
+.board-grid { display: contents; }
+.locations-panel { order: 1; margin-top: 14px; min-height: 0; }
+.control-deck { order: 2; }
+.timeline-panel { order: 3; min-height: 510px; margin-top: 16px; }
+.director-casebook { order: 4; }
 .panel, .control-deck { border: 1px solid var(--line); border-radius: 16px; background: rgba(31, 27, 23, .94); box-shadow: var(--shadow); }
-.panel { min-height: 510px; overflow: hidden; }
+.panel { overflow: hidden; }
 .panel-heading { display: flex; align-items: baseline; justify-content: space-between; padding: 18px; border-bottom: 1px solid var(--line); }
 .panel-heading h2, .control-deck h2 { margin: 0; font-size: 17px; font-weight: 600; }
 .panel-heading span, .event-card-heading > p { color: var(--muted); font-size: 12px; }
+.locations-panel .live-map { padding: 16px; }
 
 .locations-list, .timeline, .agents-list { max-height: 590px; overflow: auto; padding: 12px; }
 .inn-floor { margin-bottom: 16px; }
@@ -109,10 +115,6 @@ button:disabled { opacity: .38; cursor: not-allowed; }
 .person-chip { padding: 3px 7px; border-radius: 999px; background: rgba(214, 173, 98, .14); color: #e7c98f; font-size: 11px; }
 .timeline-item.public-fact { border-left: 3px solid var(--gold); }
 .timeline-item.event-card-selected { border-left: 3px solid var(--red); }
-.health-bar { height: 5px; margin-top: 9px; border-radius: 99px; background: #15120f; overflow: hidden; }
-.health-fill { height: 100%; background: var(--green); }
-.life-dead .health-fill { background: var(--red); }
-
 .control-deck { margin-top: 16px; padding: 20px; }
 .director-casebook { margin-top: 16px; padding: 22px; border: 1px solid rgba(159, 55, 48, .55); border-radius: 16px; background: radial-gradient(circle at 8% 0, rgba(151, 48, 42, .18), transparent 28%), linear-gradient(145deg, rgba(35, 26, 23, .98), rgba(22, 19, 17, .98)); box-shadow: var(--shadow); }
 .casebook-header, .casebook-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
@@ -156,6 +158,15 @@ button:disabled { opacity: .38; cursor: not-allowed; }
 .clue-location-group > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(226, 195, 139, .1); }
 .clue-location-group > header h4 { margin: 0; color: #e5cfaa; font-size: 13px; }
 .clue-location-group > header span { color: var(--muted); font-size: 10px; }
+.health-location-group { border-color: rgba(111, 143, 120, .38); background: rgba(56, 74, 62, .1); }
+.health-roster { display: grid; gap: 7px; padding-top: 8px; }
+.health-roster-item { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; padding: 8px 9px; border-left: 2px solid var(--green); border-radius: 4px; background: rgba(255,255,255,.025); }
+.health-roster-item strong { color: #e5cfaa; font-size: 12px; }
+.health-roster-item small { grid-column: 1 / -1; color: #887b69; font-size: 9px; }
+.health-state { font-size: 10px; }
+.health-alive { color: #afd0b8; }
+.health-injured, .health-wounded { color: #e6c789; }
+.health-dead { color: #f0aaa2; }
 .clue-card { margin-top: 7px; padding: 8px 9px; border-left: 2px solid #796d5d; border-radius: 4px; background: rgba(255, 255, 255, .02); }
 .clue-card.kind-truth, .clue-card.kind-evidence { border-left-color: var(--green); }
 .clue-card.kind-secret { border-left-color: var(--gold); }
@@ -299,10 +310,20 @@ textarea:focus { border-color: rgba(214, 173, 98, .58); }
 .dispatch-card footer { margin-top: 16px; padding-top: 11px; border-top: 1px solid rgba(60, 40, 22, .22); font-size: 11px; line-height: 1.5; opacity: .72; }
 .dispatch-close { position: absolute; top: 10px; right: 12px; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; color: inherit; background: rgba(255,255,255,.24); font-size: 20px; cursor: pointer; z-index: 2; }
 .toast { position: fixed; right: 24px; bottom: 24px; max-width: 420px; padding: 13px 16px; border: 1px solid var(--line); border-radius: 10px; background: #2c241d; box-shadow: var(--shadow); z-index: 100; }
+.host-notifications { position: fixed; top: 18px; right: 18px; width: min(460px, calc(100vw - 36px)); max-height: min(70vh, 680px); overflow: auto; padding: 14px; border: 1px solid rgba(196, 84, 72, .7); border-radius: 14px; background: rgba(28, 20, 18, .98); box-shadow: 0 26px 80px rgba(0, 0, 0, .62); z-index: 220; }
+.host-notifications > header, .host-notification > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.host-notifications h2 { margin: 3px 0 0; font-size: 17px; }
+.host-notifications header button { padding: 6px 10px; border: 1px solid var(--line); border-radius: 7px; color: var(--muted); background: transparent; cursor: pointer; }
+.host-notification { margin-top: 10px; padding: 11px 12px; border-left: 3px solid #bd5d50; border-radius: 7px; background: rgba(255, 255, 255, .035); }
+.host-notification.rate-limit { border-left-color: #e2a84d; background: rgba(226, 168, 77, .08); }
+.host-notification strong { color: #f0c4b8; font-size: 12px; }
+.host-notification time, .host-notification small { color: var(--muted); font-size: 9px; }
+.host-notification p { margin: 7px 0; color: var(--ink); font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; }
 
 @media (max-width: 1050px) {
-    .board-grid { grid-template-columns: 1fr 1fr; }
-    .timeline-panel { grid-column: span 2; grid-row: 2; }
+    .board-grid { display: contents; }
+    .locations-panel { grid-column: auto; }
+    .timeline-panel { grid-column: auto; grid-row: auto; }
     .casebook-grid { grid-template-columns: 1fr 1fr; }
     .objective-truth-panel { grid-column: 1 / -1; }
     .director-clue-map { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -315,7 +336,9 @@ textarea:focus { border-color: rgba(214, 173, 98, .58); }
     .game-header, .event-card-heading, .advance-row { align-items: flex-start; flex-direction: column; }
     .host-console { align-items: flex-start; flex-direction: column; }
     .host-metrics { justify-content: flex-start; min-width: 0; }
-    .board-grid, .event-cards { grid-template-columns: 1fr; }
+    .board-grid { display: contents; }
+    .event-cards { grid-template-columns: 1fr; }
+    .locations-panel { grid-column: auto; }
     .timeline-panel { grid-column: auto; grid-row: auto; }
     .notice-row { grid-template-columns: 1fr; }
     .intel-options { grid-template-columns: 1fr; }

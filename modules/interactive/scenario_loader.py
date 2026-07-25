@@ -10,7 +10,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .models import AgentState, Belief, GamePhase, GameState, ObjectState, SecretState
+from .models import (
+    AgentState,
+    Belief,
+    GamePhase,
+    GameState,
+    ItemHistoryEntry,
+    LifeState,
+    ObjectState,
+    SecretState,
+)
 
 
 class ScenarioValidationError(ValueError):
@@ -50,6 +59,11 @@ class LoadedScenario:
                     stance=fact.get("stance", "believes"),
                     learned_round=0,
                     truth_id=fact.get("truth_id"),
+                    information_type=str(fact.get("information_type", "fact")),
+                    source_type=str(fact.get("source_type", "authored_memory")),
+                    confidence_score=max(
+                        0, min(5, round(float(fact.get("confidence", 1.0)) * 5))
+                    ),
                 )
                 for index, fact in enumerate(participant.get("private_facts", []))
             ]
@@ -70,12 +84,15 @@ class LoadedScenario:
                         confidence=confidence,
                         stance="believes",
                         learned_round=0,
+                        information_type="fact",
+                        source_type="memory",
+                        confidence_score=max(0, min(5, round(confidence * 5))),
                     ))
             agents[participant["id"]] = AgentState(
                 agent_id=participant["id"],
                 display_name=participant.get("display_name", participant["id"]),
                 location_id=participant["start_location"],
-                health=int(participant.get("health", 100)),
+                life_state=LifeState(participant.get("life_state", LifeState.ALIVE.value)),
                 inventory=list(participant.get("inventory", [])),
                 beliefs=beliefs,
                 public_role=participant.get("public_role", ""),
@@ -91,6 +108,73 @@ class LoadedScenario:
                     "updated_round": 0,
                     "source": "scenario",
                 },
+                identity_state={
+                    "character_name": participant.get("display_name", participant["id"]),
+                    "faction": participant.get("faction", ""),
+                    "is_killer": False,
+                    "known_role_information": list(participant.get("private_facts", [])),
+                    "personal_secrets": [],
+                },
+                location_state={
+                    "current_area": participant["start_location"],
+                    "previous_area": None,
+                    "movement_history": [],
+                },
+                inventory_state={
+                    "held_items": list(participant.get("inventory", [])),
+                    "exchanged_items": [],
+                    "publicly_revealed_items": [],
+                },
+                information_state={
+                    "facts": [belief.belief_id for belief in beliefs],
+                    "testimonies": [],
+                    "hypotheses": [],
+                    "contradictions": [],
+                    "unanswered_questions": [],
+                },
+                case_model={
+                    "victim": self.scenario.get("victim", "陆成"),
+                    "suspected_cause_of_death": None,
+                    "estimated_time_of_death": None,
+                    "body_discovery_time": None,
+                    "primary_crime_scene": None,
+                    "possible_weapons": [],
+                    "possible_methods": [],
+                    "suspect_profiles": {},
+                    "timeline": {},
+                    "current_best_explanation": None,
+                },
+                social_model={"characters": {}},
+                strategy_state={
+                    "current_goal": str((participant.get("goals") or ["观察局势"])[0]),
+                    "next_action": None,
+                    "reason": "情景开始",
+                    "risk": None,
+                    "expected_information_gain": None,
+                },
+                personal_tasks=[
+                    {
+                        "question": str(goal),
+                        "known_information": [],
+                        "missing_information": [],
+                        "related_characters": [],
+                        "related_items": [],
+                        "related_areas": [],
+                        "current_hypothesis": None,
+                        "next_action": None,
+                        "confidence": 0,
+                    }
+                    for goal in participant.get("goals", [])
+                ],
+                public_story={
+                    "claimed_timeline": [],
+                    "claimed_locations": [],
+                    "claimed_contacts": [],
+                    "admitted_items": [],
+                    "admitted_secrets": [],
+                    "denied_actions": [],
+                    "witnesses_of_each_statement": [],
+                },
             )
 
         for agent in agents.values():
@@ -102,7 +186,13 @@ class LoadedScenario:
                     confidence=0.95,
                     stance="known",
                     learned_round=0,
+                    information_type="fact",
+                    source_type="public_fact",
+                    confidence_score=5,
                 ))
+                agent.information_state["facts"].append(
+                    f"belief-{agent.agent_id}-public-{index}"
+                )
 
         secrets: dict[str, SecretState] = {}
         for raw_secret in self.scenario.get("secrets", []):
@@ -127,7 +217,11 @@ class LoadedScenario:
                     stance="knows",
                     learned_round=0,
                     truth_id=f"secret:{secret.secret_id}",
+                    information_type="fact",
+                    source_type="private_secret",
+                    confidence_score=5,
                 ))
+            owner.identity_state["personal_secrets"].append(secret.secret_id)
 
         objects: dict[str, ObjectState] = {}
         for item in self.scenario.get("objects", []):
@@ -141,12 +235,36 @@ class LoadedScenario:
                 discovered_by=list(item.get("discovered_by", [])),
                 tags=list(item.get("tags", [])),
                 metadata=dict(item.get("metadata", {})),
+                original_location=item.get("location_id"),
+                original_holder=item.get("holder_id"),
+                authenticity=str(item.get("metadata", {}).get("authenticity", "unknown")),
+                evidential_value=str(item.get("metadata", {}).get("evidential_value", "")),
+                secret_value=str(item.get("metadata", {}).get("secret_value", "")),
+                history=[ItemHistoryEntry(
+                    action="initial",
+                    round_number=0,
+                    from_location=item.get("location_id"),
+                    to_location=item.get("location_id"),
+                    from_holder=item.get("holder_id"),
+                    to_holder=item.get("holder_id"),
+                    hidden_before=bool(item.get("hidden", False)),
+                    hidden_after=bool(item.get("hidden", False)),
+                    public=not bool(item.get("hidden", False)),
+                    witnesses=list(item.get("discovered_by", [])),
+                )],
             )
 
         for agent in agents.values():
             for object_id in agent.inventory:
-                objects[object_id].holder_id = agent.agent_id
-                objects[object_id].location_id = None
+                objects[object_id].transition(
+                    "scenario_assign",
+                    round_number=0,
+                    actor_id=agent.agent_id,
+                    holder_id=agent.agent_id,
+                    location_id=None,
+                    witnesses=[agent.agent_id],
+                    public=False,
+                )
 
         flags = dict(self.scenario.get("initial_flags", {}))
         flags["seed"] = seed
@@ -162,7 +280,7 @@ class LoadedScenario:
                 "killer_id": killer_id,
                 "motive": killer_profile.get("motive", ""),
                 "method": killer_profile.get("method", ""),
-                "escape_plan": killer_profile.get("escape_plan", ""),
+                "cover_plan": killer_profile.get("cover_plan", ""),
                 "stolen_item_id": (killer_profile.get("stolen_item") or {}).get("id"),
                 "evidence_object_ids": [
                     item["id"] for item in killer_profile.get("evidence_objects", [])
@@ -173,20 +291,23 @@ class LoadedScenario:
                 "killer_profile": killer_profile,
                 "case_manifest": case_manifest,
                 "killer_revealed": False,
-                "killer_escaped": False,
                 "voting_complete": False,
                 "scores_finalized": False,
             })
             killer = agents[killer_id]
+            killer.identity_state["is_killer"] = True
             killer.beliefs.extend([
                 Belief(
                     belief_id=f"belief-{killer_id}-killer-role",
-                    claim="你就是杀死陆成的凶手。其他五人不知道你的身份，你必须隐藏作案信息并设法逃离客栈。",
+                    claim="你就是杀死陆成的凶手。其他五人不知道你的身份；你的唯一核心目标是避免在终局投票中被多数人正确指认。",
                     source="凶手记忆",
                     confidence=1.0,
                     stance="knows",
                     learned_round=0,
                     truth_id="truth-killer",
+                    information_type="fact",
+                    source_type="private_killer_memory",
+                    confidence_score=5,
                 ),
                 Belief(
                     belief_id=f"belief-{killer_id}-killer-motive",
@@ -196,6 +317,9 @@ class LoadedScenario:
                     stance="knows",
                     learned_round=0,
                     truth_id="truth-killer",
+                    information_type="fact",
+                    source_type="private_killer_memory",
+                    confidence_score=5,
                 ),
                 Belief(
                     belief_id=f"belief-{killer_id}-killer-method",
@@ -205,6 +329,9 @@ class LoadedScenario:
                     stance="knows",
                     learned_round=0,
                     truth_id="truth-killer",
+                    information_type="fact",
+                    source_type="private_killer_memory",
+                    confidence_score=5,
                 ),
             ])
             crime_secret_id = f"crime-{killer_id}"
@@ -232,6 +359,9 @@ class LoadedScenario:
                     stance="knows",
                     learned_round=0,
                     truth_id="truth-killer",
+                    information_type="fact",
+                    source_type="private_killer_memory",
+                    confidence_score=5,
                 ))
 
             for candidate in killer_candidates:
@@ -247,6 +377,9 @@ class LoadedScenario:
                         confidence=1.0,
                         stance="knows",
                         learned_round=0,
+                        information_type="fact",
+                        source_type="personal_experience",
+                        confidence_score=5,
                     ))
 
             variant_objects = [
@@ -279,6 +412,23 @@ class LoadedScenario:
                             else {}
                         ),
                     },
+                    original_location=item.get("location_id"),
+                    original_holder=holder_id,
+                    authenticity=str(
+                        item.get("metadata", {}).get("authenticity", "unknown")
+                    ),
+                    history=[ItemHistoryEntry(
+                        action="initial",
+                        round_number=0,
+                        from_location=item.get("location_id"),
+                        to_location=item.get("location_id"),
+                        from_holder=holder_id,
+                        to_holder=holder_id,
+                        hidden_before=bool(item.get("hidden", False)),
+                        hidden_after=bool(item.get("hidden", False)),
+                        public=not bool(item.get("hidden", False)),
+                        witnesses=discovered_by,
+                    )],
                 )
                 if holder_id in agents and object_id not in agents[holder_id].inventory:
                     agents[holder_id].inventory.append(object_id)
@@ -288,12 +438,28 @@ class LoadedScenario:
                 previous_holder = weapon.holder_id
                 if previous_holder in agents and weapon_id in agents[previous_holder].inventory:
                     agents[previous_holder].inventory.remove(weapon_id)
-                weapon.holder_id = killer_id
-                weapon.location_id = None
-                weapon.hidden = True
+                weapon.transition(
+                    "scenario_assign",
+                    round_number=0,
+                    actor_id=killer_id,
+                    holder_id=killer_id,
+                    location_id=None,
+                    hidden=True,
+                    witnesses=[killer_id],
+                    public=False,
+                )
                 weapon.discovered_by = [killer_id]
                 if weapon_id not in killer.inventory:
                     killer.inventory.append(weapon_id)
+            for agent in agents.values():
+                agent.inventory_state["held_items"] = list(agent.inventory)
+                agent.information_state["facts"] = list(dict.fromkeys([
+                    *agent.information_state.get("facts", []),
+                    *(
+                        belief.belief_id for belief in agent.beliefs
+                        if belief.information_type == "fact"
+                    ),
+                ]))
 
         character_timelines, objective_timeline = self._materialize_timelines(
             str((flags.get("case_manifest") or {}).get("case_id") or "")
@@ -400,6 +566,29 @@ class ScenarioLoader:
             if not isinstance(guide, dict):
                 raise ScenarioValidationError("player_guide_file must contain an object")
             scenario["player_guide"] = guide
+        behavior_path = scenario.get("behavior_guidelines_file")
+        if behavior_path:
+            extra_path = (scenario_path.parent / str(behavior_path)).resolve()
+            rules_root = (self.project_root / "data" / "rules").resolve()
+            if rules_root not in extra_path.parents or not extra_path.is_file():
+                raise FileNotFoundError(
+                    f"Behavior guidelines file not found under data/rules: {extra_path}"
+                )
+            scenario["behavior_guidelines"] = {
+                "version": 2,
+                "source": str(behavior_path),
+                "text": extra_path.read_text(encoding="utf-8"),
+            }
+        assessment_path = scenario.get("final_assessment_file")
+        if assessment_path:
+            extra_path = scenario_path.parent / str(assessment_path)
+            if not extra_path.is_file():
+                raise FileNotFoundError(f"Scenario data file not found: {extra_path}")
+            raw_assessment = self._read_json(extra_path)
+            assessment = raw_assessment.get("final_assessment", raw_assessment)
+            if not isinstance(assessment, dict):
+                raise ScenarioValidationError("final_assessment_file must contain an object")
+            scenario["final_assessment"] = assessment
         timeline_path = scenario.get("timeline_file")
         if timeline_path:
             extra_path = scenario_path.parent / str(timeline_path)
@@ -474,6 +663,16 @@ class ScenarioLoader:
             errors.append("interactive scenarios require 4 to 8 participants")
         if len(participant_ids) != len(participants):
             errors.append("participant ids must be unique")
+        llm_scope = scenario.get("llm_scope") or {}
+        scoped_participant_list = list(llm_scope.get("participant_ids") or [])
+        scoped_participant_ids = set(scoped_participant_list)
+        if scoped_participant_list:
+            if len(scoped_participant_ids) != len(scoped_participant_list):
+                errors.append("llm_scope participant ids must be unique")
+            if scoped_participant_ids != participant_ids:
+                errors.append(
+                    "llm_scope participant ids must exactly match scenario participants"
+                )
         for participant in participants:
             if participant.get("start_location") not in location_ids:
                 errors.append(

@@ -121,15 +121,18 @@ const agentColors = ['#d7a95f', '#81a18e', '#c27868', '#8d9fc7', '#b994c1', '#d0
 const playbackScale = new URLSearchParams(window.location.search).get('speed') === 'fast' ? 0.06 : 1;
 const actionLabels = {
     move: '移动', discovery: '发现', investigation_empty: '搜查', conversation: '对话',
-    object_transfer: '交付', object_hidden: '藏匿', attack: '冲突', attack_failed: '冲突未遂',
-    treatment: '治疗', wait: '观察', action_failed: '行动失败', escape: '逃脱',
+    object_transfer: '交付', poison_effect: '毒发',
+    treatment: '治疗', wait: '观察', action_failed: '行动失败',
     final_discussion: '终局公议',
-    escape_failed: '逃脱未遂', public_fact: '局势', public_intel: '公开情报',
+    public_fact: '局势', public_intel: '公开情报',
+    object_revealed: '物证暴露', health_changed: '状态变化',
+    life_state_changed: '状态变化', object_dropped: '物品掉落',
     event_card_selected: '事件卡', notice_posted: '公告', bulletin_updated: '公告提醒', vote_cast: '投票', killer_revealed: '揭晓',
+    round_discussion_started: '轮末讨论', round_discussion_ended: '讨论结束',
 };
 const intentLabels = {
-    move: '移动', investigate: '搜查', talk: '交谈', transfer: '交付', hide: '藏匿',
-    attack: '冲突', treat: '治疗', escape: '尝试离开', wait: '留在原地',
+    move: '移动', investigate: '搜查', talk: '交谈', transfer: '交付',
+    poison: '下毒', treat: '治疗', wait: '留在原地',
 };
 
 let gameId = null;
@@ -404,46 +407,21 @@ function eventLocationName(event) {
 }
 
 function buildMap(state) {
-    const byFloor = Object.values(state.locations).reduce((result, location) => {
-        const floor = Number(location.layout?.floor || 1);
-        (result[floor] ||= []).push(location);
-        return result;
-    }, {});
-    const floorSections = Object.entries(byFloor)
-        .sort(([a], [b]) => Number(a) - Number(b))
-        .map(([floor, locations]) => {
-            const roomHtml = locations.map(location => {
-                const layout = location.layout || {x: 1, y: 1, w: 1, h: 1};
-                const unread = location.id === 'lobby' && state.bulletin?.has_unread;
-                return `<article class="live-room ${unread ? 'has-unread-bulletin' : ''}" data-location-id="${escapeHtml(location.id)}" style="grid-column:${layout.x} / span ${layout.w};grid-row:${layout.y} / span ${layout.h}">
-                    <div class="room-name"><span>${escapeHtml(location.name)}${unread ? '<b class="bulletin-unread">新公告</b>' : ''}</span><small>${location.public ? '公开' : '隐蔽'}</small></div>
-                    <div class="room-description">${escapeHtml(location.description)}</div>
-                    <div class="token-layer"></div>
-                </article>`;
-            }).join('');
-            const label = Number(floor) === 1 ? '一层 · 大堂、后院与出口' : '二层 · 客房与回廊';
-            return `<section class="floor-stage">
-                <div class="floor-label">${label}</div>
-                <div class="floor-grid">${roomHtml}</div>
-            </section>`;
-        });
-    liveUi.map.innerHTML = floorSections.join('');
-    renderTokens(state);
+    window.InteractiveMap.render(liveUi.map, state, {
+        visualLocations,
+        colors: agentColors,
+    });
 }
 
 function renderTokens(state) {
-    liveUi.map.querySelectorAll('.token-layer').forEach(layer => { layer.innerHTML = ''; });
-    Object.values(state.agents).forEach((agent, index) => {
-        const locationId = visualLocations[agent.agent_id] || agent.location_id;
-        const layer = liveUi.map.querySelector(`[data-location-id="${CSS.escape(locationId)}"] .token-layer`);
-        if (!layer) return;
-        const token = document.createElement('div');
-        token.className = `agent-token ${agent.conditions?.includes('escaped') ? 'escaped' : ''}`;
-        token.dataset.agentId = agent.agent_id;
-        token.style.setProperty('--agent-color', agentColors[index % agentColors.length]);
-        token.innerHTML = `<span class="portrait">${escapeHtml(agent.display_name.slice(0, 1))}</span><span>${escapeHtml(agent.display_name)}</span>`;
-        layer.appendChild(token);
+    window.InteractiveMap.renderTokens(liveUi.map, state, visualLocations, agentColors);
+}
+
+function syncTokensToState(state) {
+    Object.values(state.agents).forEach(agent => {
+        visualLocations[agent.agent_id] = agent.location_id;
     });
+    renderTokens(state);
 }
 
 function updateBulletinMarker(state) {
@@ -498,7 +476,7 @@ function addFeedEvent(event) {
     const item = document.createElement('article');
     item.className = 'feed-item';
     item.dataset.eventId = event.event_id;
-    item.style.setProperty('--event-color', event.event_type === 'conversation' ? '#81a18e' : event.event_type.includes('escape') ? '#c27868' : '#d7a95f');
+  item.style.setProperty('--event-color', event.event_type === 'conversation' ? '#81a18e' : event.event_type === 'poison_effect' ? '#c27868' : '#d7a95f');
     item.innerHTML = `<strong>${escapeHtml(event.summary)}</strong><span>第 ${event.round_number} 轮 · ${escapeHtml(actionLabels[event.event_type] || event.event_type)} · ${escapeHtml(eventLocationName(event))}</span>`;
     liveUi.feed.prepend(item);
 }
@@ -545,6 +523,7 @@ async function drainQueue() {
     }
     playing = false;
     liveUi.status.classList.remove('resolving');
+    if (liveState) syncTokensToState(liveState);
     if (viewMode !== 'player') renderTracks(liveState);
     if (liveState) renderVoting(liveState);
     if (liveUi.openFinalVoting && liveState?.phase === 'discussion') {
@@ -554,15 +533,15 @@ async function drainQueue() {
 }
 
 function renderTracks(state) {
-    const actionTypes = new Set(['move', 'discovery', 'investigation_empty', 'conversation', 'object_transfer', 'object_hidden', 'attack', 'attack_failed', 'treatment', 'wait', 'action_failed', 'escape', 'escape_failed', 'vote_cast']);
+  const actionTypes = new Set(['move', 'discovery', 'investigation_empty', 'conversation', 'object_transfer', 'poison_effect', 'treatment', 'wait', 'action_failed', 'vote_cast']);
     liveUi.tracks.innerHTML = Object.values(state.agents).map((agent, index) => {
         const events = state.events.filter(event => actionTypes.has(event.event_type) && event.actors?.includes(agent.agent_id)).slice(-6).reverse();
         const location = state.locations[agent.location_id]?.name || agent.location_id;
-        const condition = agent.conditions?.includes('escaped') ? ' · 已离开客栈' : '';
+      const condition = '';
         return `<article class="track-card" style="--agent-color:${agentColors[index % agentColors.length]}">
             <div class="track-head"><strong>${escapeHtml(agent.display_name)}</strong><span>${escapeHtml(location)}${condition}</span></div>
             <div class="track-role">${escapeHtml(agent.public_role)}</div>
-            <ul class="track-events">${events.length ? events.map(event => `<li><em>第 ${event.round_number} 轮 · ${escapeHtml(actionLabels[event.event_type] || event.event_type)}</em><br>${escapeHtml(event.summary)}</li>`).join('') : '<li>尚未采取公开行动。</li>'}</ul>
+            <ul class="track-events">${events.length ? events.map(event => `<li><em>第 ${event.round_number} 轮 · ${escapeHtml(actionLabels[event.event_type] || event.event_type)}</em><br>${escapeHtml(event.summary)}</li>`).join('') : '<li>尚未产生可追踪行动。</li>'}</ul>
         </article>`;
     }).join('');
 }
@@ -575,6 +554,15 @@ function renderVoting(state) {
         <h3>真实凶手：${escapeHtml(result.killer_name)}</h3>
         <p>${escapeHtml(result.outcome)}</p>
         <div class="vote-grid">${(result.votes || []).map(vote => `<article class="vote-card"><strong>${escapeHtml(vote.voter_name)} → ${escapeHtml(vote.suspect_name)}</strong><br>${escapeHtml(vote.reason)}</article>`).join('')}</div>
+        <h3>正式得分</h3>
+        <div class="vote-grid">${(state.scoreboard || []).map(entry => {
+            const correct = (entry.answer_results || []).filter(item => item.is_correct).length;
+            return `<article class="vote-card">
+                <strong>${escapeHtml(entry.display_name)} · ${entry.score} 分</strong><br>
+                客观题 ${correct}/${(entry.answer_results || []).length}<br>
+                模型：${escapeHtml((entry.models || []).join('、') || '未记录')}
+            </article>`;
+        }).join('')}</div>
     </div>`;
 }
 
@@ -588,7 +576,7 @@ function renderPlayerPrivateState(state) {
     liveUi.playerName.textContent = actor.display_name;
     liveUi.storyPlayerName.textContent = actor.display_name;
     liveUi.playerRole.textContent = background.public_role;
-    liveUi.storyHook.textContent = background.opening_hook || '暴雨封住了客栈，也封住了所有人的退路。';
+  liveUi.storyHook.textContent = background.opening_hook || '暴雨封住了客栈，也把所有嫌疑锁在同一屋檐下。';
     liveUi.storyBody.innerHTML = (background.story || [])
         .map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('');
     liveUi.playerGoals.innerHTML = (background.goals || [])
@@ -619,7 +607,7 @@ function renderPlayerPrivateState(state) {
     liveUi.playerInventory.innerHTML = inventory.length
         ? inventory.map(item => inspectableTag(
             item.name,
-            item.metadata?.description || `这是你当前随身携带的物品：${item.name}。你可以在适当的行动中交付或藏匿它。`,
+        item.metadata?.description || `这是你当前随身携带的物品：${item.name}。你可以在适当的行动中展示或交付它。`,
             '随身物品',
         )).join('')
         : '<p class="hint">你没有随身物品。</p>';
@@ -760,8 +748,19 @@ function renderConversationArchive(state) {
 
 function renderBulletin(state) {
     const notices = state.notices || [];
-    liveUi.bulletinPosts.innerHTML = notices.length ? [...notices].reverse().map(notice => `
-        <article><strong>${escapeHtml(notice.display_author)}</strong><p>${escapeHtml(notice.content)}</p><span>第 ${notice.round_number} 轮 · 已有 ${notice.seen_by?.length || 0} 人读到</span></article>
+    const publicIntel = (state.public_intel_history || []).map(intel => ({
+        notice_id: `public-intel-${intel.id}`,
+        display_author: `主持人鸢报 · ${intel.title}`,
+        content: intel.claim,
+        round_number: intel.round_number,
+        reach: 6,
+        is_public_intel: true,
+    }));
+    const posts = [...notices, ...publicIntel].sort((left, right) =>
+        Number(right.round_number || 0) - Number(left.round_number || 0)
+    );
+    liveUi.bulletinPosts.innerHTML = posts.length ? posts.map(notice => `
+        <article><strong>${escapeHtml(notice.display_author)}</strong><p>${escapeHtml(notice.content)}</p><span>第 ${notice.round_number} 轮 · 已有 ${notice.reach ?? notice.seen_by?.length ?? 0} 人读到</span></article>
     `).join('') : '<p class="hint">公告栏还是空的。</p>';
     const canPost = Boolean(state.available_actions?.can_post_notice);
     liveUi.playerBulletinComposer.classList.toggle('hidden', viewMode !== 'player' || !canPost);
@@ -769,7 +768,7 @@ function renderBulletin(state) {
         ? '你正在大堂，可以实名张贴'
         : state.bulletin?.has_unread
             ? `大堂有 ${state.bulletin.unread_count} 条未读张贴；回到大堂查看原文`
-            : '前往大堂后可阅读与张贴';
+            : '主持人公开信息会即时同步；普通张贴仍需前往大堂阅读';
 }
 
 function renderActionComposer(state) {
@@ -780,12 +779,11 @@ function renderActionComposer(state) {
     const disabledTypes = new Set();
     if (!available.can_investigate) disabledTypes.add('investigate');
     if (!(available.moves || []).length) disabledTypes.add('move');
-    if (!people.length) ['talk', 'attack'].forEach(type => disabledTypes.add(type));
-    if (!inventory.length) ['hide', 'transfer'].forEach(type => disabledTypes.add(type));
+    if (!people.length) ['talk', 'poison'].forEach(type => disabledTypes.add(type));
+    if (!inventory.length) disabledTypes.add('transfer');
     if (!people.length || !inventory.length) disabledTypes.add('transfer');
-    if (!available.can_escape) disabledTypes.add('escape');
-    if (!available.can_attack_this_round) disabledTypes.add('attack');
-    const baseTypes = (available.types || []).filter(type => !['attack', 'treat'].includes(type));
+    if (!available.can_poison_this_round) disabledTypes.add('poison');
+    const baseTypes = (available.types || []).filter(type => !['poison', 'treat'].includes(type));
     const baseButtons = baseTypes.map(type => `
         <button type="button" data-intent-type="${escapeHtml(type)}"
             ${disabledTypes.has(type) || !available.can_submit ? 'disabled' : ''}
@@ -840,8 +838,8 @@ function selectActionType(type, state, abilityId = null) {
     ['destinationField', 'targetField', 'objectField', 'memoryField', 'contentField']
         .forEach(key => liveUi[key].classList.add('hidden'));
     if (type === 'move') liveUi.destinationField.classList.remove('hidden');
-    if (['talk', 'transfer', 'attack', 'treat'].includes(type)) liveUi.targetField.classList.remove('hidden');
-    if (['transfer', 'hide'].includes(type)) liveUi.objectField.classList.remove('hidden');
+    if (['talk', 'transfer', 'poison', 'treat'].includes(type)) liveUi.targetField.classList.remove('hidden');
+    if (type === 'transfer') liveUi.objectField.classList.remove('hidden');
     if (type === 'talk') {
         liveUi.memoryField.classList.remove('hidden');
         liveUi.contentField.classList.remove('hidden');
@@ -873,11 +871,16 @@ function renderPlayerVoting(state) {
     liveUi.playerVotePanel.classList.remove('hidden');
     liveUi.playerVoteTarget.innerHTML = (state.voting_candidates || []).map(item => `
         <option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} · ${escapeHtml(item.role)}</option>`).join('');
-    liveUi.playerGoalAssessments.innerHTML = `<strong>主持人逐项询问：你的个人目标实现了吗？</strong>` +
-        (state.background?.goals || []).map((goal, index) => `
-            <label class="goal-assessment" data-goal="${escapeHtml(goal)}">
-                <span><input type="checkbox" name="goal-achieved-${index}"> ${escapeHtml(goal)}</span>
-                <input type="text" maxlength="180" placeholder="写下可核对的完成依据；未完成也可以说明原因">
+    liveUi.playerGoalAssessments.innerHTML = `<strong>终局客观题：答案将在所有角色提交后统一判定</strong>` +
+        (state.final_questions || []).map(question => `
+            <label class="goal-assessment final-question" data-question-id="${escapeHtml(question.id)}">
+                <span>${escapeHtml(question.prompt)}</span>
+                <select>
+                    <option value="">请选择答案</option>
+                    ${(question.options || []).map(option => `
+                        <option value="${escapeHtml(option.id)}">${escapeHtml(option.label)}</option>
+                    `).join('')}
+                </select>
             </label>`).join('');
 }
 
@@ -900,7 +903,7 @@ function receivePlayerState(state, {initial = false} = {}) {
         phase: state.phase,
         card: state.active_event_card,
         location: state.self.location_id,
-        health: state.self.health,
+        lifeState: state.self.life_state,
         score: state.self.score,
         beliefs: state.self.beliefs?.length,
         secrets: state.known_secrets?.length,
@@ -928,8 +931,16 @@ function updateHeader(state) {
     liveUi.gameId.textContent = `局号 ${state.game_id}`;
     liveUi.planner.textContent = viewMode === 'player'
         ? '你负责本人决策 · 其余角色由 AI 驱动'
+        : state.planner_runtime?.is_falling_back
+        ? '在线模型不可用 · 当前为本地兜底'
         : state.planner === 'LLMIntentPlanner'
-        ? `LLM 并行决策 · ${state.planner_provider?.startsWith('ollama:') ? 'Ollama 本地' : '在线模型'}`
+        ? `LLM 并行决策 · ${
+            state.planner_provider?.startsWith('ollama:')
+                ? 'Ollama 本地'
+                : state.planner_provider?.startsWith('deepseek:')
+                    ? `DeepSeek · ${state.planner_provider.slice('deepseek:'.length)}`
+                    : '在线模型'
+        }`
         : '本地规则决策';
     liveUi.status.innerHTML = `<i></i> ${state.phase === 'finished' ? '推演结束' : state.phase === 'voting' ? '等待终局投票' : state.phase === 'resolving' ? '人物正在行动' : state.active_event_card ? '等待角色行动' : '等待导演干预'}`;
 }
@@ -971,7 +982,7 @@ async function pollGame() {
             const data = await playerApi(`/api/interactive/games/${gameId}/player`);
             receivePlayerState(data.player);
         } else {
-            const data = await liveApi(`/api/interactive/games/${gameId}`);
+            const data = await liveApi(`/api/interactive/games/${gameId}/observer`);
             receiveState(data.state);
         }
     } catch (error) {
@@ -1072,7 +1083,7 @@ async function loadLive() {
                     const saved = await playerApi(`/api/interactive/games/${savedGameId}/player`);
                     await enterPlayerGame({player: saved.player, player_token: savedToken});
                 } else {
-                    const saved = await liveApi(`/api/interactive/games/${savedGameId}`);
+                    const saved = await liveApi(`/api/interactive/games/${savedGameId}/observer`);
                     await enterLiveGame(saved);
                 }
             } catch {
@@ -1111,8 +1122,8 @@ liveUi.submitAction?.addEventListener('click', async () => {
     const body = {
         action_type: selectedActionType,
         location_id: selectedActionType === 'move' ? liveUi.destination.value : null,
-        target_id: ['talk', 'transfer', 'attack', 'treat'].includes(selectedActionType) ? liveUi.target.value : null,
-        object_id: ['transfer', 'hide'].includes(selectedActionType) ? liveUi.object.value : null,
+        target_id: ['talk', 'transfer', 'poison', 'treat'].includes(selectedActionType) ? liveUi.target.value : null,
+        object_id: selectedActionType === 'transfer' ? liveUi.object.value : null,
         share_belief_id: selectedActionType === 'talk' ? liveUi.memory.value : null,
         content: selectedActionType === 'talk' ? liveUi.content.value : '',
         ability_id: selectedAbilityId,
@@ -1184,16 +1195,19 @@ liveUi.confirmPlayerHost?.addEventListener('click', async () => {
 liveUi.submitPlayerVote?.addEventListener('click', async () => {
     liveUi.submitPlayerVote.disabled = true;
     try {
+        const answers = [...liveUi.playerGoalAssessments.querySelectorAll('.final-question')].map(row => ({
+            question_id: row.dataset.questionId,
+            answer: row.querySelector('select').value,
+        }));
+        if (answers.some(item => !item.answer)) {
+            throw new Error('请先回答全部终局客观题。');
+        }
         const queued = await playerApi(`/api/interactive/games/${gameId}/player/vote`, {
             method: 'POST',
             body: JSON.stringify({
                 suspect_id: liveUi.playerVoteTarget.value,
                 reason: liveUi.playerVoteReason.value,
-                goal_assessments: [...liveUi.playerGoalAssessments.querySelectorAll('.goal-assessment')].map(row => ({
-                    goal: row.dataset.goal,
-                    achieved: row.querySelector('input[type="checkbox"]').checked,
-                    reason: row.querySelector('input[type="text"]').value,
-                })),
+                answers,
             }),
         });
         const result = await waitForPlayerTask(queued.task_id);

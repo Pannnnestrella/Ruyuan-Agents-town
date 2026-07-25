@@ -75,19 +75,43 @@ class TriggerResolver:
             )
         if effect_type == "remove_object":
             item = state.objects[effect["object_id"]]
-            item.location_id = None
-            item.holder_id = None
-            item.hidden = True
+            former_location = item.location_id
+            former_holder = item.holder_id
             item.metadata["removed_round"] = round_number
             item.metadata["removed_reason"] = effect.get("reason", "world_trigger")
-            return self._event(
+            is_public = bool(effect.get("public", False))
+            witnesses = (
+                list(state.agents)
+                if is_public
+                else state.occupants(former_location, include_dead=False)
+                if former_location
+                else [former_holder] if former_holder else []
+            )
+            event = self._event(
                 round_number,
                 "evidence_lost",
                 effect["summary"],
-                public=bool(effect.get("public", False)),
+                public=is_public,
                 location_id=effect.get("location_id"),
                 payload={"trigger_id": trigger["id"], "object_id": item.object_id},
             )
+            event.witnesses = witnesses
+            item.transition(
+                "world_remove",
+                round_number=round_number,
+                event_id=event.event_id,
+                holder_id=None,
+                location_id=None,
+                hidden=True,
+                witnesses=witnesses,
+                public=is_public,
+            )
+            if former_holder in state.agents:
+                holder = state.agents[former_holder]
+                if item.object_id in holder.inventory:
+                    holder.inventory.remove(item.object_id)
+                holder.inventory_state["held_items"] = list(holder.inventory)
+            return event
         raise ValueError(f"Unsupported world-trigger effect: {effect_type}")
 
     def _event(

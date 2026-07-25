@@ -61,7 +61,6 @@ button, a { font: inherit; }
 .token-layer { display: flex; flex-wrap: wrap; align-content: flex-end; gap: 5px; min-height: 38px; margin-top: 8px; }
 .agent-token { position: relative; display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 4px 7px 4px 4px; border: 1px solid color-mix(in srgb, var(--agent-color) 70%, #fff 15%); border-radius: 999px; background: #211b17; color: var(--ink); font-size: 10px; white-space: nowrap; z-index: 4; }
 .agent-token .portrait { display: grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; background: var(--agent-color); color: #160f0c; font-weight: 700; }
-.agent-token.escaped { opacity: .45; text-decoration: line-through; }
 .agent-token.speaking { box-shadow: 0 0 0 3px rgba(215, 169, 95, .2), 0 0 16px var(--agent-color); }
 .speech-bubble { position: absolute; left: 50%; bottom: calc(100% + 9px); width: 220px; padding: 9px 10px; transform: translateX(-50%); border: 1px solid var(--gold); border-radius: 10px; background: #2b241e; color: var(--ink); font-size: 11px; line-height: 1.5; white-space: normal; box-shadow: var(--shadow); z-index: 20; }
 .speech-bubble::after { content: ""; position: absolute; left: 50%; top: 100%; border: 6px solid transparent; border-top-color: var(--gold); transform: translateX(-50%); }
@@ -162,6 +161,7 @@ button, a { font: inherit; }
 .goal-assessment-list { grid-column: 1 / -1; display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.02); }
 .goal-assessment { display: grid; grid-template-columns: 1fr 1.2fr; gap: 10px; align-items: center; color: var(--muted); font-size: 11px; }
 .goal-assessment input[type="text"] { width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); background: #171310; }
+.goal-assessment select { width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); background: #171310; }
 
 .player-action-column { display: flex; min-width: 0; flex-direction: column; gap: 12px; }
 .player-action-column .decision-panel, .story-guide-panel { padding: 18px; border: 1px solid var(--line); border-radius: 17px; background: rgba(29,25,22,.96); box-shadow: var(--shadow); }

@@ -13,7 +13,6 @@ const ui = {
     gameId: document.getElementById('game-id-label'),
     locations: document.getElementById('locations'),
     timeline: document.getElementById('timeline'),
-    agents: document.getElementById('agents'),
     notices: document.getElementById('notices'),
     noticeContent: document.getElementById('notice-content'),
     postNotice: document.getElementById('post-notice'),
@@ -22,6 +21,7 @@ const ui = {
     intelOptions: document.getElementById('intel-options'),
     intelHistory: document.getElementById('intel-history'),
     advance: document.getElementById('advance-round'),
+    exportTimeline: document.getElementById('export-timeline'),
     viewRecap: document.getElementById('view-recap'),
     recapPanel: document.getElementById('recap-panel'),
     recapContent: document.getElementById('recap-content'),
@@ -46,6 +46,9 @@ const ui = {
     deductionGuides: document.getElementById('variant-deduction-guides'),
     characterFiles: document.getElementById('director-character-files'),
     dispatchLayer: document.getElementById('director-dispatch-layer'),
+    hostNotifications: document.getElementById('host-notifications'),
+    hostNotificationList: document.getElementById('host-notification-list'),
+    clearHostNotifications: document.getElementById('clear-host-notifications'),
     toast: document.getElementById('toast'),
 };
 
@@ -67,6 +70,14 @@ let selectedCardId = null;
 let availableCards = [];
 let directorBusy = false;
 let lastDirectorSyncKey = '';
+let notificationCursor = 0;
+let hostNotifications = [];
+let directorMapGameId = null;
+let directorMapEventCursor = 0;
+let directorMapVisualLocations = {};
+let directorMapInitialized = false;
+let directorMapAnimating = false;
+let directorMapPlayback = Promise.resolve();
 
 const categoryLabels = {
     pressure: '压力事件',
@@ -76,13 +87,20 @@ const categoryLabels = {
 };
 
 async function api(path, options = {}) {
-    const response = await fetch(path, {
-        headers: {'Content-Type': 'application/json', ...(options.headers || {})},
-        ...options,
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || `请求失败（${response.status}）`);
-    return data;
+    try {
+        const response = await fetch(path, {
+            headers: {'Content-Type': 'application/json', ...(options.headers || {})},
+            ...options,
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || `请求失败（${response.status}）`);
+        return data;
+    } catch (error) {
+        if (!path.startsWith('/api/interactive/host-notifications')) {
+            pushLocalNotification(error, path);
+        }
+        throw error;
+    }
 }
 
 function escapeHtml(value) {
@@ -100,6 +118,72 @@ function showToast(message) {
     window.clearTimeout(showToast.timer);
     showToast.timer = window.setTimeout(() => ui.toast.classList.add('hidden'), 3200);
 }
+
+function renderHostNotifications() {
+    if (!ui.hostNotifications || !ui.hostNotificationList) return;
+    ui.hostNotifications.classList.toggle('hidden', hostNotifications.length === 0);
+    ui.hostNotificationList.innerHTML = hostNotifications.slice().reverse().map(item => `
+        <article class="host-notification ${item.kind === 'rate_limit' ? 'rate-limit' : ''}">
+            <div><strong>${escapeHtml(item.title || '系统异常')}</strong><time>${escapeHtml(item.created_at || '')}</time></div>
+            <p>${escapeHtml(item.message || '未知异常')}</p>
+            <small>${escapeHtml(item.provider || item.source || 'browser')}${item.status_code ? ` · HTTP ${escapeHtml(item.status_code)}` : ''}${item.count > 1 ? ` · 重复 ${item.count} 次` : ''}</small>
+        </article>
+    `).join('');
+}
+
+function pushLocalNotification(error, source = 'browser') {
+    const message = error?.message || String(error);
+    hostNotifications.push({
+        id: `browser-${Date.now()}-${hostNotifications.length}`,
+        kind: message.includes('429') ? 'rate_limit' : 'exception',
+        title: message.includes('429') ? '模型接口限流（HTTP 429）' : '浏览器请求异常',
+        message,
+        source,
+        created_at: new Date().toLocaleString(),
+        count: 1,
+    });
+    hostNotifications = hostNotifications.slice(-100);
+    renderHostNotifications();
+}
+
+async function pollHostNotifications() {
+    try {
+        const response = await fetch(`/api/interactive/host-notifications?after=${notificationCursor}`);
+        if (!response.ok) return;
+        const data = await response.json();
+        const incoming = data.notifications || [];
+        if (!incoming.length) return;
+        notificationCursor = Math.max(notificationCursor, ...incoming.map(item => Number(item.id) || 0));
+        hostNotifications.push(...incoming);
+        hostNotifications = hostNotifications.slice(-100);
+        renderHostNotifications();
+        showToast(incoming[incoming.length - 1].title || '主持台收到一条异常通知');
+    } catch {
+        // The notification channel must not create recursive notifications.
+    }
+}
+
+ui.clearHostNotifications?.addEventListener('click', async () => {
+    hostNotifications = [];
+    renderHostNotifications();
+    try {
+        await api('/api/interactive/host-notifications', {method: 'DELETE'});
+        notificationCursor = 0;
+    } catch {
+        // The local list is already cleared; a later poll can restore anything
+        // that could not be removed from the server.
+    }
+});
+
+window.addEventListener('error', event => {
+    pushLocalNotification(event.error || new Error(event.message), 'window.error');
+});
+window.addEventListener('unhandledrejection', event => {
+    pushLocalNotification(
+        event.reason instanceof Error ? event.reason : new Error(String(event.reason)),
+        'unhandledrejection',
+    );
+});
 
 function showDirectorDispatch(kind, data) {
     if (!ui.dispatchLayer) return;
@@ -164,14 +248,67 @@ function directorSyncKey(state) {
     });
 }
 
+function renderDirectorMap(state) {
+    if (!state || !ui.locations) return;
+    if (directorMapAnimating) return;
+    window.InteractiveMap.render(ui.locations, state, {visualLocations: directorMapVisualLocations});
+}
+
+async function animateDirectorMapMove(event) {
+    const actorId = event.actors?.[0];
+    const destination = event.payload?.destination_id || event.state_changes?.find(change => change.agent_id === actorId)?.location_id;
+    const token = ui.locations.querySelector(`[data-agent-id="${CSS.escape(actorId || '')}"]`);
+    const destinationLayer = ui.locations.querySelector(`[data-location-id="${CSS.escape(destination || '')}"] .token-layer`);
+    if (!token || !destinationLayer) return;
+    const before = token.getBoundingClientRect();
+    destinationLayer.appendChild(token);
+    const after = token.getBoundingClientRect();
+    directorMapVisualLocations[actorId] = destination;
+    await token.animate([
+        {transform: `translate(${before.left - after.left}px, ${before.top - after.top}px)`, zIndex: 30},
+        {transform: 'translate(0, 0)', zIndex: 30},
+    ], {duration: 780, easing: 'cubic-bezier(.2,.78,.25,1)'}).finished.catch(() => {});
+}
+
+function syncDirectorMap(state) {
+    if (!state) return;
+    if (directorMapGameId !== state.game_id) {
+        directorMapGameId = state.game_id;
+        directorMapEventCursor = (state.events || []).length;
+        directorMapVisualLocations = Object.fromEntries(Object.values(state.agents || {}).map(agent => [agent.agent_id, agent.location_id]));
+        directorMapInitialized = false;
+        directorMapAnimating = false;
+    }
+    if (!directorMapInitialized) {
+        directorMapInitialized = true;
+        renderDirectorMap(state);
+        return;
+    }
+    const events = state.events || [];
+    const moves = events.slice(directorMapEventCursor).filter(event => event.event_type === 'move');
+    directorMapEventCursor = events.length;
+    if (!moves.length || directorMapAnimating) return;
+    directorMapAnimating = true;
+    directorMapPlayback = directorMapPlayback.then(async () => {
+        for (const event of moves) await animateDirectorMapMove(event);
+        Object.values(state.agents || {}).forEach(agent => { directorMapVisualLocations[agent.agent_id] = agent.location_id; });
+        directorMapAnimating = false;
+        renderDirectorMap(state);
+    }).catch(() => { directorMapAnimating = false; renderDirectorMap(state); });
+}
+
 async function pollDirectorState() {
     if (!gameId || directorBusy) return;
     try {
-        const data = await api(`/api/interactive/games/${gameId}/director`);
+        const [data, observer] = await Promise.all([
+            api(`/api/interactive/games/${gameId}/director`),
+            api(`/api/interactive/games/${gameId}/observer`),
+        ]);
         const key = directorSyncKey(data.state);
         if (key === lastDirectorSyncKey) return;
         lastDirectorSyncKey = key;
-        renderState(data.state);
+        renderState(data.state, observer.state);
+        syncDirectorMap(observer.state);
         renderCards(data.cards || [], data.empty_event, data.state.active_event_card);
         renderIntel(data.intel || [], data.state);
         if (
@@ -186,7 +323,7 @@ async function pollDirectorState() {
     }
 }
 
-function renderState(state) {
+function renderState(state, mapState = state) {
     currentState = state;
     ui.title.textContent = state.title;
     ui.round.textContent = state.round_number;
@@ -194,7 +331,9 @@ function renderState(state) {
     ui.actionStep.textContent = `${state.action_step || 0}/${state.actions_per_round || 3}`;
     ui.gameId.textContent = `局号：${state.game_id}`;
     ui.planner.textContent = state.planner === 'LLMIntentPlanner'
-        ? `LLM 并行决策 · ${state.planner_provider?.startsWith('ollama:') ? 'Ollama 本地' : '在线模型'}`
+        ? state.planner_runtime?.is_falling_back
+            ? `${plannerLabel(state.planner_provider)} 不可用 · 当前为本地兜底`
+            : `LLM 并行决策 · ${plannerLabel(state.planner_provider)}`
         : '本地规则决策';
     ui.phase.textContent = state.phase === 'finished'
         ? '推演已经结束'
@@ -207,11 +346,10 @@ function renderState(state) {
 
     const latestNotice = state.notices[state.notices.length - 1];
     const injured = Object.values(state.agents).filter(agent => agent.life_state !== 'alive').length;
-    const escaped = Object.values(state.agents).filter(agent => agent.conditions?.includes('escaped')).length;
     const interventionCount = (state.notices?.length || 0)
         + (state.public_intel_history?.length || 0)
         + state.events.filter(event => event.event_type === 'event_card_selected').length;
-    const pressure = escaped || injured ? '失控边缘' : state.round_number >= 5 ? '终局逼近' : state.round_number >= 2 ? '秘密发酵' : '彼此试探';
+    const pressure = injured ? '失控边缘' : state.round_number >= 5 ? '终局逼近' : state.round_number >= 2 ? '秘密发酵' : '彼此试探';
     ui.hostRoundTitle.textContent = `你正在主持第 ${Math.min(state.round_number + 1, state.max_rounds)} 轮`;
     ui.hostReach.textContent = `最近公告触达 ${latestNotice?.seen_by?.length || 0}/6`;
     ui.hostPressure.textContent = `局势：${pressure}`;
@@ -224,37 +362,7 @@ function renderState(state) {
                 ? '终局将近：选择迫使角色表态的事件，同时避免直接替他们给出答案。'
                 : '选择你希望放大的矛盾：时间压力、新线索，或人物之间的公开对质。';
 
-    const occupants = {};
-    Object.values(state.agents).forEach(agent => {
-        (occupants[agent.location_id] ||= []).push(agent.display_name);
-    });
-    const locationsByFloor = Object.values(state.locations).reduce((floors, location) => {
-        const floor = location.layout?.floor || 1;
-        (floors[floor] ||= []).push(location);
-        return floors;
-    }, {});
-    ui.locations.innerHTML = Object.entries(locationsByFloor).sort(([a], [b]) => Number(a) - Number(b)).map(([floor, locations]) => `
-        <section class="inn-floor">
-            <div class="floor-title">${Number(floor) === 1 ? '一层 · 大堂与后院' : '二层 · 客房回廊'}</div>
-            <div class="floor-map">${locations.map(location => {
-                const layout = location.layout || {x: 1, y: 1, w: 1, h: 1};
-                return `
-                    <article class="location-item" title="${escapeHtml(location.description)}" style="grid-column:${layout.x} / span ${layout.w};grid-row:${layout.y} / span ${layout.h}">
-                        <div class="location-name"><span>${escapeHtml(location.name)}</span><small>${(occupants[location.id] || []).length}</small></div>
-                        <div class="occupants">${(occupants[location.id] || []).map(name => `<span class="person-chip">${escapeHtml(name)}</span>`).join('') || '<span class="timeline-meta">无人</span>'}</div>
-                    </article>`;
-            }).join('')}</div>
-        </section>
-    `).join('');
-
-    ui.agents.innerHTML = Object.values(state.agents).map(agent => `
-        <article class="agent-item life-${escapeHtml(agent.life_state)}">
-            <div class="agent-name"><span>${escapeHtml(agent.display_name)}</span><span>${escapeHtml(lifeLabel(agent.life_state))}</span></div>
-            <div class="agent-role">${escapeHtml(agent.public_role)}</div>
-            <div class="timeline-meta">位置：${escapeHtml(state.locations[agent.location_id]?.name || agent.location_id)} · 体力 ${agent.health}${agent.conditions?.length ? ` · ${escapeHtml(agent.conditions.join('、'))}` : ''}</div>
-            <div class="health-bar"><div class="health-fill" style="width:${Math.max(0, Math.min(100, agent.health))}%"></div></div>
-        </article>
-    `).join('');
+    renderDirectorMap(mapState);
 
     const events = [...state.events].reverse();
     ui.timeline.innerHTML = events.length ? events.map(event => `
@@ -311,7 +419,7 @@ function renderDirectorCasebook(state) {
         <dt>凶器</dt><dd>${escapeHtml(weapon)}</dd>
         <dt>取走物</dt><dd>${escapeHtml(stolen)}</dd>
         <dt>遗留痕迹</dt><dd>${escapeHtml(evidence)}</dd>
-        <dt>脱身计划</dt><dd>${escapeHtml(casebook.escape_plan)}</dd>`;
+        <dt>掩护计划</dt><dd>${escapeHtml(casebook.cover_plan)}</dd>`;
     ui.objectiveTruths.innerHTML = (casebook.objective_truths || [])
         .map(truth => `<li>${escapeHtml(truth.claim)}</li>`).join('');
     ui.objectiveTimeline.innerHTML = (casebook.objective_timeline || []).map(entry => `
@@ -320,7 +428,7 @@ function renderDirectorCasebook(state) {
             <div><strong>${escapeHtml(entry.location_name || '')}</strong><p>${escapeHtml(entry.text)}</p>
             <small>${escapeHtml((entry.participants || []).join('、'))}${entry.private ? ' · 凶手私密记忆' : ''}</small></div>
         </article>`).join('');
-    renderDirectorClueMap(casebook);
+    renderDirectorClueMap(casebook, state);
     renderDeductionGuides(casebook);
 
     ui.characterFiles.innerHTML = (casebook.characters || []).map(character => {
@@ -361,7 +469,7 @@ function renderDirectorCasebook(state) {
                         <article><p>${escapeHtml(belief.claim)}</p><small>来源：${escapeHtml(belief.source)} · 可信度 ${Math.round(Number(belief.confidence || 0) * 100)}% · 第 ${belief.learned_round} 轮${belief.shared_with?.length ? ` · 已分享给 ${belief.shared_with.map(id => escapeHtml(state.agents[id]?.display_name || id)).join('、')}` : ''}</small></article>
                     `).join('') : '<p>尚无记忆。</p>'}</div></section>
                     <section class="file-block"><h4>当前跨回合计划</h4>${renderPlan(plan)}</section>
-                    <section class="file-block"><h4>状态与得分</h4><p>体力 ${current.health} · ${escapeHtml((current.conditions || []).join('、') || '无异常状态')} · 得分 ${current.score || 0}</p><p>已发现他人秘密 ${(current.discovered_secret_ids || []).length} 项。</p></section>
+                    <section class="file-block"><h4>状态与得分</h4><p>${escapeHtml(lifeLabel(current.life_state))} · ${escapeHtml((current.conditions || []).join('、') || '无异常状态')} · 得分 ${current.score || 0}</p><p>已发现他人秘密 ${(current.discovered_secret_ids || []).length} 项。</p></section>
                     <section class="file-block full"><h4>本局行动与发言</h4><ol class="action-ledger">${actions.length ? actions.map(event => `
                         <li><span>第 ${event.round_number} 轮${event.action_step ? ` / 行动 ${event.action_step}` : ''}</span>${escapeHtml(event.summary)}<small>${event.public ? '公开' : '隐藏'} · ${escapeHtml(event.event_type)}</small></li>
                     `).join('') : '<li>尚未行动。</li>'}</ol></section>
@@ -370,7 +478,7 @@ function renderDirectorCasebook(state) {
     }).join('');
 }
 
-function renderDirectorClueMap(casebook) {
+function renderDirectorClueMap(casebook, state) {
     if (!ui.clueMap) return;
     const clues = casebook.clue_map || [];
     const groups = new Map();
@@ -385,7 +493,20 @@ function renderDirectorClueMap(casebook) {
         truth: '真相拼图', evidence: '案件物证', secret: '人物秘密',
         decoy: '混淆项', personal: '随身信息', variant: '变体专属',
     };
-    ui.clueMap.innerHTML = [...groups.values()].map(group => `
+    const healthColumn = `<article class="clue-location-group health-location-group">
+        <header><h4>人物健康</h4><span>${Object.keys(state.agents || {}).length} 人</span></header>
+        <div class="health-roster">${Object.values(state.agents || {}).map(agent => {
+            const conditions = Array.isArray(agent.conditions)
+                ? agent.conditions.join('、')
+                : agent.conditions || '无异常状态';
+            return `<div class="health-roster-item">
+                <strong>${escapeHtml(agent.display_name)}</strong>
+                <span class="health-state health-${escapeHtml(agent.life_state || 'alive')}">${escapeHtml(lifeLabel(agent.life_state || 'alive'))}</span>
+                <small>${escapeHtml(conditions)}</small>
+            </div>`;
+        }).join('')}</div>
+    </article>`;
+    ui.clueMap.innerHTML = healthColumn + [...groups.values()].map(group => `
         <article class="clue-location-group">
             <header><h4>${escapeHtml(group.label)}</h4><span>${group.clues.length} 项</span></header>
             <div>${group.clues.sort((a, b) => Number(b.hidden) - Number(a.hidden)).map(clue => {
@@ -457,7 +578,14 @@ function renderPlan(plan) {
 }
 
 function lifeLabel(value) {
-    return ({alive: '健康', injured: '受伤', severely_injured: '重伤', incapacitated: '重伤', dying: '重伤', dead: '死亡'})[value] || value;
+    return ({alive: '健康', injured: '受伤', dead: '死亡'})[value] || value;
+}
+
+function plannerLabel(value = '') {
+    if (value.startsWith('ollama:')) return 'Ollama 本地';
+    if (value.startsWith('deepseek:')) return `DeepSeek · ${value.slice('deepseek:'.length)}`;
+    if (value.startsWith('project:')) return `项目配置 · ${value.slice('project:'.length)}`;
+    return value || '在线模型';
 }
 
 function renderCards(cards, emptyEvent = null, activeCardId = null) {
@@ -611,7 +739,7 @@ ui.postNotice.addEventListener('click', async () => {
         const data = await api(`/api/interactive/games/${gameId}`);
         renderState(data.state);
         renderIntel(data.intel || [], data.state);
-        showToast('公告已张贴；全员收到更新标记，回到大堂后才能读取正文。');
+        showToast('主持人公告已张贴到大堂公告栏，并立即同步给全员。');
     } catch (error) {
         showToast(error.message);
     } finally {
@@ -670,6 +798,16 @@ ui.viewRecap?.addEventListener('click', async () => {
     }
 });
 
+ui.exportTimeline?.addEventListener('click', () => {
+    if (!gameId) return;
+    const link = document.createElement('a');
+    link.href = `/api/interactive/games/${encodeURIComponent(gameId)}/timeline.txt`;
+    link.download = `${gameId}-action-timeline.txt`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+});
+
 ui.closeRecap?.addEventListener('click', () => {
     ui.recapPanel.classList.add('hidden');
     ui.game.scrollIntoView({behavior: 'smooth', block: 'start'});
@@ -678,8 +816,8 @@ ui.closeRecap?.addEventListener('click', () => {
 function renderRecap(recap, storyOutline) {
     const timeline = Object.entries(recap.timeline).map(([round, events]) => {
         const selected = events.filter(event => [
-            'attack', 'discovery', 'object_transfer', 'object_hidden', 'treatment',
-            'move', 'conversation', 'escape', 'escape_failed', 'vote_cast', 'killer_revealed',
+      'poison_effect', 'discovery', 'object_transfer', 'treatment',
+      'move', 'conversation', 'vote_cast', 'killer_revealed',
             'public_fact', 'public_intel', 'event_card_selected', 'notice_posted'
         ].includes(event.event_type));
         const visible = selected.length ? selected : events;
@@ -700,7 +838,7 @@ function renderRecap(recap, storyOutline) {
             <div class="recap-character-grid">${recap.characters.map(character => `
                 <article class="recap-character">
                     <strong>${escapeHtml(character.display_name)}</strong>
-                    <span>${escapeHtml(lifeLabel(character.life_state))} · 体力 ${character.health}<br>${escapeHtml(character.final_location)}<br>持有：${escapeHtml(character.inventory.join('、') || '无')}</span>
+                    <span>${escapeHtml(lifeLabel(character.life_state))} · ${character.score || 0} 分<br>${escapeHtml(character.final_location)}<br>模型：${escapeHtml((character.models || []).join('、') || '未记录')}<br>客观题：${(character.answer_results || []).filter(item => item.is_correct).length}/${(character.answer_results || []).length}</span>
                 </article>
             `).join('')}</div>
         </section>
@@ -730,3 +868,5 @@ function renderRecap(recap, storyOutline) {
 
 loadScenarios();
 window.setInterval(pollDirectorState, 1000);
+pollHostNotifications();
+window.setInterval(pollHostNotifications, 1000);

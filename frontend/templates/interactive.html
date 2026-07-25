@@ -6,6 +6,7 @@
     <title>停云客栈 · 导演台</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/interactive.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/interactive_map.css') }}">
 </head>
 <body>
     <main class="app-shell">
@@ -14,7 +15,7 @@
             <h1>停云客栈导演台</h1>
             <p id="scenario-premise" class="premise">正在读取情景……</p>
             <button id="create-game" class="primary-button" disabled>开始新的六轮推演</button>
-            <p class="prototype-note">角色可由本地启发式或项目配置中的 LLM 规划；两种模式共享同一套记忆、行动、逃脱与投票规则。</p>
+            <p class="prototype-note">角色可由本地启发式或项目配置中的 LLM 规划；两种模式共享同一套记忆、行动、下毒与投票规则。</p>
             <a class="text-link" href="/interactive">打开实时地图</a>
         </section>
 
@@ -46,7 +47,7 @@
                         <h2>客栈地点</h2>
                         <span>人物当前位置</span>
                     </div>
-                    <div id="locations" class="locations-list"></div>
+                    <div id="locations" class="live-map"></div>
                 </section>
 
                 <section class="panel timeline-panel">
@@ -57,13 +58,6 @@
                     <div id="timeline" class="timeline"></div>
                 </section>
 
-                <section class="panel agents-panel">
-                    <div class="panel-heading">
-                        <h2>住客状态</h2>
-                        <span>6 名参与者</span>
-                    </div>
-                    <div id="agents" class="agents-list"></div>
-                </section>
             </div>
 
             <section id="director-casebook" class="director-casebook hidden">
@@ -101,7 +95,7 @@
                 <section class="clue-atlas-section">
                     <div class="casebook-section-heading">
                         <div><p class="control-kicker">全知线索地图</p><h3>什么地方有什么，以及现在到了谁手里</h3></div>
-                        <p>位置会随藏匿、交付和发现实时更新</p>
+                    <p>位置会随取得、交付、展示和掉落实时更新</p>
                     </div>
                     <div class="clue-legend">
                         <span class="kind-truth">真相拼图</span><span class="kind-secret">人物秘密</span><span class="kind-decoy">混淆项</span><span class="kind-variant">本局专属</span>
@@ -143,11 +137,12 @@
                 <div class="planner-switcher">
                     <div><p class="control-kicker">决策接口</p><h2>切换后续角色行动使用的模型</h2></div>
                     <select id="planner-provider">
+                        <option value="deepseek" selected>DeepSeek API（默认）</option>
                         <option value="ollama">Ollama 本地</option>
                         <option value="project">项目配置 API</option>
                         <option value="heuristic">本地规则（无 LLM）</option>
                     </select>
-                    <input id="planner-model" type="text" placeholder="Ollama 模型名；留空使用启动配置">
+                    <input id="planner-model" type="text" placeholder="模型名；留空使用该接口默认值">
                     <button id="switch-planner" class="secondary-button" type="button">应用切换</button>
                 </div>
 
@@ -157,7 +152,7 @@
                         <h2>向世界发布一条公开信息</h2>
                     </div>
                     <div class="notice-row">
-                        <textarea id="notice-content" maxlength="500" rows="2" placeholder="例如：亥时后任何人不得离开客栈。"></textarea>
+              <textarea id="notice-content" maxlength="500" rows="2" placeholder="例如：所有新发现的物证须在大堂登记。"></textarea>
                         <button id="post-notice" class="secondary-button">张贴公告</button>
                     </div>
                     <div id="notices" class="notice-history"></div>
@@ -190,6 +185,7 @@
                 <div class="advance-row">
                     <p id="action-hint">先发布公告（可选），再选择一张事件卡。</p>
                     <button id="advance-round" class="primary-button" disabled>开始整轮（3 次行动）</button>
+                    <button id="export-timeline" class="secondary-button">导出行动事件线</button>
                     <button id="view-recap" class="primary-button hidden">查看终局复盘</button>
                 </div>
             </section>
@@ -208,7 +204,15 @@
     </main>
 
     <div id="director-dispatch-layer" class="dispatch-layer" aria-live="polite"></div>
+    <aside id="host-notifications" class="host-notifications hidden" aria-live="assertive">
+        <header>
+            <div><p class="control-kicker">系统通知</p><h2>异常与接口告警</h2></div>
+            <button id="clear-host-notifications" type="button">清空</button>
+        </header>
+        <div id="host-notification-list"></div>
+    </aside>
     <div id="toast" class="toast hidden"></div>
+    <script src="{{ url_for('static', filename='js/interactive_map.js') }}"></script>
     <script src="{{ url_for('static', filename='js/interactive.js') }}"></script>
 </body>
 </html>

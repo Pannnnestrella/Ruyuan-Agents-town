@@ -125,6 +125,56 @@ class InteractiveApiTests(unittest.TestCase):
             self.assertGreaterEqual(len(guide["chain"]), 4)
             self.assertTrue(guide["decisive_conclusion"])
 
+    def test_observer_state_tracks_local_actions_without_private_case_truth(self):
+        created = self.client.post(
+            "/api/interactive/games",
+            json={"scenario_id": "stormbound_inn", "game_id": "observer-track", "seed": 7},
+        ).get_json()
+        card_id = created["cards"][0]["card_id"]
+        self.client.post(
+            "/api/interactive/games/observer-track/event-card",
+            json={"card_id": card_id},
+        )
+        queued = self.client.post(
+            "/api/interactive/games/observer-track/rounds/advance",
+            json={},
+        )
+        task = self.wait_for_task(queued.get_json()["task_id"])
+        self.assertEqual(task["status"], "succeeded")
+
+        public = self.client.get(
+            "/api/interactive/games/observer-track"
+        ).get_json()["state"]
+        observer_response = self.client.get(
+            "/api/interactive/games/observer-track/observer"
+        )
+        self.assertEqual(observer_response.status_code, 200)
+        observer = observer_response.get_json()["state"]
+
+        self.assertGreater(len(observer["events"]), len(public["events"]))
+        self.assertTrue(any(
+            event["event_type"] in {
+                "move",
+                "discovery",
+                "investigation_empty",
+                "conversation",
+                "object_transfer",
+                "wait",
+                "action_failed",
+            }
+            for event in observer["events"]
+        ))
+        self.assertNotIn("director_casebook", observer)
+        self.assertNotIn("killer_id", observer)
+        self.assertFalse(any(
+            event["event_type"] == "poison_queued"
+            or (
+                event["event_type"] == "action_failed"
+                and event.get("payload", {}).get("action") == "下毒"
+            )
+            for event in observer["events"]
+        ))
+
     def test_live_map_and_director_pages_are_both_available(self):
         live = self.client.get("/interactive")
         director = self.client.get("/interactive/director")
@@ -132,6 +182,92 @@ class InteractiveApiTests(unittest.TestCase):
         self.assertEqual(director.status_code, 200)
         self.assertIn("实时地图", live.get_data(as_text=True))
         self.assertIn("导演台", director.get_data(as_text=True))
+        director_html = director.get_data(as_text=True)
+        self.assertIn('option value="deepseek" selected', director_html)
+        self.assertIn("interactive_map.js", director_html)
+        self.assertIn("interactive_map.js", live.get_data(as_text=True))
+
+    def test_host_notifications_include_rate_limits_and_request_errors(self):
+        notify = self.client.application.config["INTERACTIVE_HOST_NOTIFY"]
+        rate_limit = RuntimeError("LLM endpoint returned HTTP 429")
+        rate_limit.status_code = 429
+        notify(
+            rate_limit,
+            source="llm_planner",
+            provider="project:GLM-test",
+            context={"stage": "intent", "api_key": "must-not-leak"},
+        )
+        self.client.get("/api/interactive/games/unknown-game")
+
+        response = self.client.get("/api/interactive/host-notifications")
+        self.assertEqual(response.status_code, 200)
+        notifications = response.get_json()["notifications"]
+        self.assertTrue(any(
+            item["kind"] == "rate_limit"
+            and item["status_code"] == 429
+            and item["provider"] == "project:GLM-test"
+            for item in notifications
+        ))
+        self.assertTrue(any(item["source"].startswith("http:") for item in notifications))
+        self.assertNotIn("must-not-leak", response.get_data(as_text=True))
+
+        cleared = self.client.delete("/api/interactive/host-notifications")
+        self.assertEqual(cleared.status_code, 200)
+        self.assertGreaterEqual(cleared.get_json()["cleared"], 2)
+        self.assertEqual(
+            self.client.get("/api/interactive/host-notifications").get_json()["notifications"],
+            [],
+        )
+
+    def test_action_timeline_can_be_inspected_and_downloaded_midgame(self):
+        created = self.client.post(
+            "/api/interactive/games",
+            json={
+                "scenario_id": "stormbound_inn",
+                "game_id": "timeline-export",
+                "seed": 4,
+            },
+        ).get_json()
+        self.client.post(
+            "/api/interactive/games/timeline-export/event-card",
+            json={"card_id": created["cards"][0]["card_id"]},
+        )
+        queued = self.client.post(
+            "/api/interactive/games/timeline-export/rounds/advance",
+            json={},
+        )
+        task = self.wait_for_task(queued.get_json()["task_id"])
+        self.assertEqual(task["status"], "succeeded")
+
+        response = self.client.get(
+            "/api/interactive/games/timeline-export/timeline"
+        )
+        self.assertEqual(response.status_code, 200)
+        timeline = response.get_json()["timeline"]
+        self.assertEqual(timeline["title"], "6轮18次主要行动事件线")
+        self.assertEqual(timeline["rounds_completed"], 1)
+        self.assertEqual(timeline["discussion_limit"], 100)
+        self.assertTrue(any(
+            event["stage"] == "轮末讨论"
+            for event in timeline["rounds"][0]["events"]
+        ))
+        self.assertFalse(any(
+            event["event_type"] == "poison_queued"
+            for round_data in timeline["rounds"]
+            for event in round_data["events"]
+        ))
+
+        download = self.client.get(
+            "/api/interactive/games/timeline-export/timeline.txt"
+        )
+        self.assertEqual(download.status_code, 200)
+        self.assertIn(
+            "attachment;",
+            download.headers["Content-Disposition"],
+        )
+        text = download.get_data(as_text=True)
+        self.assertIn("6轮18次主要行动事件线", text)
+        self.assertIn("[轮末讨论", text)
 
     def test_game_restores_after_service_restart(self):
         created = self.client.post(

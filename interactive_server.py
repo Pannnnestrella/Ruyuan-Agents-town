@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import os
 import threading
+import time
 import uuid
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, Response, jsonify, render_template, request
+from werkzeug.exceptions import HTTPException
 
 from modules.interactive import GamePhase, GameService, HeuristicIntentPlanner, LLMIntentPlanner
 
@@ -36,7 +40,69 @@ def create_app(
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
     planner_mode = (planner_mode or os.environ.get("GA_INTERACTIVE_PLANNER", "auto")).lower()
-    llm_provider = os.environ.get("GA_INTERACTIVE_LLM_PROVIDER", "project").lower()
+    llm_provider = os.environ.get("GA_INTERACTIVE_LLM_PROVIDER", "deepseek").lower()
+    host_notifications: deque[dict[str, Any]] = deque(maxlen=200)
+    notification_lock = threading.Lock()
+    notification_sequence = 0
+
+    def record_host_notification(
+        error: Exception | str,
+        *,
+        source: str,
+        game_id: str | None = None,
+        provider: str | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> None:
+        """Record a safe, host-only diagnostic without interrupting fallback."""
+
+        nonlocal notification_sequence
+        message = str(error).strip() or type(error).__name__
+        status_code = getattr(error, "status_code", None)
+        if status_code is None:
+            response = getattr(error, "response", None)
+            status_code = getattr(response, "status_code", None)
+        is_rate_limit = status_code == 429 or "429" in message or "rate limit" in message.lower()
+        safe_context = {
+            str(key)[:80]: str(value)[:240]
+            for key, value in (context or {}).items()
+            if key not in {"api_key", "authorization", "prompt"}
+        }
+        signature = (source, game_id, provider, status_code, type(error).__name__, message[:240])
+        now = time.time()
+        with notification_lock:
+            if host_notifications:
+                latest = host_notifications[-1]
+                if latest.get("_signature") == signature and now - latest["_created_epoch"] < 10:
+                    latest["count"] += 1
+                    latest["created_at"] = datetime.now(timezone.utc).isoformat()
+                    latest["_created_epoch"] = now
+                    return
+            notification_sequence += 1
+            host_notifications.append({
+                "id": notification_sequence,
+                "level": "error",
+                "kind": "rate_limit" if is_rate_limit else "exception",
+                "title": "模型接口限流（HTTP 429）" if is_rate_limit else "系统异常",
+                "message": message[:800],
+                "exception_type": type(error).__name__,
+                "status_code": status_code,
+                "source": source,
+                "provider": provider or "",
+                "game_id": game_id or "",
+                "context": safe_context,
+                "count": 1,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "_created_epoch": now,
+                "_signature": signature,
+            })
+
+    def planner_error_callback(error: Exception, context: dict[str, Any]) -> None:
+        record_host_notification(
+            error,
+            source="llm_planner",
+            provider=str(context.get("provider", "")),
+            context=context,
+        )
 
     def build_planner(seed: int, provider: str, model: str = ""):
         fallback = HeuristicIntentPlanner(seed=seed)
@@ -49,10 +115,31 @@ def create_app(
                     "GA_INTERACTIVE_OLLAMA_MODEL", "qwen2.5:7b-instruct"
                 ),
                 fallback=fallback,
+                error_callback=planner_error_callback,
+            )
+        if provider == "deepseek":
+            return LLMIntentPlanner.from_deepseek(
+                # DEEPSEEK_API_KEY is the name used in DeepSeek's official
+                # OpenAI-compatible SDK examples. Keep the historical project
+                # variable as a fallback so existing local installations work.
+                os.environ.get("DEEPSEEK_API_KEY")
+                or os.environ.get("DEEPSEEK_API", ""),
+                model_name=model.strip() or os.environ.get(
+                    "GA_INTERACTIVE_DEEPSEEK_MODEL", "deepseek-v4-flash"
+                ),
+                base_url=os.environ.get(
+                    "GA_INTERACTIVE_DEEPSEEK_BASE_URL", "https://api.deepseek.com"
+                ),
+                fallback=fallback,
+                error_callback=planner_error_callback,
             )
         if provider == "project":
-            return LLMIntentPlanner.from_project_config(root, fallback=fallback)
-        raise ValueError("未知决策接口；请选择 heuristic、ollama 或 project")
+            return LLMIntentPlanner.from_project_config(
+                root,
+                fallback=fallback,
+                error_callback=planner_error_callback,
+            )
+        raise ValueError("未知决策接口；请选择 heuristic、ollama、deepseek 或 project")
 
     def planner_factory(seed: int):
         fallback = HeuristicIntentPlanner(seed=seed)
@@ -62,6 +149,11 @@ def create_app(
             except Exception as error:
                 if planner_mode == "llm":
                     raise
+                record_host_notification(
+                    error,
+                    source="planner_initialization",
+                    provider=llm_provider,
+                )
                 print(f"[interactive] LLM planner unavailable, using heuristic planner: {error}")
         return fallback
 
@@ -71,6 +163,7 @@ def create_app(
         planner_factory=planner_factory,
     )
     app.config["INTERACTIVE_GAME_SERVICE"] = service
+    app.config["INTERACTIVE_HOST_NOTIFY"] = record_host_notification
     executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="interactive-round")
     tasks: dict[str, dict[str, Any]] = {}
     active_game_tasks: dict[str, str] = {}
@@ -141,6 +234,11 @@ def create_app(
                     tasks[task_id]["message"] = "角色行动已经写入世界"
                     tasks[task_id]["result"] = result
             except Exception as error:
+                record_host_notification(
+                    error,
+                    source="background_game_operation",
+                    game_id=game_id,
+                )
                 with task_lock:
                     tasks[task_id]["status"] = "failed"
                     tasks[task_id]["message"] = "角色行动结算失败"
@@ -189,6 +287,31 @@ def create_app(
                 })
         return jsonify({"scenarios": scenarios})
 
+    @app.get("/api/interactive/host-notifications")
+    def get_host_notifications():
+        after = request.args.get("after", "0")
+        try:
+            after_id = max(0, int(after))
+        except ValueError:
+            after_id = 0
+        with notification_lock:
+            items = [
+                {
+                    key: value for key, value in item.items()
+                    if not key.startswith("_")
+                }
+                for item in host_notifications
+                if item["id"] > after_id
+            ]
+        return jsonify({"notifications": items})
+
+    @app.delete("/api/interactive/host-notifications")
+    def clear_host_notifications():
+        with notification_lock:
+            cleared = len(host_notifications)
+            host_notifications.clear()
+        return jsonify({"cleared": cleared})
+
     @app.post("/api/interactive/games")
     def create_game():
         data = payload()
@@ -207,7 +330,7 @@ def create_app(
             }), 201
         return jsonify({
             "mode": "director",
-            "state": session.public_state(),
+            "state": session.observer_state(),
             "cards": session.card_suggestions(),
             "empty_event": session.empty_event_option(),
             "intel": session.intel_suggestions(),
@@ -237,6 +360,15 @@ def create_app(
             "intel": session.intel_suggestions()
             if session.state.phase in {GamePhase.INTERVENTION, GamePhase.ROUND_COMPLETE}
             else [],
+        })
+
+    @app.get("/api/interactive/games/<game_id>/observer")
+    def get_observer_game(game_id: str):
+        """Live-map view with trackable actions but without private case truth."""
+
+        session = game_service().get(game_id)
+        return jsonify({
+            "state": session.observer_state(),
         })
 
     @app.get("/api/interactive/games/<game_id>/director")
@@ -379,6 +511,12 @@ def create_app(
                     tasks[task_id]["message"] = "本轮推演完成"
                     tasks[task_id]["result"] = response_data
             except Exception as error:
+                record_host_notification(
+                    error,
+                    source="background_round",
+                    game_id=game_id,
+                    provider=str(getattr(session.planner, "provider_name", "")),
+                )
                 with task_lock:
                     tasks[task_id]["status"] = "failed"
                     tasks[task_id]["message"] = "本轮推演失败"
@@ -506,20 +644,19 @@ def create_app(
         data = payload()
         suspect_id = str(data.get("suspect_id", ""))
         reason = str(data.get("reason", ""))
-        goal_assessments = data.get("goal_assessments", [])
-        if not isinstance(goal_assessments, list):
-            raise ValueError("个人目标回答格式无效")
+        answers = data.get("answers", [])
+        if not isinstance(answers, list):
+            raise ValueError("终局答卷格式无效")
         if session.state.phase != GamePhase.VOTING:
             raise ValueError("当前还没有进入终局投票")
         total = sum(
             1 for agent in session.state.agents.values()
-            if agent.life_state.value != "dead"
-            and agent.agent_id != session.state.player_agent_id
+            if agent.agent_id != session.state.player_agent_id
         )
 
         def resolve_player_vote(report_progress):
             session.submit_player_vote(
-                token, suspect_id, reason, goal_assessments=goal_assessments
+                token, suspect_id, reason, answers=answers
             )
             return {"player": session.player_state(token)}
 
@@ -546,13 +683,40 @@ def create_app(
             "story_outline": session.build_story_outline(),
         })
 
+    @app.get("/api/interactive/games/<game_id>/timeline")
+    def get_action_timeline(game_id: str):
+        session = game_service().get(game_id)
+        return jsonify({"timeline": session.build_action_timeline()})
+
+    @app.get("/api/interactive/games/<game_id>/timeline.txt")
+    def download_action_timeline(game_id: str):
+        session = game_service().get(game_id)
+        return Response(
+            session.action_timeline_text(),
+            mimetype="text/plain; charset=utf-8",
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="{game_id}-action-timeline.txt"'
+                ),
+            },
+        )
+
     @app.errorhandler(KeyError)
     def handle_key_error(error: KeyError):
+        record_host_notification(error, source=f"http:{request.path}")
         return jsonify({"error": str(error)}), 404
 
     @app.errorhandler(ValueError)
     def handle_value_error(error: ValueError):
+        record_host_notification(error, source=f"http:{request.path}")
         return jsonify({"error": str(error)}), 400
+
+    @app.errorhandler(Exception)
+    def handle_unexpected_error(error: Exception):
+        if isinstance(error, HTTPException):
+            return error
+        record_host_notification(error, source=f"http:{request.path}")
+        return jsonify({"error": "服务器内部异常；详细信息已发送到主持台"}), 500
 
     @app.after_request
     def prevent_prototype_asset_cache(response):

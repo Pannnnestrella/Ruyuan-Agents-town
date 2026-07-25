@@ -8,6 +8,7 @@ from typing import Any, Iterable
 from .models import (
     ActionIntent,
     ActionType,
+    ConversationRecord,
     EventRecord,
     GamePhase,
     GameState,
@@ -27,14 +28,12 @@ class RoundEngine:
 
     ACTION_ORDER = {
         ActionType.MOVE: 10,
-        ActionType.HIDE: 20,
         ActionType.TRANSFER: 30,
         ActionType.INVESTIGATE: 40,
         ActionType.TALK: 50,
         ActionType.POST_NOTICE: 55,
         ActionType.TREAT: 60,
-        ActionType.ATTACK: 70,
-        ActionType.ESCAPE: 80,
+        ActionType.POISON: 70,
         ActionType.WAIT: 90,
     }
 
@@ -89,6 +88,10 @@ class RoundEngine:
 
         accepted.sort(key=lambda item: self.ACTION_ORDER[item.action_type])
         round_events: list[EventRecord] = []
+        if action_step == 1:
+            round_events.extend(
+                self._resolve_pending_poisons(state, active_round, action_step)
+            )
         for intent in accepted:
             event = self._resolve_intent(state, intent, active_round)
             event.action_step = action_step
@@ -106,7 +109,8 @@ class RoundEngine:
                         f"{agent.display_name} 本轮没有采取主要行动。",
                         actors=[agent_id],
                         location_id=agent.location_id,
-                        public=True,
+                        public=False,
+                        witnesses=state.occupants(agent.location_id, include_dead=False),
                         payload={"action_step": action_step},
                     )
                 )
@@ -143,7 +147,12 @@ class RoundEngine:
         another major action and do not advance ``action_step``.
         """
 
-        if state.phase not in {GamePhase.READY, GamePhase.PLAYER_TURN}:
+        if state.phase not in {
+            GamePhase.READY,
+            GamePhase.PLAYER_TURN,
+            GamePhase.ROUND_COMPLETE,
+            GamePhase.DISCUSSION,
+        }:
             raise ValueError(f"Cannot take a free action while phase is {state.phase.value}")
         if intent.action_type not in {ActionType.MOVE, ActionType.TALK}:
             raise ValueError("Only moving and talking are free exploration actions")
@@ -178,15 +187,8 @@ class RoundEngine:
             return "only one major action is allowed per actor in one action phase"
         if not action_is_authorized(state, intent):
             return "actor does not have the required character ability"
-        severe_states = {
-            LifeState.SEVERELY_INJURED,
-            LifeState.INCAPACITATED,
-            LifeState.DYING,
-        }
         if intent.action_type == ActionType.INVESTIGATE and actor.life_state != LifeState.ALIVE:
             return "injured characters cannot investigate until fully treated"
-        if intent.action_type in {ActionType.MOVE, ActionType.ESCAPE} and actor.life_state in severe_states:
-            return "severely injured characters cannot move without treatment"
         if intent.action_type == ActionType.MOVE:
             if intent.location_id not in state.locations:
                 return "unknown destination"
@@ -199,7 +201,7 @@ class RoundEngine:
                 return "bulletin content cannot be empty"
         if intent.target_id and intent.target_id not in state.agents:
             return "unknown target agent"
-        if intent.action_type in {ActionType.TALK, ActionType.ATTACK, ActionType.TRANSFER}:
+        if intent.action_type in {ActionType.TALK, ActionType.POISON, ActionType.TRANSFER}:
             target = state.agents.get(intent.target_id or "")
             if target is None or target.agent_id == actor.agent_id:
                 return "target must be another character"
@@ -233,11 +235,11 @@ class RoundEngine:
                 return "the same statement was already made to this character"
         if intent.object_id and intent.object_id not in state.objects:
             return "unknown object"
-        if intent.action_type == ActionType.ATTACK:
+        if intent.action_type == ActionType.POISON:
             active_round = str(state.round_number + 1)
-            attacked = state.flags.get("attacks_by_round", {}).get(active_round, [])
-            if actor.agent_id in attacked:
-                return "each character may attempt at most one attack per round"
+            poisoned = state.flags.get("poisons_by_round", {}).get(active_round, [])
+            if actor.agent_id in poisoned:
+                return "each character may attempt at most one poisoning per round"
         return None
 
     @staticmethod
@@ -274,7 +276,7 @@ class RoundEngine:
         round_number: int,
     ) -> EventRecord:
         selected_ability = str(intent.metadata.get("ability_id") or "") or None
-        if intent.action_type in {ActionType.ATTACK, ActionType.TREAT}:
+        if intent.action_type in {ActionType.POISON, ActionType.TREAT}:
             apply_ability(state, intent, selected_ability)
         elif selected_ability:
             apply_ability(state, intent, selected_ability)
@@ -284,10 +286,8 @@ class RoundEngine:
             ActionType.TALK: self._resolve_talk,
             ActionType.POST_NOTICE: self._resolve_post_notice,
             ActionType.TRANSFER: self._resolve_transfer,
-            ActionType.HIDE: self._resolve_hide,
-            ActionType.ATTACK: self._resolve_attack,
+            ActionType.POISON: self._resolve_poison,
             ActionType.TREAT: self._resolve_treat,
-            ActionType.ESCAPE: self._resolve_escape,
             ActionType.WAIT: self._resolve_wait,
         }
         return handlers[intent.action_type](state, intent, round_number)
@@ -297,20 +297,30 @@ class RoundEngine:
         origin = actor.location_id
         origin_witnesses = state.occupants(origin, include_dead=False)
         actor.location_id = intent.location_id or origin
+        movement = {
+            "from": origin,
+            "to": actor.location_id,
+            "round_number": round_number,
+            "action_step": state.action_step + 1,
+        }
+        actor.location_state["previous_area"] = origin
+        actor.location_state["current_area"] = actor.location_id
+        actor.location_state.setdefault("movement_history", []).append(movement)
         witnesses = list(dict.fromkeys(
             origin_witnesses + state.occupants(actor.location_id, include_dead=False)
         ))
-        return self._event(
+        event = self._event(
             round_number,
             "move",
             f"{actor.display_name} 从{state.locations[origin]['name']}前往{state.locations[actor.location_id]['name']}。",
             actors=[actor.agent_id],
             location_id=actor.location_id,
-            public=True,
+            public=False,
             witnesses=witnesses,
             state_changes=[{"agent_id": actor.agent_id, "location_id": actor.location_id}],
             payload={"origin_id": origin, "destination_id": actor.location_id},
         )
+        return event
 
     def _resolve_investigate(self, state: GameState, intent: ActionIntent, round_number: int) -> EventRecord:
         actor = state.agents[intent.actor_id]
@@ -343,6 +353,22 @@ class RoundEngine:
                 ),
             )[0]
             item.discovered_by.append(actor.agent_id)
+            taken = bool(item.portable and item.holder_id is None)
+            if taken:
+                item.transition(
+                    "take",
+                    round_number=round_number,
+                    action_step=state.action_step,
+                    actor_id=actor.agent_id,
+                    holder_id=actor.agent_id,
+                    location_id=None,
+                    hidden=False,
+                    witnesses=[actor.agent_id],
+                    public=False,
+                )
+                if item.object_id not in actor.inventory:
+                    actor.inventory.append(item.object_id)
+                actor.inventory_state["held_items"] = list(actor.inventory)
             previous_searcher = self._record_search(state, actor.agent_id, location_id, round_number)
             remaining = sum(
                 1 for candidate in state.objects.values()
@@ -359,13 +385,17 @@ class RoundEngine:
                 or item.metadata.get("description")
                 or f"{item.name}可能与当前案件有关。"
             )
-            return self._event(
+            event = self._event(
                 round_number,
                 "discovery",
-                f"{actor.display_name} 在{state.locations[location_id]['name']}发现了{item.name}。",
+                (
+                    f"{actor.display_name} 在{state.locations[location_id]['name']}发现并取得了{item.name}。"
+                    if taken
+                    else f"{actor.display_name} 在{state.locations[location_id]['name']}发现了{item.name}。"
+                ),
                 actors=[actor.agent_id],
                 location_id=location_id,
-                public=True,
+                public=False,
                 witnesses=state.occupants(location_id, include_dead=False),
                 state_changes=[{"object_id": item.object_id, "discovered_by": actor.agent_id}],
                 payload={
@@ -379,8 +409,12 @@ class RoundEngine:
                     "search_progress": progress_hint,
                     "evidence_remaining": bool(remaining),
                     "previous_searcher_id": previous_searcher,
+                    "taken": taken,
                 },
             )
+            if taken and item.history:
+                item.history[-1].event_id = event.event_id
+            return event
         search_history = state.flags.get("location_search_history", {}).get(location_id, [])
         previous_entry = next(
             (entry for entry in reversed(search_history) if entry.get("agent_id") != actor.agent_id),
@@ -403,7 +437,7 @@ class RoundEngine:
             f"{actor.display_name} 搜查了{state.locations[location_id]['name']}，没有发现新物品，但注意到：{observation}",
             actors=[actor.agent_id],
             location_id=location_id,
-            public=True,
+            public=False,
             witnesses=state.occupants(location_id, include_dead=False),
             payload={
                 "disturbance_trace": observation,
@@ -460,13 +494,24 @@ class RoundEngine:
                 displayed_item.discovered_by = list(dict.fromkeys([
                     *displayed_item.discovered_by, *viewers,
                 ]))
-        return self._event(
+                displayed_item.transition(
+                    "display",
+                    round_number=round_number,
+                    action_step=state.action_step,
+                    actor_id=actor.agent_id,
+                    witnesses=viewers,
+                    public=True,
+                )
+                actor.inventory_state.setdefault(
+                    "publicly_revealed_items", []
+                ).append(displayed_item.object_id)
+        event = self._event(
             round_number,
             "conversation",
             f"{actor.display_name} 对{target.display_name}说：“{topic}”",
             actors=[actor.agent_id, target.agent_id],
             location_id=actor.location_id,
-            public=True,
+            public=False,
             witnesses=state.occupants(actor.location_id, include_dead=False),
             payload={
                 "content": topic,
@@ -484,6 +529,22 @@ class RoundEngine:
                 "_host_item_disposition": item_disposition,
             },
         )
+        if displayed_item and displayed_item.history:
+            displayed_item.history[-1].event_id = event.event_id
+        state.conversations.append(ConversationRecord(
+            conversation_id=f"conversation-{event.event_id}",
+            event_id=event.event_id,
+            round_number=round_number,
+            action_step=state.action_step,
+            speaker_id=actor.agent_id,
+            listener_id=target.agent_id,
+            content=topic,
+            location_id=actor.location_id,
+            witnesses=list(event.witnesses),
+            shared_information_id=shared_belief.belief_id if shared_belief else None,
+            displayed_object_id=displayed_item.object_id if displayed_item else None,
+        ))
+        return event
 
     def _resolve_post_notice(self, state: GameState, intent: ActionIntent, round_number: int) -> EventRecord:
         actor = state.agents[intent.actor_id]
@@ -512,190 +573,177 @@ class RoundEngine:
             return self._failed_event(round_number, actor.agent_id, actor.display_name, "交付物品", "目标不在场", actor.location_id)
         if item is None or item.holder_id != actor.agent_id:
             return self._failed_event(round_number, actor.agent_id, actor.display_name, "交付物品", "并未持有该物品", actor.location_id)
-        item.holder_id = target.agent_id
+        item.transition(
+            "transfer",
+            round_number=round_number,
+            action_step=state.action_step,
+            actor_id=actor.agent_id,
+            counterparty_id=target.agent_id,
+            holder_id=target.agent_id,
+            location_id=None,
+            hidden=False,
+            witnesses=state.occupants(actor.location_id, include_dead=False),
+            public=True,
+        )
         actor.inventory.remove(item.object_id)
         target.inventory.append(item.object_id)
-        return self._event(
+        actor.inventory_state["held_items"] = list(actor.inventory)
+        target.inventory_state["held_items"] = list(target.inventory)
+        actor.inventory_state.setdefault("exchanged_items", []).append(item.object_id)
+        target.inventory_state.setdefault("exchanged_items", []).append(item.object_id)
+        event = self._event(
             round_number,
             "object_transfer",
             f"{actor.display_name} 将{item.name}交给了{target.display_name}。",
             actors=[actor.agent_id, target.agent_id],
             location_id=actor.location_id,
-            public=True,
+            public=False,
             witnesses=state.occupants(actor.location_id, include_dead=False),
             state_changes=[{"object_id": item.object_id, "holder_id": target.agent_id}],
         )
+        if item.history:
+            item.history[-1].event_id = event.event_id
+        return event
 
-    def _resolve_hide(self, state: GameState, intent: ActionIntent, round_number: int) -> EventRecord:
-        actor = state.agents[intent.actor_id]
-        item = state.objects.get(intent.object_id or "")
-        if item is None or item.holder_id != actor.agent_id:
-            return self._failed_event(round_number, actor.agent_id, actor.display_name, "藏匿物品", "并未持有该物品", actor.location_id)
-        item.holder_id = None
-        item.location_id = actor.location_id
-        item.hidden = True
-        item.discovered_by = [actor.agent_id]
-        actor.inventory.remove(item.object_id)
-        return self._event(
-            round_number,
-            "object_hidden",
-            f"{actor.display_name} 在{state.locations[actor.location_id]['name']}藏起了一件物品。",
-            actors=[actor.agent_id],
-            location_id=actor.location_id,
-            public=True,
-            witnesses=state.occupants(actor.location_id, include_dead=False),
-            state_changes=[{"object_id": item.object_id, "hidden": True, "location_id": actor.location_id}],
-        )
-
-    def _resolve_attack(self, state: GameState, intent: ActionIntent, round_number: int) -> EventRecord:
+    def _resolve_poison(self, state: GameState, intent: ActionIntent, round_number: int) -> EventRecord:
         actor = state.agents[intent.actor_id]
         target = state.agents.get(intent.target_id or "")
         if target is None or target.location_id != actor.location_id or target.life_state == LifeState.DEAD:
-            return self._failed_event(round_number, actor.agent_id, actor.display_name, "攻击", "目标不在场", actor.location_id)
+            return self._failed_event(round_number, actor.agent_id, actor.display_name, "下毒", "目标不在场", actor.location_id)
 
-        round_attacks = state.flags.setdefault("attacks_by_round", {}).setdefault(
+        round_poisons = state.flags.setdefault("poisons_by_round", {}).setdefault(
             str(round_number), []
         )
-        if actor.agent_id not in round_attacks:
-            round_attacks.append(actor.agent_id)
+        if actor.agent_id not in round_poisons:
+            round_poisons.append(actor.agent_id)
 
         base_chance = float(intent.metadata.get("success_chance", 0.7))
-        if self.random.random() > max(0.0, min(1.0, base_chance)):
-            return self._event(
-                round_number,
-                "attack_failed",
-                f"{actor.display_name} 试图攻击{target.display_name}，但没有得手。",
-                actors=[actor.agent_id, target.agent_id],
-                location_id=actor.location_id,
-                public=True,
-                witnesses=state.occupants(actor.location_id),
-            )
-
-        before_state = target.life_state
-        severe_states = {
-            LifeState.SEVERELY_INJURED,
-            LifeState.INCAPACITATED,
-            LifeState.DYING,
-        }
-        if before_state == LifeState.INJURED or before_state in severe_states:
-            target.life_state = LifeState.DEAD
-            target.health = 0
-        elif intent.metadata.get("first_hit_state") == LifeState.SEVERELY_INJURED.value:
-            target.life_state = LifeState.SEVERELY_INJURED
-            target.health = min(target.health, 30)
-        else:
-            target.life_state = LifeState.INJURED
-            target.health = min(target.health, 65)
-        condition = intent.metadata.get("condition")
-        if condition and condition not in target.conditions:
-            target.conditions.append(str(condition))
-        dropped_items: list[str] = []
-        if target.life_state == LifeState.DEAD:
-            witnesses = state.occupants(actor.location_id)
-            for object_id in list(target.inventory):
-                item = state.objects.get(object_id)
-                if item is None:
-                    continue
-                item.holder_id = None
-                item.location_id = actor.location_id
-                item.hidden = False
-                item.discovered_by = list(dict.fromkeys([*item.discovered_by, *witnesses]))
-                dropped_items.append(object_id)
-            target.inventory.clear()
+        succeeded = self.random.random() <= max(0.0, min(1.0, base_chance))
+        state.flags.setdefault("pending_poisons", []).append({
+            "poisoner_id": actor.agent_id,
+            "target_id": target.agent_id,
+            "queued_round": round_number,
+            "apply_round": round_number + 1,
+            "succeeded": succeeded,
+            "condition": str(intent.metadata.get("condition") or "中毒"),
+            "ability_id": intent.metadata.get("ability_id"),
+        })
         return self._event(
             round_number,
-            "attack",
-            f"{actor.display_name} 攻击了{target.display_name}，后者当前状态为{target.life_state.value}。",
-            actors=[actor.agent_id, target.agent_id],
+            "poison_queued",
+            f"{actor.display_name}秘密对{target.display_name}实施了下毒。",
+            actors=[actor.agent_id],
             location_id=actor.location_id,
-            public=True,
-            witnesses=state.occupants(actor.location_id),
-            state_changes=[{
-                "agent_id": target.agent_id,
-                "health": target.health,
-                "life_state": target.life_state.value,
-            }],
+            public=False,
+            witnesses=[actor.agent_id],
             payload={
-                "previous_life_state": before_state.value,
+                "target_id": target.agent_id,
+                "apply_round": round_number + 1,
+                "succeeded": succeeded,
                 "ability_id": intent.metadata.get("ability_id"),
                 "ability_label": intent.metadata.get("ability_label"),
-                "condition": condition,
-                "dropped_object_ids": dropped_items,
             },
         )
+
+    def _resolve_pending_poisons(
+        self,
+        state: GameState,
+        round_number: int,
+        action_step: int,
+    ) -> list[EventRecord]:
+        pending = list(state.flags.get("pending_poisons", []))
+        remaining: list[dict[str, Any]] = []
+        events: list[EventRecord] = []
+        for dose in pending:
+            if int(dose.get("apply_round", round_number + 1)) > round_number:
+                remaining.append(dose)
+                continue
+            target = state.agents.get(str(dose.get("target_id") or ""))
+            if target is None or target.life_state == LifeState.DEAD:
+                continue
+            if not bool(dose.get("succeeded")):
+                continue
+            before_state = target.life_state
+            target.life_state = (
+                LifeState.DEAD
+                if before_state == LifeState.INJURED
+                else LifeState.INJURED
+            )
+            condition = str(dose.get("condition") or "中毒")
+            if condition not in target.conditions:
+                target.conditions.append(condition)
+            witnesses = state.occupants(target.location_id, include_dead=True)
+            dropped_items: list[str] = []
+            if target.life_state == LifeState.DEAD:
+                for object_id in list(target.inventory):
+                    item = state.objects.get(object_id)
+                    if item is None:
+                        continue
+                    item.transition(
+                        "drop",
+                        round_number=round_number,
+                        action_step=action_step,
+                        actor_id=target.agent_id,
+                        holder_id=None,
+                        location_id=target.location_id,
+                        hidden=False,
+                        witnesses=witnesses,
+                        public=True,
+                    )
+                    item.discovered_by = list(dict.fromkeys([
+                        *item.discovered_by, *witnesses,
+                    ]))
+                    dropped_items.append(object_id)
+                target.inventory.clear()
+                target.inventory_state["held_items"] = []
+            event = self._event(
+                round_number,
+                "poison_effect",
+                f"{target.display_name}突然毒发，当前状态为{target.life_state.value}。",
+                actors=[target.agent_id],
+                location_id=target.location_id,
+                public=False,
+                witnesses=witnesses,
+                state_changes=[{
+                    "agent_id": target.agent_id,
+                    "life_state": target.life_state.value,
+                }],
+                payload={
+                    "previous_life_state": before_state.value,
+                    "condition": condition,
+                    "dropped_object_ids": dropped_items,
+                },
+            )
+            event.action_step = action_step
+            events.append(event)
+        state.flags["pending_poisons"] = remaining
+        return events
 
     def _resolve_treat(self, state: GameState, intent: ActionIntent, round_number: int) -> EventRecord:
         actor = state.agents[intent.actor_id]
         target = state.agents.get(intent.target_id or actor.agent_id)
         if target is None or target.location_id != actor.location_id or target.life_state == LifeState.DEAD:
             return self._failed_event(round_number, actor.agent_id, actor.display_name, "治疗", "目标不在场或已经死亡", actor.location_id)
-        before = target.health
-        target.health = 100
+        before_state = target.life_state
         target.life_state = LifeState.ALIVE
-        target.conditions = [condition for condition in target.conditions if condition == "escaped"]
+        target.conditions = []
         return self._event(
             round_number,
             "treatment",
             f"{actor.display_name} 为{target.display_name}进行了治疗。",
             actors=[actor.agent_id, target.agent_id],
             location_id=actor.location_id,
-            public=True,
+            public=False,
             witnesses=state.occupants(actor.location_id, include_dead=False),
             state_changes=[{
                 "agent_id": target.agent_id,
-                "health": target.health,
                 "life_state": target.life_state.value,
             }],
             payload={
-                "recovered": target.health - before,
+                "previous_life_state": before_state.value,
                 "ability_id": intent.metadata.get("ability_id"),
                 "ability_label": intent.metadata.get("ability_label"),
             },
-        )
-
-    def _resolve_escape(self, state: GameState, intent: ActionIntent, round_number: int) -> EventRecord:
-        actor = state.agents[intent.actor_id]
-        location = state.locations[actor.location_id]
-        is_front_gate = actor.location_id == "front_gate"
-        is_stable_route = actor.location_id == "stable"
-        route_open = (
-            (is_front_gate and not state.flags.get("front_gate_locked", True))
-            or (
-                is_stable_route
-                and bool(
-                    state.flags.get("stable_in_disarray")
-                    or state.flags.get("back_exit_open")
-                )
-            )
-        )
-        if not route_open:
-            return self._event(
-                round_number,
-                "escape_failed",
-                f"{actor.display_name} 试图从{location['name']}离开客栈，但出口封闭且有人看守。",
-                actors=[actor.agent_id],
-                location_id=actor.location_id,
-                public=True,
-                witnesses=state.occupants(actor.location_id, include_dead=False),
-                payload={"reason": "exit_blocked"},
-            )
-
-        if "escaped" not in actor.conditions:
-            actor.conditions.append("escaped")
-        escaped_agents = state.flags.setdefault("escaped_agents", [])
-        if actor.agent_id not in escaped_agents:
-            escaped_agents.append(actor.agent_id)
-        if actor.agent_id == state.flags.get("killer_id"):
-            state.flags["killer_escaped"] = True
-        return self._event(
-            round_number,
-            "escape",
-            f"{actor.display_name} 趁乱从{location['name']}脱离客栈，消失在雨幕中。",
-            actors=[actor.agent_id],
-            location_id=actor.location_id,
-            public=True,
-            witnesses=state.occupants(actor.location_id, include_dead=False),
-            state_changes=[{"agent_id": actor.agent_id, "condition": "escaped"}],
         )
 
     def _resolve_wait(self, state: GameState, intent: ActionIntent, round_number: int) -> EventRecord:
@@ -706,19 +754,9 @@ class RoundEngine:
             f"{actor.display_name} 留在{state.locations[actor.location_id]['name']}观察局势。",
             actors=[actor.agent_id],
             location_id=actor.location_id,
-            public=True,
+            public=False,
             witnesses=state.occupants(actor.location_id, include_dead=False),
         )
-
-    @staticmethod
-    def _life_state_for_health(health: int) -> LifeState:
-        if health <= 0:
-            return LifeState.DEAD
-        if health <= 35:
-            return LifeState.SEVERELY_INJURED
-        if health <= 70:
-            return LifeState.INJURED
-        return LifeState.ALIVE
 
     def _failed_event(
         self,
@@ -735,7 +773,7 @@ class RoundEngine:
             f"{display_name} 尝试{action}，但因{reason}而失败。",
             actors=[actor_id],
             location_id=location_id,
-            public=True,
+            public=False,
             witnesses=[actor_id],
             payload={"action": action, "reason": reason},
         )

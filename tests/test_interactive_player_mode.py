@@ -1,6 +1,8 @@
 import json
+import sqlite3
 import tempfile
 import unittest
+from pathlib import Path
 
 from modules.interactive import ActionIntent, ActionType, GamePhase, GameService, LifeState
 
@@ -39,6 +41,26 @@ class PlayerModeTests(unittest.TestCase):
         self.assertIn("beliefs", view["self"])
         self.assertNotIn("strategic_plan", view["self"])
 
+    def test_final_questions_are_role_specific_and_do_not_expose_answer_key(self):
+        self.session.state.phase = GamePhase.VOTING
+        view = self.session.player_state(self.token)
+        self.assertEqual(len(view["final_questions"]), 3)
+        self.assertTrue(all(question["options"] for question in view["final_questions"]))
+        text = json.dumps(view, ensure_ascii=False)
+        self.assertNotIn("answer_key", text)
+        self.assertNotIn("correct_answer", text)
+
+    def test_player_must_answer_every_final_question(self):
+        self.session.state.phase = GamePhase.VOTING
+        killer_id = self.session.state.flags["killer_id"]
+        with self.assertRaisesRegex(ValueError, "回答全部"):
+            self.session.submit_player_vote(
+                self.token,
+                killer_id,
+                "测试未完成答卷",
+                [],
+            )
+
     def test_player_receives_rich_dossier_opening_and_dynamic_guide(self):
         view = self.session.player_state(self.token)
         self.assertEqual(len(view["background"]["story"]), 3)
@@ -61,7 +83,12 @@ class PlayerModeTests(unittest.TestCase):
 
     def test_bulletin_update_marks_unread_without_leaking_remote_content(self):
         self.session.state.agents["广陵王"].location_id = "room_east"
-        notice = self.session.post_notice("只有回大堂才能读到的测试公告。")
+        notice = self.session.post_notice(
+            "只有回大堂才能读到的测试公告。",
+            authority="agent",
+            publisher="傅融",
+            display_author="傅融",
+        )
         view = self.session.player_state(self.token)
         self.assertTrue(view["bulletin"]["has_unread"])
         self.assertNotIn(notice.notice_id, {item["notice_id"] for item in view["notices"]})
@@ -69,10 +96,10 @@ class PlayerModeTests(unittest.TestCase):
         self.assertTrue(marker)
         self.assertNotIn("测试公告", marker[-1]["summary"])
 
-    def test_conflict_and_treatment_are_character_specific(self):
+    def test_poison_and_treatment_are_character_specific(self):
         actions = self.session.available_player_actions("广陵王")
         self.assertIn("treat", actions["types"])
-        self.assertNotIn("attack", actions["types"])
+        self.assertNotIn("poison", actions["types"])
         self.assertEqual(
             next(item for item in actions["special_actions"] if item["action_type"] == "treat")["label"],
             "楼主调度",
@@ -80,14 +107,14 @@ class PlayerModeTests(unittest.TestCase):
         self.select_quiet()
         with self.assertRaisesRegex(ValueError, "没有执行"):
             self.session.build_player_intent(self.token, {
-                "action_type": "attack",
+                "action_type": "poison",
                 "target_id": "傅融",
             })
 
         self.session.state.flags["killer_id"] = "刘辩"
         killer_actions = self.session.available_player_actions("刘辩")
-        self.assertIn("attack", killer_actions["types"])
-        self.assertEqual(killer_actions["special_actions"][0]["ability_id"], "killer_strike")
+        self.assertIn("poison", killer_actions["types"])
+        self.assertEqual(killer_actions["special_actions"][0]["ability_id"], "killer_poison")
 
     def test_specialized_investigation_does_not_replace_basic_search(self):
         left_session = self.service.create_game(
@@ -117,6 +144,8 @@ class PlayerModeTests(unittest.TestCase):
 
     def test_memory_exchange_names_the_shared_information_and_can_be_reshared(self):
         self.session.state.agents["傅融"].location_id = "lobby"
+        self.session.state.agents["左慈"].location_id = "lobby"
+        self.session.state.agents["袁基"].location_id = "upper_hall"
         self.select_quiet()
         memory = self.session.state.agents["广陵王"].beliefs[0]
         result = self.session.advance_player_action(self.token, {
@@ -132,8 +161,25 @@ class PlayerModeTests(unittest.TestCase):
             if belief.source == outgoing.event_id
         )
         self.assertEqual(received.truth_id, memory.truth_id)
-        self.assertEqual(received.shared_with, ["广陵王"])
-        self.assertNotIn("左慈", received.shared_with)
+        self.assertEqual(set(received.shared_with), {"广陵王", "左慈"})
+        overheard = next(
+            belief for belief in self.session.state.agents["左慈"].beliefs
+            if belief.source == outgoing.event_id
+        )
+        self.assertEqual(overheard.speaker_id, "广陵王")
+        self.assertEqual(overheard.learned_location, "lobby")
+        self.assertEqual(set(overheard.witnesses), set(outgoing.witnesses))
+        self.assertFalse(any(
+            belief.source == outgoing.event_id
+            for belief in self.session.state.agents["袁基"].beliefs
+        ))
+        record = next(
+            item for item in self.session.state.conversations
+            if item.event_id == outgoing.event_id
+        )
+        self.assertEqual(record.speaker_id, "广陵王")
+        self.assertEqual(record.content, outgoing.payload["content"])
+        self.assertEqual(record.location_id, "lobby")
 
     def test_player_can_post_persistent_information_at_lobby_board(self):
         notice = self.session.post_player_notice(self.token, "我在尸体袖口发现了深青丝线，请共同核对。")
@@ -263,8 +309,9 @@ class PlayerModeTests(unittest.TestCase):
         ]
         self.assertEqual([event.action_step for event in player_events], [1, 2, 3])
 
-    def test_secret_discovery_is_scoped_and_scored(self):
+    def test_secret_discovery_is_scoped_without_official_process_score(self):
         self.session.state.agents["广陵王"].location_id = "room_east"
+        self.session.state.agents["刘辩"].location_id = "upper_hall"
         self.select_quiet()
         result = self.session.advance_player_action(self.token, {
             "action_type": "investigate",
@@ -285,7 +332,7 @@ class PlayerModeTests(unittest.TestCase):
             "secret-liubian-identity",
             self.session.state.agents["广陵王"].discovered_secret_ids,
         )
-        self.assertEqual(self.session.state.agents["广陵王"].score, 2)
+        self.assertEqual(self.session.state.agents["广陵王"].score, 0)
         view = self.session.player_state(self.token)
         known_ids = {secret["secret_id"] for secret in view["known_secrets"]}
         self.assertIn("secret-liubian-identity", known_ids)
@@ -295,10 +342,17 @@ class PlayerModeTests(unittest.TestCase):
             self.select_quiet()
             for _ in range(3):
                 view = self.session.player_state(self.token)
-                action = {
-                    "action_type": "investigate",
-                    "location_id": view["self"]["location_id"],
-                }
+                if view["self"]["life_state"] == "dead":
+                    self.session.end_player_round(self.token)
+                    break
+                action = (
+                    {
+                        "action_type": "investigate",
+                        "location_id": view["self"]["location_id"],
+                    }
+                    if view["available_actions"]["can_investigate"]
+                    else {"action_type": "wait"}
+                )
                 self.session.advance_player_action(self.token, action)
         self.assertEqual(self.session.state.phase, GamePhase.DISCUSSION)
         self.assertTrue(self.session.state.flags["final_discussion_done"])
@@ -309,17 +363,154 @@ class PlayerModeTests(unittest.TestCase):
         self.assertTrue(all(
             agent.location_id == "lobby"
             for agent in self.session.state.agents.values()
-            if agent.life_state != LifeState.DEAD and "escaped" not in agent.conditions
+            if agent.life_state != LifeState.DEAD
         ))
         self.session.open_final_vote(self.token)
         self.assertEqual(self.session.state.phase, GamePhase.VOTING)
         killer_id = self.session.state.flags["killer_id"]
-        self.session.submit_player_vote(self.token, killer_id, "我根据自己掌握的线索作出指认。")
+        answers = [
+            {
+                "question_id": question["id"],
+                "answer": self.session._correct_answer_for(question["id"]),
+            }
+            for question in self.session.final_questions_for("广陵王")
+        ]
+        self.session.submit_player_vote(
+            self.token,
+            killer_id,
+            "我根据自己掌握的线索作出指认。",
+            answers,
+        )
         self.assertEqual(self.session.state.phase, GamePhase.FINISHED)
         self.assertTrue(self.session.state.flags["scores_finalized"])
         self.assertEqual(len(self.session.state.votes), 6)
         self.assertEqual(len(self.session.scoreboard()), 6)
-        self.assertTrue(all(agent.score_breakdown for agent in self.session.state.agents.values()))
+        self.assertTrue(all(
+            len(item["answer_results"]) == 3
+            for item in self.session.scoreboard()
+        ))
+        self.assertEqual(
+            len(self.session.state.final_submissions["广陵王"]["answer_results"]),
+            3,
+        )
+        player_submission = self.session.state.final_submissions["广陵王"]
+        self.assertEqual(
+            player_submission["case_conclusion"]["killer"],
+            killer_id,
+        )
+        self.assertIn("reasoning_chain", player_submission["case_conclusion"])
+        self.assertEqual(
+            len(player_submission["personal_task_answers"]),
+            len(self.session.state.agents["广陵王"].personal_tasks),
+        )
+
+    def test_official_scoring_and_history_cover_answers_votes_teams_and_models(self):
+        killer_id = self.session.state.flags["killer_id"]
+        votes = []
+        for agent_id, agent in self.session.state.agents.items():
+            suspect_id = (
+                next(item for item in self.session.state.agents if item != killer_id)
+                if agent_id == killer_id
+                else killer_id
+            )
+            answers = [
+                {
+                    "question_id": question["id"],
+                    "answer": self.session._correct_answer_for(question["id"]),
+                }
+                for question in self.session.final_questions_for(agent_id)
+            ]
+            votes.append({
+                "voter_id": agent_id,
+                "voter_name": agent.display_name,
+                "suspect_id": suspect_id,
+                "suspect_name": self.session.state.agents[suspect_id].display_name,
+                "reason": "测试提交",
+                "answers": answers,
+            })
+            self.session.state.final_submissions[agent_id] = {
+                "vote": {"suspect_id": suspect_id, "reason": "测试提交"},
+                "answers": answers,
+            }
+        self.session.state.flags["voting_result"] = {
+            "killer_found": True,
+        }
+
+        self.session._finalize_scores(
+            votes,
+            killer_found=True,
+        )
+
+        for agent_id, agent in self.session.state.agents.items():
+            expected = 3 if agent_id == killer_id else 11
+            self.assertEqual(agent.score, expected)
+            categories = {entry["category"] for entry in agent.score_breakdown}
+            self.assertIn("correct_answer", categories)
+            if agent_id != killer_id:
+                self.assertIn("innocent_team_found_killer", categories)
+                self.assertIn("correct_vote", categories)
+
+        database = (
+            Path(self.temp_dir.name)
+            / "interactive"
+            / "history"
+            / "score_history.sqlite3"
+        )
+        self.assertTrue(database.exists())
+        connection = sqlite3.connect(database)
+        try:
+            participant_count = connection.execute(
+                "SELECT COUNT(*) FROM participant_runs WHERE game_id = ?",
+                (self.session.state.game_id,),
+            ).fetchone()[0]
+            answer_count = connection.execute(
+                "SELECT COUNT(*) FROM final_answers WHERE game_id = ?",
+                (self.session.state.game_id,),
+            ).fetchone()[0]
+            model_count = connection.execute(
+                "SELECT COUNT(*) FROM model_usage WHERE game_id = ?",
+                (self.session.state.game_id,),
+            ).fetchone()[0]
+        finally:
+            connection.close()
+        self.assertEqual(participant_count, 6)
+        self.assertEqual(answer_count, 18)
+        self.assertGreaterEqual(model_count, 6)
+
+    def test_killer_evading_the_vote_awards_five_points(self):
+        evaded = self.service.create_game(
+            "stormbound_inn",
+            game_id="killer-evaded-vote-score-test",
+            seed=0,
+        )
+        killer_id = evaded.state.flags["killer_id"]
+        votes = []
+        for agent_id, agent in evaded.state.agents.items():
+            suspect_id = next(
+                candidate_id
+                for candidate_id in evaded.state.agents
+                if candidate_id not in {agent_id, killer_id}
+            )
+            votes.append({
+                "voter_id": agent_id,
+                "voter_name": agent.display_name,
+                "suspect_id": suspect_id,
+                "suspect_name": evaded.state.agents[suspect_id].display_name,
+                "reason": "测试错误票",
+                "answers": [],
+            })
+        evaded.state.flags["voting_result"] = {
+            "killer_found": False,
+        }
+        evaded._finalize_scores(
+            votes,
+            killer_found=False,
+        )
+        self.assertEqual(evaded.state.agents[killer_id].score, 5)
+        self.assertEqual(
+            evaded.state.agents[killer_id].score_breakdown[0]["category"],
+            "killer_evaded_vote",
+        )
 
 
 if __name__ == "__main__":

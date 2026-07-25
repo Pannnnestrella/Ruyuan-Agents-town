@@ -6,6 +6,7 @@
     <title>停云客栈 · 实时地图</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/interactive_live.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/interactive_map.css') }}">
 </head>
 <body>
     <section id="live-landing" class="live-landing">
@@ -162,14 +163,14 @@
             <div class="section-heading">
                 <div>
                     <p class="eyebrow">最后一次由你决定</p>
-                    <h2>根据你的记忆，谁是凶手？</h2>
+                    <h2>提交终局投票与密封答卷</h2>
                 </div>
             </div>
             <div class="player-vote-form">
                 <select id="player-vote-target"></select>
                 <textarea id="player-vote-reason" maxlength="240" rows="3" placeholder="写下你依据的行动、对话或线索。"></textarea>
                 <div id="player-goal-assessments" class="goal-assessment-list"></div>
-                <button id="submit-player-vote" class="primary" type="button">提交最终指认</button>
+                <button id="submit-player-vote" class="primary" type="button">提交投票与答卷</button>
             </div>
         </section>
 
@@ -298,6 +299,7 @@
 
     <div id="live-dispatch-layer" class="dispatch-layer" aria-live="polite"></div>
     <div id="live-toast" class="toast hidden"></div>
+    <script src="{{ url_for('static', filename='js/interactive_map.js') }}"></script>
     <script src="{{ url_for('static', filename='js/interactive_live.js') }}"></script>
 </body>
 </html>

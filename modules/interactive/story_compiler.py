@@ -20,14 +20,10 @@ class StoryCompiler:
         "discovery",
         "conversation",
         "object_transfer",
-        "object_hidden",
         "evidence_lost",
-        "attack",
-        "attack_failed",
+        "poison_effect",
         "treatment",
         "move",
-        "escape",
-        "escape_failed",
         "public_intel",
         "vote_cast",
         "killer_revealed",
@@ -155,7 +151,7 @@ class StoryCompiler:
             lines.extend([
                 f"### {thread['display_name']}",
                 "",
-                f"结局：{final_state['life_state']}，体力 {final_state['health']}，位于{final_state['final_location']}。",
+                f"结局：{final_state['life_state']}，位于{final_state['final_location']}。",
                 "",
             ])
             if thread["events"]:

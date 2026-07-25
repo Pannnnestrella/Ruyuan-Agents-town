@@ -11,18 +11,14 @@ from .scenario_loader import LoadedScenario
 
 class RecapBuilder:
     IMPORTANT_EVENT_TYPES = {
-        "attack",
-        "attack_failed",
+        "poison_effect",
         "discovery",
         "object_transfer",
-        "object_hidden",
         "treatment",
         "public_fact",
         "event_card_selected",
         "notice_posted",
         "public_intel",
-        "escape",
-        "escape_failed",
         "vote_cast",
         "killer_revealed",
         "conversation",
@@ -40,7 +36,6 @@ class RecapBuilder:
                 "agent_id": agent.agent_id,
                 "display_name": agent.display_name,
                 "life_state": agent.life_state.value,
-                "health": agent.health,
                 "final_location": state.locations[agent.location_id]["name"],
                 "conditions": list(agent.conditions),
                 "inventory": [state.objects[item_id].name for item_id in agent.inventory],
@@ -50,6 +45,26 @@ class RecapBuilder:
                 "plan_history": list(agent.plan_history),
                 "score": agent.score,
                 "score_breakdown": list(agent.score_breakdown),
+                "models": sorted({
+                    str(item.get("provider_name", "heuristic"))
+                    for item in state.model_usage
+                    if item.get("agent_id") == agent.agent_id
+                }),
+                "answer_results": list(
+                    state.final_submissions.get(
+                        agent.agent_id, {}
+                    ).get("answer_results", [])
+                ),
+                "case_conclusion": dict(
+                    state.final_submissions.get(
+                        agent.agent_id, {}
+                    ).get("case_conclusion", {})
+                ),
+                "personal_task_answers": list(
+                    state.final_submissions.get(
+                        agent.agent_id, {}
+                    ).get("personal_task_answers", [])
+                ),
                 "discovered_secrets": [
                     state.secrets[secret_id].title
                     for secret_id in agent.discovered_secret_ids
@@ -125,6 +140,7 @@ class RecapBuilder:
             "event_cards_used": list(state.used_event_cards),
             "public_intel": list(state.public_intel_history),
             "voting_result": dict(state.flags.get("voting_result", {})),
+            "model_usage": list(state.model_usage),
             "ending_questions": list(loaded.scenario.get("ending_questions", [])),
         }
 
@@ -197,15 +213,46 @@ class RecapBuilder:
             lines.extend([
                 f"### {character['display_name']}",
                 "",
-                f"- 生命状态：{character['life_state']}（体力 {character['health']}）",
+                f"- 人物状态：{character['life_state']}",
                 f"- 最终地点：{character['final_location']}",
                 f"- 状态影响：{conditions}",
                 f"- 最终持有：{inventory}",
                 f"- 最终得分：{character.get('score', 0)}",
+                f"- 使用模型：{'、'.join(character.get('models', [])) or '未记录'}",
             ])
             for score in character.get("score_breakdown", []):
                 sign = "+" if score.get("points", 0) >= 0 else ""
                 lines.append(f"  - {sign}{score.get('points', 0)}：{score.get('reason', '')}")
+            if character.get("answer_results"):
+                lines.append("- 终局答卷：")
+                for answer in character["answer_results"]:
+                    mark = "✓" if answer.get("is_correct") else "✗"
+                    lines.append(
+                        f"  - {mark} {answer.get('prompt', '')}："
+                        f"{answer.get('submitted_label', '未作答')}"
+                        f"（正确答案：{answer.get('correct_label', '')}）"
+                    )
+            conclusion = character.get("case_conclusion", {})
+            if conclusion:
+                lines.extend([
+                    "- 案件闭环：",
+                    f"  - [结论] 凶手：{conclusion.get('killer', '未确定')}",
+                    f"  - [推测] 动机：{conclusion.get('motive') or '未确定'}",
+                    f"  - [结论] 死因：{conclusion.get('true_cause_of_death') or '未确定'}",
+                    f"  - [结论] 死亡时间：{conclusion.get('time_of_death') or '未确定'}",
+                    f"  - [结论] 第一现场：{conclusion.get('primary_crime_scene') or '未确定'}",
+                    f"  - [推测] 推理链：{conclusion.get('reasoning_chain') or '未形成'}",
+                    f"  - [事实] 关键事实记录：{'、'.join(conclusion.get('key_facts', [])) or '无'}",
+                    f"  - [证词] 不可靠证词记录：{'、'.join(conclusion.get('unreliable_testimonies', [])) or '无'}",
+                ])
+            if character.get("personal_task_answers"):
+                lines.append("- 个人任务答案：")
+                for task in character["personal_task_answers"]:
+                    lines.append(
+                        f"  - [结论] {task.get('question', '')}："
+                        f"{task.get('answer', '尚未作答')}"
+                        f"（可信度 {task.get('confidence', 0)}/5）"
+                    )
             if character.get("plan_history"):
                 objectives = []
                 for item in character["plan_history"]:

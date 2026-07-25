@@ -12,7 +12,7 @@ CHARACTER_ABILITIES: dict[str, dict[str, Any]] = {
         "ability_id": "innkeeper_aid",
         "label": "楼主调度",
         "action_type": "treat",
-        "description": "调动绣衣楼随行药物，为自己或同室仍存活的角色完成救治，使其完全恢复健康。",
+        "description": "调动绣衣楼随行药物，为自己或同室受伤的角色完成救治，使其恢复健康。",
         "full_restore": True,
     },
     "傅融": {
@@ -29,15 +29,6 @@ CHARACTER_ABILITIES: dict[str, dict[str, Any]] = {
         "description": "搜查时优先辨认宫制、身份和伪造文书。",
         "search_tags": ["identity", "document", "palace"],
     },
-    "孙策": {
-        "ability_id": "swift_restraint",
-        "label": "疾势擒拿",
-        "action_type": "attack",
-        "description": "每轮至多一次，尝试制住同室角色；有 58% 概率使健康角色受伤，再次命中已经受伤或重伤者可致死，并施加“受制”。",
-        "success_chance": 0.58,
-        "first_hit_state": "injured",
-        "condition": "受制",
-    },
     "左慈": {
         "ability_id": "toxin_diagnosis",
         "label": "辨毒验伤",
@@ -48,12 +39,12 @@ CHARACTER_ABILITIES: dict[str, dict[str, Any]] = {
 }
 
 KILLER_ABILITY: dict[str, Any] = {
-    "ability_id": "killer_strike",
-    "label": "暗针灭口",
-    "action_type": "attack",
-    "description": "凶手专属：每轮至多一次，用暗针袭击同室角色；有 76% 概率使健康者直接重伤，再次命中重伤者会致死。",
+    "ability_id": "killer_poison",
+    "label": "秘密下毒",
+    "action_type": "poison",
+    "description": "凶手专属：每轮至多一次，秘密对同室角色下毒；行动本身无人得知，毒性在下一轮发作。",
     "success_chance": 0.76,
-    "first_hit_state": "severely_injured",
+    "first_hit_state": "injured",
     "condition": "中毒",
     "hidden": True,
 }
@@ -128,8 +119,8 @@ def apply_ability(
 
 
 def action_is_authorized(state: GameState, intent: ActionIntent) -> bool:
-    """Attack and treatment exist only through a matching character ability."""
+    """Poisoning and treatment exist only through a matching character ability."""
 
-    if intent.action_type not in {ActionType.ATTACK, ActionType.TREAT}:
+    if intent.action_type not in {ActionType.POISON, ActionType.TREAT}:
         return True
     return ability_for_action(state, intent.actor_id, intent.action_type) is not None

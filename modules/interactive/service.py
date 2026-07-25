@@ -7,7 +7,9 @@ import hashlib
 import random
 import re
 import secrets as token_secrets
+import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Callable, Protocol
 
@@ -27,7 +29,8 @@ from .models import (
 )
 from .round_engine import RoundEngine
 from .recap import RecapBuilder
-from .persistence import game_state_from_dict
+from .persistence import atomic_write_json, atomic_write_text, game_state_from_dict
+from .history import record_completed_game
 from .scenario_loader import LoadedScenario, ScenarioLoader
 from .trigger_resolver import TriggerResolver
 from .story_compiler import StoryCompiler
@@ -64,6 +67,57 @@ class HeuristicIntentPlanner:
     def __init__(self, *, seed: int = 0):
         self.random = random.Random(seed)
 
+    def _compose_exchange_line(
+        self,
+        speaker_id: str,
+        target_name: str,
+        claim: str,
+    ) -> str:
+        """Turn structured information sharing into characterful dialogue."""
+
+        fact = str(claim).strip().rstrip("。！？；;")
+        character_lines = {
+            "广陵王": [
+                f"{target_name}，先核实一件事：{fact}。你所见的情况与此一致吗？",
+                f"我暂不下结论，但有一点值得查清——{fact}。{target_name}，你怎么看？",
+            ],
+            "傅融": [
+                f"账目可以作假，时辰却总会留下痕迹。{fact}。{target_name}，你能补上缺的那一段吗？",
+                f"{target_name}，我重新核过现有记录：{fact}。若你记得不同，最好现在指出来。",
+            ],
+            "刘辩": [
+                f"说来倒有意思，{fact}。{target_name}，你觉得这是巧合，还是有人故意留下的？",
+                f"{target_name}，我听到一桩颇耐人寻味的事：{fact}。你可别告诉我自己毫无头绪。",
+            ],
+            "孙策": [
+                f"我不绕弯子：{fact}。{target_name}，你见过什么就直说。",
+                f"{fact}。这事靠猜没用，{target_name}，把你知道的时辰和地点对上。",
+            ],
+            "左慈": [
+                f"{target_name}，若把这件事放进前后因果里——{fact}——你觉得哪一处仍说不通？",
+                f"贫道只说亲眼可验之事：{fact}。{target_name}，你的记忆可与它相合？",
+            ],
+            "袁基": [
+                f"{target_name}，我先给你一句实话：{fact}。作为交换，我想听听你的判断。",
+                f"空泛的怀疑没有价值。现有消息是：{fact}。{target_name}，你能提供什么佐证？",
+            ],
+        }
+        options = character_lines.get(speaker_id) or [
+            f"{target_name}，我掌握的情况是：{fact}。你对此知道多少？",
+            f"有件事需要当面核对：{fact}。{target_name}，说说你的看法。",
+        ]
+        return self.random.choice(options)[:180]
+
+    @staticmethod
+    def _low_value_claim(claim: str) -> bool:
+        text = str(claim)
+        return any(fragment in text for fragment in (
+            "留在客栈大堂观察局势",
+            "本轮没有采取主要行动",
+            "公告栏有一条尚未读取的新张贴",
+            "公告栏出现了新张贴",
+        ))
+
     def plan(
         self,
         state: GameState,
@@ -87,33 +141,22 @@ class HeuristicIntentPlanner:
                 continue
 
             if agent_id == killer_id:
-                if "poison_needle" in agent.inventory:
-                    intents.append(ActionIntent(
-                        agent_id,
-                        ActionType.HIDE,
-                        object_id="poison_needle",
-                        reason="必须先处理可能暴露作案手段的细针",
-                    ))
-                    completed = self._report_progress(
-                        progress_callback, agent, completed, active_total
-                    )
-                    continue
                 possible_targets = [
                     other for other in state.agents.values()
                     if other.agent_id != agent_id
                     and other.location_id == agent.location_id
                     and other.can_act
                 ]
-                already_attacked = agent_id in state.flags.get(
-                    "attacks_by_round", {}
+                already_poisoned = agent_id in state.flags.get(
+                    "poisons_by_round", {}
                 ).get(str(state.round_number + 1), [])
-                if possible_targets and not already_attacked and state.round_number >= 1 and self.random.random() < 0.34:
+                if possible_targets and not already_poisoned and state.round_number >= 1 and self.random.random() < 0.34:
                     target = self.random.choice(sorted(possible_targets, key=lambda item: item.agent_id))
                     intent = ActionIntent(
                         agent_id,
-                        ActionType.ATTACK,
+                        ActionType.POISON,
                         target_id=target.agent_id,
-                        reason="趁同室混乱，用暗针削弱可能揭穿自己的人",
+                        reason="秘密下毒，延迟削弱可能在终局投票中指认自己的人",
                     )
                     apply_ability(state, intent)
                     intents.append(intent)
@@ -121,44 +164,15 @@ class HeuristicIntentPlanner:
                         progress_callback, agent, completed, active_total
                     )
                     continue
-                if agent.location_id == "stable" and (
-                    state.flags.get("stable_in_disarray")
-                    or state.flags.get("back_exit_open")
-                ):
-                    intents.append(ActionIntent(
-                        agent_id,
-                        ActionType.ESCAPE,
-                        reason="马厩后方出现机会，必须在终局投票前脱身",
-                    ))
-                    completed = self._report_progress(
-                        progress_callback, agent, completed, active_total
-                    )
-                    continue
-                route = self._shortest_path(state, agent.location_id, "stable")
-                if len(route) > 1 and state.round_number >= 2 and not force_major:
-                    intents.append(ActionIntent(
-                        agent_id,
-                        ActionType.MOVE,
-                        location_id=route[1],
-                        reason="一边伪装调查，一边靠近预定的逃离路线",
-                    ))
-                    completed = self._report_progress(
-                        progress_callback, agent, completed, active_total
-                    )
-                    continue
-
             # Treatment belongs to the innkeeper's character ability.
             if agent_id == "广陵王":
                 wounded = [
                     other for other in state.agents.values()
                     if other.location_id == agent.location_id
-                    and other.life_state in {
-                        LifeState.INJURED, LifeState.SEVERELY_INJURED,
-                        LifeState.INCAPACITATED, LifeState.DYING,
-                    }
+                    and other.life_state == LifeState.INJURED
                 ]
                 if wounded:
-                    target = min(wounded, key=lambda item: item.health)
+                    target = sorted(wounded, key=lambda item: item.agent_id)[0]
                     intent = ActionIntent(agent_id, ActionType.TREAT, target_id=target.agent_id)
                     apply_ability(state, intent)
                     intents.append(intent)
@@ -177,9 +191,7 @@ class HeuristicIntentPlanner:
             ]
             if unseen_notices and agent.location_id != "lobby" and not force_major and self.random.random() < 0.45:
                 route = self._shortest_path(state, agent.location_id, "lobby")
-                if len(route) > 1 and agent.life_state not in {
-                    LifeState.SEVERELY_INJURED, LifeState.INCAPACITATED, LifeState.DYING,
-                }:
+                if len(route) > 1:
                     intents.append(ActionIntent(
                         agent_id,
                         ActionType.MOVE,
@@ -198,17 +210,55 @@ class HeuristicIntentPlanner:
                 and other.location_id == agent.location_id
                 and other.can_act
             ]
+            undiscovered_here = any(
+                item.location_id == agent.location_id
+                and agent_id not in item.discovered_by
+                for item in state.objects.values()
+            )
+            if location.get("searchable") and undiscovered_here:
+                intents.append(
+                    ActionIntent(
+                        agent_id,
+                        ActionType.INVESTIGATE,
+                        location_id=agent.location_id,
+                        reason="当前地点仍有尚未检查的线索，优先完成现场调查",
+                    )
+                )
+                completed = self._report_progress(
+                    progress_callback, agent, completed, active_total
+                )
+                continue
+
+            public_event_ids = {
+                event.event_id for event in state.events if event.public
+            }
+            notices_by_id = {
+                notice.notice_id: notice for notice in state.notices
+            }
             exchange_options: list[tuple[Any, Belief]] = []
             for target in others:
                 for belief in reversed(agent.beliefs):
+                    source_notice = notices_by_id.get(belief.source)
                     if (
                         belief.source not in {"凶手记忆", "个人秘密"}
                         and not str(belief.truth_id or "").startswith("secret:")
+                        and belief.source not in public_event_ids
+                        and not (
+                            source_notice
+                            and target.agent_id in source_notice.seen_by
+                        )
+                        and not self._low_value_claim(belief.claim)
                         and target.agent_id not in belief.shared_with
                         and not any(
-                            GameSession._normalize_dialogue_text(known.claim)
-                            == GameSession._normalize_dialogue_text(belief.claim)
-                            for known in target.beliefs[-60:]
+                            (
+                                belief.truth_id
+                                and known.truth_id == belief.truth_id
+                            )
+                            or (
+                                GameSession._normalize_dialogue_text(known.claim)
+                                == GameSession._normalize_dialogue_text(belief.claim)
+                            )
+                            for known in target.beliefs
                         )
                     ):
                         exchange_options.append((target, belief))
@@ -219,8 +269,12 @@ class HeuristicIntentPlanner:
                     agent_id,
                     ActionType.TALK,
                     target_id=target.agent_id,
-                    content=f"我愿意分享一条尚未与你核对的信息：{shared.claim}。你有能相互印证的线索吗？"[:180],
-                    reason="把尚未告诉对方的情报用于交换，并要求交叉验证",
+                    content=self._compose_exchange_line(
+                        agent_id,
+                        target.display_name,
+                        shared.claim,
+                    ),
+                    reason="依据人物说话方式提出信息、质询或交换条件",
                     metadata={"share_belief_id": shared.belief_id},
                 )
                 intents.append(talk_intent)
@@ -231,12 +285,16 @@ class HeuristicIntentPlanner:
 
             if agent.location_id == "lobby":
                 existing_posts = {notice.content for notice in state.notices}
+                other_agent_ids = set(state.agents) - {agent_id}
                 publishable = next((
                     belief for belief in reversed(agent.beliefs)
                     if belief.confidence >= 0.75
                     and belief.source not in {"凶手记忆", "个人秘密"}
                     and not str(belief.truth_id or "").startswith("secret:")
+                    and belief.source not in public_event_ids
+                    and not self._low_value_claim(belief.claim)
                     and belief.claim not in existing_posts
+                    and not other_agent_ids.issubset(set(belief.shared_with))
                 ), None)
                 if publishable and self.random.random() < 0.25:
                     intents.append(ActionIntent(
@@ -249,25 +307,6 @@ class HeuristicIntentPlanner:
                         progress_callback, agent, completed, active_total
                     )
                     continue
-
-            undiscovered_here = any(
-                item.location_id == agent.location_id
-                and agent_id not in item.discovered_by
-                for item in state.objects.values()
-            )
-            if location.get("searchable") and undiscovered_here:
-                intents.append(
-                    ActionIntent(
-                        agent_id,
-                        ActionType.INVESTIGATE,
-                        location_id=agent.location_id,
-                        reason="先检查当前地点是否留有异常痕迹",
-                    )
-                )
-                completed = self._report_progress(
-                    progress_callback, agent, completed, active_total
-                )
-                continue
 
             connections = list(location.get("connections", []))
             if connections and not force_major:
@@ -363,7 +402,9 @@ class HeuristicIntentPlanner:
         if not candidates:
             return {"suspect_id": voter_id, "reason": "已经没有其他可指认的人。"}
 
-        suspicion_words = ("凶手", "毒", "藏", "逃", "攻击", "异常", "伪造", "指控", "说谎", "失踪")
+        suspicion_words = (
+            "凶手", "毒", "藏", "异常", "伪造", "指控", "说谎", "失踪", "矛盾", "掩护"
+        )
         scores = {candidate.agent_id: 0.0 for candidate in candidates}
         evidence = {candidate.agent_id: [] for candidate in candidates}
         for belief in voter.beliefs:
@@ -379,11 +420,7 @@ class HeuristicIntentPlanner:
             if voter_id not in event.witnesses and voter_id not in event.actors:
                 continue
             event_weight = {
-                "object_hidden": 2.6,
-                "escape_failed": 4.2,
-                "escape": 5.0,
-                "attack": 3.0,
-                "attack_failed": 2.0,
+                "object_transfer": 0.4,
             }.get(event.event_type, 0.0)
             for actor_id in event.actors[:1]:
                 if actor_id in scores and event_weight:
@@ -406,31 +443,78 @@ class HeuristicIntentPlanner:
             if reasons
             else f"现有记忆无法形成铁证，但{suspect.display_name}的行踪最需要重新核对。"
         )
-        participant = next(
-            (item for item in scenario.get("participants", []) if item["id"] == voter_id),
-            {},
+        questions = list(
+            (
+                (scenario.get("final_assessment") or {}).get("questions_by_agent") or {}
+            ).get(voter_id, [])
         )
-        goal_assessments = []
-        for goal in participant.get("goals", []):
-            goal_text = str(goal)
-            related_actions = [
-                event for event in state.events
-                if voter_id in event.actors and event.event_type not in {"move", "wait"}
-            ]
-            achieved = bool(related_actions)
-            goal_assessments.append({
-                "goal": goal_text,
-                "achieved": achieved,
-                "reason": (
-                    f"我能以自己参与的{related_actions[-1].summary}作为依据。"
-                    if related_actions
-                    else "我没有足够的亲历记录证明这个目标已经完成。"
-                )[:180],
+        memory_text = " ".join(belief.claim for belief in voter.beliefs)
+        answers = []
+        for question in questions:
+            options = list(question.get("options", []))
+            if question.get("option_source") == "agents":
+                options = [
+                    {"id": agent.agent_id, "label": agent.display_name}
+                    for agent in state.agents.values()
+                ]
+            answer = ""
+            if question.get("type") == "agent_choice":
+                answer = suspect.agent_id
+            elif options:
+                answer = max(
+                    options,
+                    key=lambda option: sum(
+                        1 for character in str(option.get("label", ""))
+                        if character.strip() and character in memory_text
+                    ),
+                ).get("id", "")
+            answers.append({
+                "question_id": str(question.get("id", "")),
+                "answer": str(answer),
             })
         return {
             "suspect_id": suspect.agent_id,
             "reason": reason[:180],
-            "goal_assessments": goal_assessments,
+            "answers": answers,
+            "case_conclusion": {
+                "killer": suspect.agent_id,
+                "motive": "",
+                "true_cause_of_death": "",
+                "time_of_death": "",
+                "primary_crime_scene": "",
+                "method": "",
+                "weapon_or_medium": "",
+                "approach_route": "",
+                "alibi_method": "",
+                "evidence_disposal": "",
+                "key_facts": [
+                    belief.belief_id for belief in voter.beliefs
+                    if belief.information_type == "fact"
+                ][-4:],
+                "unreliable_testimonies": [
+                    belief.belief_id for belief in voter.beliefs
+                    if belief.information_type == "testimony"
+                    and belief.confidence_score <= 2
+                ][-4:],
+                "reasoning_chain": reason[:180],
+                "alternative_suspects_excluded": [],
+                "confidence": 3,
+            },
+            "personal_task_answers": [
+                {
+                    "question": str(task.get("question", "")),
+                    "answer": str(
+                        task.get("current_hypothesis")
+                        or "依据当前掌握的信息形成暂定答案"
+                    ),
+                    "supporting_facts": list(task.get("known_information", [])),
+                    "supporting_testimonies": [],
+                    "remaining_uncertainty": list(task.get("missing_information", [])),
+                    "confidence": int(task.get("confidence", 0)),
+                }
+                for task in voter.personal_tasks
+            ],
+            "_model_source": "heuristic",
         }
 
     def respond_to_player(
@@ -444,26 +528,67 @@ class HeuristicIntentPlanner:
         """Give a grounded in-character reply when no LLM is available."""
 
         speaker = state.agents[speaker_id]
+        listener = state.agents[player_id]
+        public_event_ids = {
+            event.event_id for event in state.events if event.public
+        }
+        notices_by_id = {
+            notice.notice_id: notice for notice in state.notices
+        }
         shareable = [
             belief for belief in speaker.beliefs
             if belief.source not in {"凶手记忆", "个人秘密"}
+            and not str(belief.truth_id or "").startswith("secret:")
+            and belief.source not in public_event_ids
+            and not (
+                belief.source in notices_by_id
+                and player_id in notices_by_id[belief.source].seen_by
+            )
+            and not self._low_value_claim(belief.claim)
             and player_id not in belief.shared_with
             and not any(
-                GameSession._normalize_dialogue_text(known.claim)
-                == GameSession._normalize_dialogue_text(belief.claim)
-                for known in state.agents[player_id].beliefs[-60:]
+                (
+                    belief.truth_id
+                    and known.truth_id == belief.truth_id
+                )
+                or (
+                    GameSession._normalize_dialogue_text(known.claim)
+                    == GameSession._normalize_dialogue_text(belief.claim)
+                )
+                for known in listener.beliefs
             )
         ]
         shared = shareable[-1] if shareable else None
         if speaker_id == state.flags.get("killer_id"):
-            text = "这件事我也只听到零碎说法。你若有确切时辰或物证，我们可以当面核对。"
+            evasions = [
+                f"{listener.display_name}，你现在追问的是推测，还是已经有了能落到时辰和地点上的证据？",
+                f"先说清楚你依据的是谁的口供。没有来源的怀疑，我不会顺着它替任何人定罪。",
+                f"你把问题问得太快了。若真要查我，就先解释这句话与你掌握的物证如何相连。",
+            ]
+            text = self.random.choice(evasions)
             shared = None
         elif shared:
-            text = f"我能确认的一点是：{shared.claim}。至于你刚才问的事，我还不敢把猜测当成结论。"
+            fact = shared.claim.strip().rstrip("。！？")
+            replies = [
+                f"{fact}。这与刚才的说法究竟相合还是冲突，得把时辰重新排一遍。",
+                f"等等，{listener.display_name}。{fact}。你刚才的判断漏掉了这一处。",
+                f"{fact}。如果这条记忆没有出错，真正需要解释的就不是表面上的那个人。",
+                f"我想到另一件事：{fact}。你愿意用自己的行踪来验证它吗？",
+            ]
+            text = self.random.choice(replies)
         elif "?" in player_message or "？" in player_message:
-            text = "我现在没有足够证据回答。若你愿意说出依据，我会把它和自己的行踪重新核对。"
+            text = self.random.choice([
+                f"这个问题我现在答不死。{listener.display_name}，先把你引用的那条证词来源说清楚。",
+                "我没有能直接支持这个结论的记忆。与其逼我选边，不如先找出两段口供冲突的时辰。",
+                "若只凭现有这些话，我只能说两种解释都成立。你手里有没有能排除其中一种的物证？",
+            ])
         else:
-            text = "我记住了你的话，但在看到相互印证的线索前，我不会贸然下结论。"
+            excerpt = str(player_message).strip()[:45]
+            text = self.random.choice([
+                f"你刚才说“{excerpt}”。这句话里最需要核对的是时间，而不是态度。",
+                f"我听见了，但这还只是你的陈述。谁在场、何时发生、有什么实物能留下来？",
+                f"这条说法可以先记下。下一步应当找一个不依赖你我立场的证据来验证。",
+            ])
         item_request = any(word in player_message for word in ("出示", "展示", "随身", "物品", "搜身", "给我看"))
         display_object_id = None
         item_disposition = "none"
@@ -487,6 +612,7 @@ class HeuristicIntentPlanner:
             "display_object_id": display_object_id,
             "item_disposition": item_disposition,
             "_host_item_disposition": item_disposition,
+            "_model_source": "heuristic_fallback",
         }
 
 
@@ -512,6 +638,7 @@ class GameSession:
         self.random = random.Random(seed + 711)
         self._notice_sequence = len(state.notices)
         self._event_sequence = len(state.events)
+        self._save_lock = threading.RLock()
         self.engine._event_sequence = len(state.events)
         self.director._event_sequence = len(state.events)
         self.trigger_resolver._event_sequence = len(state.events)
@@ -519,6 +646,8 @@ class GameSession:
         self._ensure_pregame_timelines()
         self._discard_legacy_movement_beliefs()
         self._discard_recursive_conversation_beliefs()
+        self._normalize_universal_public_knowledge()
+        self._record_model_assignments()
         self.save()
 
     def _ensure_pregame_timelines(self) -> None:
@@ -629,6 +758,26 @@ class GameSession:
         data["premise"] = self.loaded.scenario["premise"]
         data["planner"] = self.planner.__class__.__name__
         data["planner_provider"] = getattr(self.planner, "provider_name", "heuristic")
+        recent_model_calls = [
+            item for item in self.state.model_usage
+            if item.get("stage") in {"action", "round_discussion"}
+        ][-24:]
+        fallback_calls = [
+            item for item in recent_model_calls
+            if item.get("actual_source") == "heuristic_fallback"
+        ]
+        data["planner_runtime"] = {
+            "recent_calls": len(recent_model_calls),
+            "fallback_calls": len(fallback_calls),
+            "llm_calls": sum(
+                item.get("actual_source") == "llm"
+                for item in recent_model_calls
+            ),
+            "is_falling_back": bool(
+                recent_model_calls
+                and len(fallback_calls) == len(recent_model_calls)
+            ),
+        }
         data["public_facts"] = self.loaded.scenario.get("public_facts", [])
         data["ending_questions"] = self.loaded.scenario.get("ending_questions", [])
         data["game_rules"] = self.loaded.scenario.get("game_rules", [])
@@ -638,15 +787,239 @@ class GameSession:
             data["scoreboard"] = self.scoreboard()
         return data
 
+    def observer_state(self) -> dict[str, Any]:
+        """Return the live-map view without exposing the director's casebook.
+
+        The live observer needs local movement, investigation, and conversation
+        events to animate the map and build character tracks.  Those events are
+        intentionally absent from ``public_state`` because players outside the
+        scene must not learn them.  Secret poisoning attempts remain hidden here;
+        only their later, observable effect may enter the live event stream.
+        """
+
+        data = self.public_state()
+        data["events"] = [
+            event.to_dict()
+            for event in self.state.events
+            if event.event_type != "poison_queued"
+            and not (
+                event.event_type == "action_failed"
+                and event.payload.get("action") == "下毒"
+            )
+        ]
+        return data
+
     def set_planner(self, planner: IntentPlanner) -> dict[str, str]:
         if self.state.phase == GamePhase.RESOLVING:
             raise ValueError("角色正在决策，需等待当前行动完成后再切换模型")
         self.planner = planner
+        self._record_model_assignments(force=True)
         self.save()
         return {
             "planner": planner.__class__.__name__,
             "planner_provider": str(getattr(planner, "provider_name", "heuristic")),
         }
+
+    def _record_model_assignments(self, *, force: bool = False) -> None:
+        provider_name = str(getattr(self.planner, "provider_name", "heuristic"))
+        for agent_id in self.state.agents:
+            assigned = "human" if agent_id == self.state.player_agent_id else provider_name
+            previous = next(
+                (
+                    item for item in reversed(self.state.model_usage)
+                    if item.get("agent_id") == agent_id and item.get("stage") == "assignment"
+                ),
+                None,
+            )
+            if not force and previous and previous.get("provider_name") == assigned:
+                continue
+            self._record_model_usage(
+                agent_id,
+                stage="assignment",
+                actual_source="player_input" if assigned == "human" else "configured",
+                provider_name=assigned,
+            )
+
+    def _record_model_usage(
+        self,
+        agent_id: str,
+        *,
+        stage: str,
+        actual_source: str,
+        provider_name: str | None = None,
+        succeeded: bool = True,
+    ) -> None:
+        self.state.model_usage.append({
+            "usage_id": f"usage-{self.state.game_id}-{len(self.state.model_usage) + 1:05d}",
+            "agent_id": agent_id,
+            "stage": stage,
+            "round_number": self.state.round_number,
+            "action_step": self.state.action_step,
+            "provider_name": provider_name or str(
+                getattr(self.planner, "provider_name", "heuristic")
+            ),
+            "actual_source": actual_source,
+            "succeeded": bool(succeeded),
+        })
+
+    def final_questions_for(self, agent_id: str) -> list[dict[str, Any]]:
+        assessment = dict(self.loaded.scenario.get("final_assessment", {}))
+        authored = list(
+            (assessment.get("questions_by_agent") or {}).get(agent_id, [])
+        )
+        questions: list[dict[str, Any]] = []
+        for raw in authored:
+            question = {
+                key: value for key, value in dict(raw).items()
+                if key not in {"answer", "correct_answer"}
+            }
+            if question.get("option_source") == "agents":
+                question["options"] = [
+                    {"id": other.agent_id, "label": other.display_name}
+                    for other in self.state.agents.values()
+                ]
+            questions.append(question)
+        return questions
+
+    def _correct_answer_for(self, question_id: str) -> str:
+        assessment = dict(self.loaded.scenario.get("final_assessment", {}))
+        rule = dict((assessment.get("answer_key") or {}).get(question_id, {}))
+        resolver = str(rule.get("resolver", ""))
+        if resolver == "literal":
+            return str(rule.get("answer", ""))
+        if resolver == "state_flag":
+            return str(self.state.flags.get(str(rule.get("path", "")), ""))
+        if resolver == "case_manifest":
+            return str(
+                (self.state.flags.get("case_manifest") or {}).get(
+                    str(rule.get("path", "")), ""
+                )
+            )
+        raise ValueError(f"Unsupported final-answer resolver for {question_id}")
+
+    def _clean_final_answers(
+        self,
+        agent_id: str,
+        answers: list[dict[str, Any]] | None,
+    ) -> list[dict[str, str]]:
+        questions = {item["id"]: item for item in self.final_questions_for(agent_id)}
+        cleaned: dict[str, dict[str, str]] = {}
+        for raw in answers or []:
+            question_id = str(raw.get("question_id", ""))
+            answer = str(raw.get("answer", ""))
+            question = questions.get(question_id)
+            if not question:
+                continue
+            valid_answers = {
+                str(option.get("id", "")) for option in question.get("options", [])
+            }
+            if answer not in valid_answers:
+                continue
+            cleaned[question_id] = {
+                "question_id": question_id,
+                "answer": answer,
+            }
+        return [
+            cleaned.get(question_id, {"question_id": question_id, "answer": ""})
+            for question_id in questions
+        ]
+
+    def _structured_final_submission(
+        self,
+        agent_id: str,
+        suspect_id: str,
+        reason: str,
+        case_conclusion: dict[str, Any] | None = None,
+        personal_task_answers: list[dict[str, Any]] | None = None,
+    ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        agent = self.state.agents[agent_id]
+        known_ids = {belief.belief_id for belief in agent.beliefs}
+        facts = [
+            belief.belief_id for belief in agent.beliefs
+            if belief.information_type == "fact"
+        ]
+        testimonies = [
+            belief.belief_id for belief in agent.beliefs
+            if belief.information_type == "testimony"
+        ]
+        raw_case = dict(case_conclusion or {})
+        case_fields = (
+            "motive", "true_cause_of_death", "time_of_death",
+            "primary_crime_scene", "method", "weapon_or_medium",
+            "approach_route", "alibi_method", "evidence_disposal",
+            "reasoning_chain",
+        )
+        cleaned_case: dict[str, Any] = {
+            "killer": (
+                str(raw_case.get("killer") or suspect_id)
+                if str(raw_case.get("killer") or suspect_id) in self.state.agents
+                else suspect_id
+            ),
+            **{
+                key: str(raw_case.get(key) or (
+                    reason if key == "reasoning_chain" else ""
+                ))[:500]
+                for key in case_fields
+            },
+            "key_facts": [
+                str(item) for item in raw_case.get("key_facts", facts[-6:])
+                if str(item) in known_ids
+            ][:12],
+            "unreliable_testimonies": [
+                str(item) for item in raw_case.get(
+                    "unreliable_testimonies", testimonies[-4:]
+                )
+                if str(item) in known_ids
+            ][:12],
+            "alternative_suspects_excluded": [
+                str(item) for item in raw_case.get(
+                    "alternative_suspects_excluded", []
+                )
+                if str(item) in self.state.agents
+                and str(item) != suspect_id
+            ],
+            "confidence": max(0, min(5, int(raw_case.get("confidence", 3)))),
+        }
+
+        submitted_by_question = {
+            str(item.get("question", "")): item
+            for item in personal_task_answers or []
+            if isinstance(item, dict)
+        }
+        cleaned_tasks: list[dict[str, Any]] = []
+        for task in agent.personal_tasks:
+            question = str(task.get("question", ""))
+            raw = dict(submitted_by_question.get(question, {}))
+            cleaned_tasks.append({
+                "question": question,
+                "answer": str(
+                    raw.get("answer")
+                    or task.get("current_hypothesis")
+                    or "尚未形成确定答案"
+                )[:500],
+                "supporting_facts": [
+                    str(item) for item in raw.get(
+                        "supporting_facts", task.get("known_information", facts[-3:])
+                    )
+                    if str(item) in known_ids
+                ][:10],
+                "supporting_testimonies": [
+                    str(item) for item in raw.get(
+                        "supporting_testimonies", testimonies[-3:]
+                    )
+                    if str(item) in known_ids
+                ][:10],
+                "remaining_uncertainty": [
+                    str(item)[:240] for item in raw.get(
+                        "remaining_uncertainty",
+                        task.get("missing_information", []),
+                    )
+                ][:10],
+                "confidence": max(
+                    0, min(5, int(raw.get("confidence", task.get("confidence", 0))))
+                ),
+            })
+        return cleaned_case, cleaned_tasks
 
     def director_state(self) -> dict[str, Any]:
         """Return the omniscient casebook used only by the local host console.
@@ -703,9 +1076,9 @@ class GameSession:
                 ),
             },
             {
-                "stage": "脱身预案",
-                "title": "封锁期间仍在寻找逃脱或转移怀疑的机会",
-                "detail": str(profile.get("escape_plan", "")),
+                "stage": "掩护预案",
+                "title": "凶手试图在终局投票中摆脱正确指认",
+                "detail": str(profile.get("cover_plan", "")),
             },
         ]
 
@@ -885,7 +1258,7 @@ class GameSession:
             "killer_name": killer.display_name if killer else killer_id,
             "motive": str(profile.get("motive", "")),
             "method": str(profile.get("method", "")),
-            "escape_plan": str(profile.get("escape_plan", "")),
+            "cover_plan": str(profile.get("cover_plan", "")),
             "weapon": weapon.to_dict(reveal_hidden=True, reveal_metadata=True)
             if weapon else None,
             "stolen_item": stolen.to_dict(reveal_hidden=True, reveal_metadata=True)
@@ -957,7 +1330,7 @@ class GameSession:
             if player_id == killer_id:
                 objective = "选择一个能推进表面目标、又不会暴露作案事实的行动。别人会记住你做过和说过的一切。"
             else:
-                objective = "自由移动和交谈以探索现场；确认目标后再使用有限的搜查、交付、藏匿、治疗或冲突行动。"
+                objective = "自由移动和交谈以探索现场；确认目标后再使用有限的搜查、交付或治疗行动。"
             if action_number == 1:
                 suggestions = ["先确认现场与同室者", "调查最贴近个人任务的房间", "用问题试探他人掌握了什么"]
             elif action_number < self.state.actions_per_round:
@@ -1010,7 +1383,9 @@ class GameSession:
         )
         global_event_types = {
             "event_card_selected", "public_fact", "public_intel", "world_trigger",
-            "object_hint", "evidence_lost", "killer_revealed", "vote_cast",
+            "object_hint", "object_revealed", "health_changed",
+            "life_state_changed", "object_dropped",
+            "evidence_lost", "killer_revealed", "vote_cast",
             "bulletin_updated",
         }
         known_events = [
@@ -1031,7 +1406,6 @@ class GameSession:
                 "display_name": other.display_name,
                 "public_role": other.public_role,
                 "location_id": other.location_id,
-                "health": other.health,
                 "life_state": other.life_state.value,
                 "conditions": list(other.conditions),
                 "is_self": other_id == player_id,
@@ -1138,6 +1512,10 @@ class GameSession:
                 "intel": self.intel_suggestions(),
             } if may_choose_host_event else None,
             "requires_vote": self.state.phase == GamePhase.VOTING,
+            "final_questions": (
+                self.final_questions_for(player_id)
+                if self.state.phase == GamePhase.VOTING else []
+            ),
             "can_open_voting": self.state.phase == GamePhase.DISCUSSION,
             "voting_candidates": [
                 {"id": other.agent_id, "name": other.display_name, "role": other.public_role}
@@ -1188,17 +1566,14 @@ class GameSession:
             if belief.source != "凶手记忆"
         ]
         action_types = [
-            "move", "investigate", "talk", "transfer", "hide", "escape",
+            "move", "investigate", "talk", "transfer",
         ]
         for ability in special_actions:
             action_type = str(ability["action_type"])
-            if action_type in {"attack", "treat"} and action_type not in action_types:
+            if action_type in {"poison", "treat"} and action_type not in action_types:
                 action_types.append(action_type)
-        severe = actor.life_state in {
-            LifeState.SEVERELY_INJURED, LifeState.INCAPACITATED, LifeState.DYING,
-        }
-        already_attacked = player_id in self.state.flags.get(
-            "attacks_by_round", {}
+        already_poisoned = player_id in self.state.flags.get(
+            "poisons_by_round", {}
         ).get(str(self.state.round_number + 1), [])
         return {
             "can_submit": can_submit,
@@ -1225,7 +1600,7 @@ class GameSession:
             "moves": [
                 {"id": location_id, "name": self.state.locations[location_id]["name"]}
                 for location_id in self.state.locations[actor.location_id].get("connections", [])
-            ] if not severe else [],
+            ],
             "people": people,
             "inventory": inventory,
             "shareable_memories": shareable_memories,
@@ -1233,8 +1608,7 @@ class GameSession:
                 self.state.locations[actor.location_id].get("searchable")
                 and actor.life_state == LifeState.ALIVE
             ),
-            "can_attack_this_round": not already_attacked,
-            "can_escape": actor.location_id in {"front_gate", "stable"},
+            "can_poison_this_round": not already_poisoned,
             "special_actions": special_actions,
             "types": action_types,
         }
@@ -1258,13 +1632,13 @@ class GameSession:
             metadata={"planner_source": "player"},
         )
         if not action_is_authorized(self.state, intent):
-            raise ValueError("你的角色没有执行这项冲突或治疗行动的能力")
+            raise ValueError("你的角色没有执行这项下毒或治疗行动的能力")
         selected_ability_id = str(raw.get("ability_id") or "")
         if selected_ability_id:
             ability = apply_ability(self.state, intent, selected_ability_id)
             if not ability:
                 raise ValueError("这项专属技能不属于你的角色，或不能用于当前行动")
-        elif action_type in {ActionType.ATTACK, ActionType.TREAT}:
+        elif action_type in {ActionType.POISON, ActionType.TREAT}:
             apply_ability(self.state, intent)
         share_belief_id = str(raw.get("share_belief_id") or "")
         if share_belief_id:
@@ -1298,6 +1672,16 @@ class GameSession:
                 "display_name": agent.display_name,
                 "score": agent.score,
                 "breakdown": list(agent.score_breakdown),
+                "models": sorted({
+                    str(item.get("provider_name", "heuristic"))
+                    for item in self.state.model_usage
+                    if item.get("agent_id") == agent.agent_id
+                }),
+                "answer_results": list(
+                    self.state.final_submissions.get(
+                        agent.agent_id, {}
+                    ).get("answer_results", [])
+                ),
             }
             for agent in sorted(
                 self.state.agents.values(), key=lambda item: (-item.score, item.agent_id)
@@ -1363,6 +1747,12 @@ class GameSession:
 
         self._notice_sequence += 1
         present = self.state.occupants(location_id, include_dead=False)
+        is_host_publication = authority == "host"
+        readers = (
+            [agent_id for agent_id, agent in self.state.agents.items() if agent.can_act]
+            if is_host_publication
+            else present
+        )
         notice = Notice(
             notice_id=f"notice-{self._notice_sequence:04d}",
             round_number=self.state.round_number,
@@ -1371,20 +1761,24 @@ class GameSession:
             content=content,
             location_id=location_id,
             authority=authority,
-            seen_by=list(present),
+            seen_by=list(readers),
         )
         self.state.notices.append(notice)
-        self._add_notice_beliefs(notice, present)
+        self._add_notice_beliefs(notice, readers)
         event = self._event(
             "notice_posted",
             f"{display_author}在{self.state.locations[location_id]['name']}公告板发布：{content}",
             public=True,
             location_id=location_id,
-            witnesses=present,
-            payload={"notice_id": notice.notice_id},
+            witnesses=readers,
+            payload={
+                "notice_id": notice.notice_id,
+                "universally_known": is_host_publication,
+            },
         )
         self.state.events.append(event)
-        self._signal_bulletin_update(notice, present)
+        if not is_host_publication:
+            self._signal_bulletin_update(notice, present)
         self.save()
         return notice
 
@@ -1502,6 +1896,7 @@ class GameSession:
         )
         self.state.events.append(event)
         confidence = max(0.0, min(1.0, float(intel.get("reliability", 0.75))))
+        all_agent_ids = list(self.state.agents)
         for agent in self.state.agents.values():
             if not agent.can_act:
                 continue
@@ -1512,6 +1907,7 @@ class GameSession:
                 confidence=confidence,
                 stance="reported",
                 learned_round=self.state.round_number,
+                shared_with=[agent_id for agent_id in all_agent_ids if agent_id != agent.agent_id],
             ))
         self.save()
         return intel, event
@@ -1576,6 +1972,12 @@ class GameSession:
         if not self.state.player_agent_id:
             raise ValueError("这不是角色代入局")
         player_intent = self.build_player_intent(token, raw_intent)
+        self._record_model_usage(
+            player_intent.actor_id,
+            stage="action",
+            actual_source="player_input",
+            provider_name="human",
+        )
         if player_intent.action_type in {ActionType.MOVE, ActionType.TALK}:
             result = self.engine.resolve_free_action(self.state, player_intent)
             if player_intent.action_type == ActionType.TALK and result.events:
@@ -1584,6 +1986,8 @@ class GameSession:
                 if reply_to_event_id:
                     outgoing.payload["reply_to_event_id"] = reply_to_event_id
                     outgoing.payload["is_player_reply"] = True
+                    if self.state.conversations:
+                        self.state.conversations[-1].reply_to_event_id = reply_to_event_id
                 else:
                     outgoing.payload["awaiting_reply"] = True
                     if progress_callback:
@@ -1635,6 +2039,8 @@ class GameSession:
                         reply = reply_result.events[0]
                         reply.payload["is_reply"] = True
                         reply.payload["reply_to_event_id"] = outgoing.event_id
+                        if self.state.conversations:
+                            self.state.conversations[-1].reply_to_event_id = outgoing.event_id
                         result.events.extend(reply_result.events)
                     if progress_callback:
                         target = self.state.agents[player_intent.target_id or ""]
@@ -1774,9 +2180,19 @@ class GameSession:
             )
             major_by_actor: dict[str, ActionIntent] = {}
             # AI navigation and conversation are free just like the human
-            # player's. Two bounded preludes keep autonomous rounds lively
-            # without allowing a model to loop forever before its real action.
+            # player's. The bound prevents an autonomous conversation loop; on
+            # the final prelude, repeated talk is redirected toward unexplored
+            # space so a crowded room cannot starve investigation forever.
             for free_pass in range(3):
+                if free_pass == 2 or (
+                    free_pass == 0 and not self.state.player_agent_id
+                ):
+                    current = [
+                        self._exploration_intent(intent.actor_id) or intent
+                        if intent.action_type == ActionType.TALK
+                        else intent
+                        for intent in current
+                    ]
                 free_actor_ids: list[str] = []
                 for intent in current:
                     if intent.actor_id in major_by_actor:
@@ -1797,7 +2213,7 @@ class GameSession:
                 current = self._plan_actor_intents(
                     free_actor_ids,
                     progress_callback=None,
-                    force_major=free_pass >= 1,
+                    force_major=False,
                 )
             for intent in current:
                 if intent.actor_id in major_by_actor:
@@ -1852,8 +2268,16 @@ class GameSession:
             self.state.active_event_card = None
             self.state.active_public_intel = None
             if self.state.phase == GamePhase.ROUND_COMPLETE:
+                discussion_events = self._prepare_round_discussion(
+                    progress_callback=progress_callback,
+                )
+                result.events.extend(discussion_events)
                 self.state.phase = GamePhase.INTERVENTION
             elif self.state.phase == GamePhase.DISCUSSION:
+                discussion_events = self._prepare_round_discussion(
+                    progress_callback=progress_callback,
+                )
+                result.events.extend(discussion_events)
                 discussion_events = self._prepare_final_discussion()
                 result.events.extend(discussion_events)
                 if not self.state.player_agent_id:
@@ -1865,6 +2289,268 @@ class GameSession:
         if self.state.phase == GamePhase.FINISHED:
             self.save_recap()
         return result
+
+    def _prepare_round_discussion(
+        self,
+        *,
+        progress_callback: Callable[[dict[str, Any]], None] | None = None,
+    ) -> list[EventRecord]:
+        """Gather active characters and run two grounded discussion waves."""
+
+        round_number = self.state.round_number
+        completed_rounds = self.state.flags.setdefault(
+            "completed_round_discussions", []
+        )
+        if round_number in completed_rounds:
+            return []
+        completed_rounds.append(round_number)
+
+        total_limit = 100
+        used = int(self.state.flags.get("round_discussion_turns", 0))
+        remaining = max(0, total_limit - used)
+        active_ids = [
+            agent_id for agent_id, agent in self.state.agents.items()
+            if agent.can_act
+        ]
+        if len(active_ids) < 2 or remaining <= 0:
+            return []
+
+        events: list[EventRecord] = []
+        for agent_id in active_ids:
+            agent = self.state.agents[agent_id]
+            if agent.location_id == "lobby":
+                continue
+            origin_id = agent.location_id
+            agent.location_id = "lobby"
+            agent.location_state["current_area"] = "lobby"
+            move = self._event(
+                "move",
+                f"第{round_number}轮讨论开始，{agent.display_name}返回客栈大堂。",
+                public=False,
+                location_id="lobby",
+                witnesses=list(active_ids),
+                payload={
+                    "origin_id": origin_id,
+                    "destination_id": "lobby",
+                    "round_discussion_gathering": True,
+                    "free_action": True,
+                },
+            )
+            move.actors = [agent_id]
+            self.state.events.append(move)
+            events.append(move)
+
+        start = self._event(
+            "round_discussion_started",
+            f"第{round_number}轮行动结束，仍能行动的角色回到大堂集中讨论。",
+            public=True,
+            location_id="lobby",
+            witnesses=list(active_ids),
+            payload={
+                "round_discussion": True,
+                "dialogue_limit": total_limit,
+                "dialogue_used_before": used,
+            },
+        )
+        self.state.events.append(start)
+        events.append(start)
+
+        responder = getattr(self.planner, "respond_to_player", None)
+        if not callable(responder):
+            responder = HeuristicIntentPlanner(seed=round_number).respond_to_player
+        speaker_ids = [
+            agent_id for agent_id in active_ids
+            if agent_id != self.state.player_agent_id
+        ]
+        turn_budget = min(remaining, len(speaker_ids) * 2)
+        previous_wave: dict[str, tuple[str, str]] = {}
+        turns_completed = 0
+
+        for wave in range(2):
+            wave_speakers = speaker_ids[
+                :max(0, min(len(speaker_ids), turn_budget - turns_completed))
+            ]
+            if not wave_speakers:
+                break
+            prompts: dict[str, tuple[str, str]] = {}
+            for index, speaker_id in enumerate(wave_speakers):
+                listener_id = active_ids[
+                    (active_ids.index(speaker_id) + 1 + wave) % len(active_ids)
+                ]
+                if listener_id == speaker_id:
+                    listener_id = active_ids[
+                        (active_ids.index(speaker_id) + 1) % len(active_ids)
+                    ]
+                if wave == 0:
+                    message = (
+                        f"第{round_number}轮行动已经结束。请根据你亲历的行动、"
+                        "新发现和仍未解释的矛盾，向在场众人提出一个具体判断或问题。"
+                    )
+                else:
+                    incoming = previous_wave.get(listener_id)
+                    if incoming:
+                        listener_id, message = incoming
+                    else:
+                        message = (
+                            "有人已经提出了本轮判断。请回应其中与你记忆相符或冲突的一点，"
+                            "不要只复述自己的旧信息。"
+                        )
+                prompts[speaker_id] = (listener_id, message)
+
+            replies: dict[str, dict[str, Any]] = {}
+            with ThreadPoolExecutor(
+                max_workers=min(6, len(prompts)),
+                thread_name_prefix="round-discussion",
+            ) as executor:
+                futures = {
+                    executor.submit(
+                        responder,
+                        self.state,
+                        self.loaded.scenario,
+                        speaker_id,
+                        listener_id,
+                        message,
+                    ): speaker_id
+                    for speaker_id, (listener_id, message) in prompts.items()
+                }
+                for future in as_completed(futures):
+                    speaker_id = futures[future]
+                    try:
+                        replies[speaker_id] = dict(future.result())
+                    except Exception as error:
+                        replies[speaker_id] = {
+                            "content": "这一轮的信息仍有矛盾，我需要先核对时辰与来源。",
+                            "share_belief_id": None,
+                            "_model_source": "heuristic_fallback",
+                            "_model_error": type(error).__name__,
+                        }
+
+            for speaker_id in wave_speakers:
+                if turns_completed >= turn_budget:
+                    break
+                listener_id, _ = prompts[speaker_id]
+                reply = replies[speaker_id]
+                content = str(reply.get("content") or "").strip()[:180]
+                if not content:
+                    continue
+                metadata: dict[str, Any] = {}
+                for source_key, target_key in (
+                    ("share_belief_id", "share_belief_id"),
+                    ("display_object_id", "display_object_id"),
+                    ("item_disposition", "item_disposition"),
+                ):
+                    if reply.get(source_key):
+                        metadata[target_key] = reply[source_key]
+                intent = ActionIntent(
+                    actor_id=speaker_id,
+                    action_type=ActionType.TALK,
+                    target_id=listener_id,
+                    content=content,
+                    reason="轮末集中讨论中回应他人的线索与推理",
+                    metadata=metadata,
+                )
+                talk_result = self.engine.resolve_free_action(self.state, intent)
+                if not talk_result.events:
+                    continue
+                event = talk_result.events[0]
+                source = str(reply.get("_model_source") or "heuristic_fallback")
+                event.payload.update({
+                    "round_discussion": True,
+                    "discussion_wave": wave + 1,
+                    "planner_source": source,
+                    "model_error": reply.get("_model_error"),
+                })
+                self._update_beliefs_from_round_events([event])
+                self._apply_scoring_from_events([event])
+                events.append(event)
+                previous_wave[speaker_id] = (speaker_id, content)
+                turns_completed += 1
+                self._record_model_usage(
+                    speaker_id,
+                    stage="round_discussion",
+                    actual_source=source,
+                    provider_name=str(
+                        getattr(self.planner, "provider_name", "heuristic")
+                    ),
+                )
+                if progress_callback:
+                    progress_callback({
+                        "stage": "round_discussion",
+                        "agent_id": speaker_id,
+                        "display_name": self.state.agents[speaker_id].display_name,
+                        "status": "completed",
+                        "completed": turns_completed,
+                        "total": turn_budget,
+                        "source": source,
+                    })
+
+        self.state.flags["round_discussion_turns"] = used + turns_completed
+        end = self._event(
+            "round_discussion_ended",
+            (
+                f"第{round_number}轮集中讨论结束，共形成{turns_completed}次发言；"
+                f"全局讨论额度已使用{used + turns_completed}/{total_limit}。"
+            ),
+            public=True,
+            location_id="lobby",
+            witnesses=list(active_ids),
+            payload={
+                "round_discussion": True,
+                "turns": turns_completed,
+                "dialogue_used": used + turns_completed,
+                "dialogue_limit": total_limit,
+            },
+        )
+        self.state.events.append(end)
+        events.append(end)
+        self._deliver_unseen_notices()
+        return events
+
+    def _exploration_intent(self, agent_id: str) -> ActionIntent | None:
+        """Route an idle conversational loop toward a still-unknown clue."""
+
+        agent = self.state.agents.get(agent_id)
+        if agent is None:
+            return None
+        targets: list[tuple[int, int, str, list[str]]] = []
+        for location_id, location in self.state.locations.items():
+            if not location.get("searchable"):
+                continue
+            unknown_count = sum(
+                1 for item in self.state.objects.values()
+                if item.location_id == location_id
+                and agent_id not in item.discovered_by
+            )
+            if not unknown_count:
+                continue
+            route = HeuristicIntentPlanner._shortest_path(
+                self.state,
+                agent.location_id,
+                location_id,
+            )
+            if not route:
+                continue
+            targets.append((len(route), -unknown_count, location_id, route))
+        if not targets:
+            return None
+        targets.sort(key=lambda item: item[:3])
+        nearest_distance = targets[0][0]
+        nearest = [item for item in targets if item[0] == nearest_distance]
+        agent_order = list(self.state.agents).index(agent_id)
+        _, _, destination, route = nearest[agent_order % len(nearest)]
+        if len(route) == 1:
+            return ActionIntent(
+                actor_id=agent_id,
+                action_type=ActionType.INVESTIGATE,
+                location_id=destination,
+                reason="交谈告一段落，当前地点仍有未检查线索",
+            )
+        return ActionIntent(
+            actor_id=agent_id,
+            action_type=ActionType.MOVE,
+            location_id=route[1],
+            reason="交谈告一段落，前往仍有未发现线索的地点",
+        )
 
     def _plan_actor_intents(
         self,
@@ -1912,6 +2598,20 @@ class GameSession:
                     if intent.actor_id in replacements else intent
                     for intent in intents
                 ]
+        for intent in intents:
+            source = str(intent.metadata.get("planner_source") or "")
+            if not source:
+                source = (
+                    "heuristic"
+                    if self.planner.__class__.__name__ == "HeuristicIntentPlanner"
+                    else "llm"
+                )
+            self._record_model_usage(
+                intent.actor_id,
+                stage="action",
+                actual_source=source,
+                succeeded=source not in {"heuristic_fallback", "ability_guard"},
+            )
         return intents
 
     def build_recap(self, *, allow_incomplete: bool = False) -> dict[str, Any]:
@@ -1919,61 +2619,129 @@ class GameSession:
             raise ValueError("Recap is available after the final round")
         return self.recap_builder.build(self.loaded, self.state)
 
+    def build_action_timeline(self) -> dict[str, Any]:
+        """Return an analysis-friendly chronology without secret poison attempts."""
+
+        max_rounds = self.state.max_rounds
+        actions_per_round = self.state.actions_per_round
+        title = f"{max_rounds}轮{max_rounds * actions_per_round}次主要行动事件线"
+        rounds: list[dict[str, Any]] = []
+        for round_number in range(1, max_rounds + 1):
+            items = []
+            for event in self.state.events:
+                if event.round_number != round_number:
+                    continue
+                if event.event_type == "poison_queued":
+                    continue
+                if (
+                    event.event_type == "action_failed"
+                    and event.payload.get("action") == "下毒"
+                ):
+                    continue
+                if event.payload.get("round_discussion"):
+                    stage = "轮末讨论"
+                elif event.payload.get("free_action"):
+                    stage = "自由行动"
+                elif event.action_step:
+                    stage = f"主要行动 {event.action_step}"
+                else:
+                    stage = "局势与公开信息"
+                items.append({
+                    "event_id": event.event_id,
+                    "stage": stage,
+                    "event_type": event.event_type,
+                    "summary": event.summary,
+                    "actors": list(event.actors),
+                    "location_id": event.location_id,
+                    "action_step": event.action_step,
+                    "planner_source": event.payload.get("planner_source"),
+                })
+            rounds.append({
+                "round_number": round_number,
+                "events": items,
+            })
+        return {
+            "title": title,
+            "game_id": self.state.game_id,
+            "scenario_id": self.state.scenario_id,
+            "rounds_completed": self.state.round_number,
+            "max_rounds": max_rounds,
+            "actions_per_round": actions_per_round,
+            "discussion_turns": int(
+                self.state.flags.get("round_discussion_turns", 0)
+            ),
+            "discussion_limit": 100,
+            "rounds": rounds,
+        }
+
+    def action_timeline_text(self) -> str:
+        timeline = self.build_action_timeline()
+        lines = [
+            timeline["title"],
+            (
+                f"局号：{timeline['game_id']}｜已完成 "
+                f"{timeline['rounds_completed']}/{timeline['max_rounds']} 轮｜"
+                f"轮末讨论 {timeline['discussion_turns']}/"
+                f"{timeline['discussion_limit']} 次"
+            ),
+            "",
+        ]
+        for round_data in timeline["rounds"]:
+            lines.append(f"第 {round_data['round_number']} 轮")
+            if not round_data["events"]:
+                lines.append("- 尚无事件")
+            for event in round_data["events"]:
+                source = (
+                    f"｜决策源：{event['planner_source']}"
+                    if event.get("planner_source")
+                    else ""
+                )
+                lines.append(
+                    f"- [{event['stage']}｜{event['event_type']}{source}] "
+                    f"{event['summary']}"
+                )
+            lines.append("")
+        return "\n".join(lines).rstrip() + "\n"
+
     def save_recap(self) -> tuple[Path, Path]:
-        recap = self.build_recap()
-        game_dir = self.results_root / "interactive" / self.state.game_id
-        game_dir.mkdir(parents=True, exist_ok=True)
-        json_path = game_dir / "recap.json"
-        markdown_path = game_dir / "recap.md"
-        json_path.write_text(
-            json.dumps(recap, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        markdown_path.write_text(
-            self.recap_builder.to_markdown(recap),
-            encoding="utf-8",
-        )
-        outline = self.story_compiler.compile(recap)
-        (game_dir / "story-outline.json").write_text(
-            json.dumps(outline, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        (game_dir / "story-outline.md").write_text(
-            self.story_compiler.to_markdown(outline),
-            encoding="utf-8",
-        )
-        return json_path, markdown_path
+        with self._save_lock:
+            recap = self.build_recap()
+            game_dir = self.results_root / "interactive" / self.state.game_id
+            game_dir.mkdir(parents=True, exist_ok=True)
+            json_path = game_dir / "recap.json"
+            markdown_path = game_dir / "recap.md"
+            atomic_write_json(json_path, recap)
+            atomic_write_text(markdown_path, self.recap_builder.to_markdown(recap))
+            outline = self.story_compiler.compile(recap)
+            atomic_write_json(game_dir / "story-outline.json", outline)
+            atomic_write_text(game_dir / "story-outline.md", self.story_compiler.to_markdown(outline))
+            return json_path, markdown_path
 
     def build_story_outline(self) -> dict[str, Any]:
         return self.story_compiler.compile(self.build_recap())
 
     def save(self, *, round_result: RoundResult | None = None) -> Path:
-        game_dir = self.results_root / "interactive" / self.state.game_id
-        game_dir.mkdir(parents=True, exist_ok=True)
-        state_path = game_dir / "state.json"
-        state_path.write_text(
-            json.dumps(self.state.to_dict(include_private=True), ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        if round_result is not None:
-            round_path = game_dir / f"round-{round_result.round_number:02d}.json"
-            round_path.write_text(
-                json.dumps(round_result.to_dict(), ensure_ascii=False, indent=2),
-                encoding="utf-8",
+        with self._save_lock:
+            game_dir = self.results_root / "interactive" / self.state.game_id
+            game_dir.mkdir(parents=True, exist_ok=True)
+            state_path = game_dir / "state.json"
+            atomic_write_json(state_path, self.state.to_dict(include_private=True))
+            if round_result is not None:
+                round_path = game_dir / f"round-{round_result.round_number:02d}.json"
+                atomic_write_json(round_path, round_result.to_dict())
+            metadata_path = game_dir / "metadata.json"
+            atomic_write_json(
+                metadata_path,
+                {
+                    "game_id": self.state.game_id,
+                    "scenario_id": self.state.scenario_id,
+                    "title": self.loaded.scenario["title"],
+                    "round_number": self.state.round_number,
+                    "max_rounds": self.state.max_rounds,
+                    "phase": self.state.phase.value,
+                },
             )
-        metadata_path = game_dir / "metadata.json"
-        metadata_path.write_text(
-            json.dumps({
-                "game_id": self.state.game_id,
-                "scenario_id": self.state.scenario_id,
-                "title": self.loaded.scenario["title"],
-                "round_number": self.state.round_number,
-                "max_rounds": self.state.max_rounds,
-                "phase": self.state.phase.value,
-            }, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        return state_path
+            return state_path
 
     def _deliver_unseen_notices(self) -> None:
         for notice in self.state.notices:
@@ -1983,7 +2751,7 @@ class GameSession:
             unseen = [agent_id for agent_id in present if agent_id not in notice.seen_by]
             if unseen:
                 notice.seen_by.extend(unseen)
-                self._add_notice_beliefs(notice, unseen)
+                self._add_notice_beliefs(notice, list(notice.seen_by))
 
     def _commit_strategic_plans(
         self,
@@ -2042,14 +2810,14 @@ class GameSession:
                 speaker = event.payload.get("speaker_id")
                 listener = event.payload.get("listener_id")
                 content = event.payload.get("content", "")
-                if listener and content:
-                    recipients.append((
-                        listener,
+                if content:
+                    recipients.extend((
+                        witness,
                         "reported",
                         float(event.payload.get("shared_confidence") or 0.65),
-                    ))
+                    ) for witness in event.witnesses if witness != speaker)
                 shared_belief_id = event.payload.get("shared_belief_id")
-                if speaker and listener and shared_belief_id:
+                if speaker and shared_belief_id:
                     speaker_state = self.state.agents.get(speaker)
                     shared = next(
                         (
@@ -2058,11 +2826,24 @@ class GameSession:
                         ),
                         None,
                     ) if speaker_state else None
-                    if shared and listener not in shared.shared_with:
-                        shared.shared_with.append(listener)
-                for witness in event.witnesses:
-                    if witness not in {speaker, listener}:
-                        recipients.append((witness, "overheard", 0.45))
+                    if shared:
+                        shared.shared_with = list(dict.fromkeys([
+                            *shared.shared_with,
+                            *(
+                                witness for witness in event.witnesses
+                                if witness != speaker
+                            ),
+                        ]))
+                speaker_state = self.state.agents.get(str(speaker or ""))
+                if speaker_state and content:
+                    speaker_state.public_story.setdefault(
+                        "witnesses_of_each_statement", []
+                    ).append({
+                        "event_id": event.event_id,
+                        "content": content,
+                        "location_id": event.location_id,
+                        "witnesses": list(event.witnesses),
+                    })
             elif event.event_type == "final_discussion":
                 speaker = event.payload.get("speaker_id")
                 if speaker:
@@ -2072,9 +2853,10 @@ class GameSession:
                     for witness in event.witnesses if witness != speaker
                 )
             elif event.event_type in {
-                "attack", "attack_failed", "object_transfer", "object_hidden",
-                "treatment", "investigation_empty", "wait", "escape",
-                "escape_failed", "object_dropped", "health_changed"
+                "poison_effect", "object_transfer",
+                "treatment", "investigation_empty", "wait",
+                "object_dropped", "health_changed",
+                "life_state_changed",
             }:
                 recipients.extend((witness, "observed", 0.95) for witness in event.witnesses)
             elif event.event_type == "action_failed" and event.actors:
@@ -2099,7 +2881,7 @@ class GameSession:
                         if event.event_type == "final_discussion"
                         else
                         str(shared_claim)
-                        if shared_claim and agent_id == event.payload.get("listener_id")
+                        if shared_claim and agent_id != speaker_id
                         else (
                             f"据{speaker.display_name if speaker else speaker_id}所说："
                             f"{event.payload.get('content', '')}"
@@ -2107,7 +2889,7 @@ class GameSession:
                     )
                     truth_id = (
                         event.payload.get("shared_truth_id")
-                        if shared_claim and agent_id == event.payload.get("listener_id")
+                        if shared_claim and agent_id != speaker_id
                         else None
                     )
                 elif event.event_type == "discovery":
@@ -2124,16 +2906,22 @@ class GameSession:
                 already_shared_with: list[str] = []
                 if event.event_type == "conversation":
                     speaker_id = str(event.payload.get("speaker_id") or "")
-                    listener_id = str(event.payload.get("listener_id") or "")
-                    if agent_id == listener_id and speaker_id:
-                        already_shared_with = [speaker_id]
+                    already_shared_with = [
+                        witness for witness in event.witnesses
+                        if witness != agent_id
+                    ]
                 normalized_claim = self._normalize_dialogue_text(claim)
                 if event.event_type == "conversation" and any(
                     self._normalize_dialogue_text(existing.claim) == normalized_claim
                     for existing in agent.beliefs[-40:]
                 ):
                     continue
-                agent.beliefs.append(Belief(
+                information_type = (
+                    "testimony"
+                    if event.event_type in {"conversation", "final_discussion"}
+                    else "fact"
+                )
+                belief = Belief(
                     belief_id=f"belief-{agent_id}-{event.event_id}",
                     claim=claim,
                     source=event.event_id,
@@ -2142,7 +2930,26 @@ class GameSession:
                     learned_round=event.round_number,
                     truth_id=truth_id,
                     shared_with=already_shared_with,
-                ))
+                    information_type=information_type,
+                    source_type=(
+                        "direct_statement"
+                        if information_type == "testimony"
+                        else "observation"
+                    ),
+                    speaker_id=str(event.payload.get("speaker_id") or "") or None,
+                    learned_location=event.location_id,
+                    witnesses=list(event.witnesses),
+                    confidence_score=max(0, min(5, round(confidence * 5))),
+                )
+                agent.beliefs.append(belief)
+                bucket = {
+                    "fact": "facts",
+                    "testimony": "testimonies",
+                    "hypothesis": "hypotheses",
+                }[information_type]
+                agent.information_state.setdefault(bucket, []).append(
+                    belief.belief_id
+                )
 
     def _award_score(
         self,
@@ -2151,6 +2958,7 @@ class GameSession:
         reason: str,
         *,
         reference_id: str,
+        category: str = "official",
     ) -> None:
         agent = self.state.agents[agent_id]
         if any(item.get("reference_id") == reference_id for item in agent.score_breakdown):
@@ -2161,6 +2969,7 @@ class GameSession:
             "points": int(points),
             "reason": reason,
             "reference_id": reference_id,
+            "category": category,
         })
 
     def _expose_secret(self, secret_id: str, discoverer_id: str, source_id: str) -> None:
@@ -2171,13 +2980,6 @@ class GameSession:
         discoverer = self.state.agents[discoverer_id]
         if secret_id not in discoverer.discovered_secret_ids:
             discoverer.discovered_secret_ids.append(secret_id)
-        if discoverer_id != secret.owner_id:
-            self._award_score(
-                discoverer_id,
-                secret.discovery_score,
-                f"发现了{self.state.agents[secret.owner_id].display_name}隐藏的秘密“{secret.title}”",
-                reference_id=f"secret-discovery:{secret_id}:{discoverer_id}",
-            )
 
     def _apply_scoring_from_events(self, events: list[EventRecord]) -> None:
         for event in events:
@@ -2186,13 +2988,6 @@ class GameSession:
                 secret_id = event.payload.get("reveals_secret_id")
                 if secret_id:
                     self._expose_secret(str(secret_id), discoverer_id, event.event_id)
-                if event.payload.get("clue_kind") == "truth":
-                    self._award_score(
-                        discoverer_id,
-                        1,
-                        "找到了一块可拼合案件真相的线索",
-                        reference_id=f"truth-clue:{event.payload.get('object_id')}:{discoverer_id}",
-                    )
             elif event.event_type == "conversation":
                 speaker_id = str(event.payload.get("speaker_id") or "")
                 listener_id = str(event.payload.get("listener_id") or "")
@@ -2203,19 +2998,6 @@ class GameSession:
                         listener_id,
                         event.event_id,
                     )
-                if speaker_id and listener_id and shared_truth_id:
-                    listener = self.state.agents[listener_id]
-                    matching_before = [
-                        belief for belief in listener.beliefs
-                        if belief.truth_id == shared_truth_id and belief.source != event.event_id
-                    ]
-                    if not matching_before:
-                        self._award_score(
-                            speaker_id,
-                            1,
-                            f"向{listener.display_name}交换了一条对方尚未知晓的有效情报",
-                            reference_id=f"exchange:{event.event_id}:{speaker_id}",
-                        )
             elif event.event_type == "object_dropped":
                 item = self.state.objects.get(str(event.payload.get("object_id") or ""))
                 secret_id = str((item.metadata if item else {}).get("reveals_secret_id") or "")
@@ -2236,9 +3018,9 @@ class GameSession:
         voters = [
             voter
             for voter in sorted(self.state.agents.values(), key=lambda item: item.agent_id)
-            if voter.life_state != LifeState.DEAD and voter.agent_id != player_id
+            if voter.agent_id != player_id
         ]
-        decisions: dict[str, dict[str, str]] = {}
+        decisions: dict[str, dict[str, Any]] = {}
         pending_votes = list(self.state.flags.get("pending_ai_votes", []))
         if pending_votes:
             votes = pending_votes
@@ -2278,13 +3060,33 @@ class GameSession:
                 )
                 suspect_id = fallback
             reason = str(decision.get("reason", "依据现有记忆作出判断。"))[:240]
+            answers = self._clean_final_answers(
+                voter.agent_id,
+                list(decision.get("answers", [])),
+            )
+            case_conclusion, personal_task_answers = self._structured_final_submission(
+                voter.agent_id,
+                suspect_id,
+                reason,
+                dict(decision.get("case_conclusion") or {}),
+                list(decision.get("personal_task_answers") or []),
+            )
+            model_source = str(decision.get("_model_source", "heuristic"))
+            self._record_model_usage(
+                voter.agent_id,
+                stage="final_submission",
+                actual_source=model_source,
+                succeeded=model_source != "heuristic_fallback",
+            )
             vote = {
                 "voter_id": voter.agent_id,
                 "voter_name": voter.display_name,
                 "suspect_id": suspect_id,
                 "suspect_name": self.state.agents[suspect_id].display_name,
                 "reason": reason,
-                "goal_assessments": list(decision.get("goal_assessments", [])),
+                "answers": answers,
+                "case_conclusion": case_conclusion,
+                "personal_task_answers": personal_task_answers,
             }
             votes.append(vote)
 
@@ -2299,13 +3101,32 @@ class GameSession:
             if suspect_id not in self.state.agents or suspect_id == player_id:
                 raise ValueError("请选择一名仍在场的其他角色")
             reason = str(player_decision.get("reason", "依据我的记忆作出判断。"))[:240]
+            answers = self._clean_final_answers(
+                player_id,
+                list(player_decision.get("answers", [])),
+            )
+            case_conclusion, personal_task_answers = self._structured_final_submission(
+                player_id,
+                suspect_id,
+                reason,
+                dict(player_decision.get("case_conclusion") or {}),
+                list(player_decision.get("personal_task_answers") or []),
+            )
+            self._record_model_usage(
+                player_id,
+                stage="final_submission",
+                actual_source="player_input",
+                provider_name="human",
+            )
             votes.append({
                 "voter_id": player_id,
                 "voter_name": player.display_name,
                 "suspect_id": suspect_id,
                 "suspect_name": self.state.agents[suspect_id].display_name,
                 "reason": reason,
-                "goal_assessments": list(player_decision.get("goal_assessments", [])),
+                "answers": answers,
+                "case_conclusion": case_conclusion,
+                "personal_task_answers": personal_task_answers,
             })
 
         for vote in votes:
@@ -2323,28 +3144,36 @@ class GameSession:
         leaders = sorted(agent_id for agent_id, count in tally.items() if count == highest)
         killer_id = str(self.state.flags.get("killer_id", ""))
         killer = self.state.agents.get(killer_id)
-        killer_escaped = bool(self.state.flags.get("killer_escaped"))
-        killer_identified = killer_id in leaders and not killer_escaped
+        killer_found = len(leaders) == 1 and leaders[0] == killer_id
+        killer_identified = killer_found
         result = {
             "killer_id": killer_id,
             "killer_name": killer.display_name if killer else killer_id,
-            "killer_escaped": killer_escaped,
+            "killer_found": killer_found,
             "killer_identified": killer_identified,
             "leaders": leaders,
             "leader_names": [self.state.agents[item].display_name for item in leaders],
             "tally": tally,
             "votes": votes,
             "outcome": (
-                "凶手已经逃离，指认来得太迟。"
-                if killer_escaped
-                else "多数意见命中了凶手，众人将其控制在客栈内。"
+                "多数意见命中了凶手，凶手未能从终局投票中脱身。"
                 if killer_identified
-                else "投票未能准确锁定凶手，真相直到复盘才被揭开。"
+                else "投票未能准确锁定凶手，凶手成功从指认中脱身。"
             ),
         }
         self.state.votes = votes
-        self.state.flags["goal_assessments"] = {
-            vote["voter_id"]: list(vote.get("goal_assessments", []))
+        self.state.final_submissions = {
+            vote["voter_id"]: {
+                "vote": {
+                    "suspect_id": vote["suspect_id"],
+                    "reason": vote["reason"],
+                },
+                "answers": list(vote.get("answers", [])),
+                "case_conclusion": dict(vote.get("case_conclusion", {})),
+                "personal_task_answers": list(
+                    vote.get("personal_task_answers", [])
+                ),
+            }
             for vote in votes
         }
         self.state.flags["voting_result"] = result
@@ -2357,12 +3186,14 @@ class GameSession:
             public=True,
             payload={
                 "killer_id": killer_id,
-                "killer_escaped": killer_escaped,
                 "killer_identified": killer_identified,
             },
         ))
         self.state.phase = GamePhase.FINISHED
-        self._finalize_scores(votes, killer_identified=killer_identified)
+        self._finalize_scores(
+            votes,
+            killer_found=killer_found,
+        )
 
     def _prepare_final_discussion(self) -> list[EventRecord]:
         if self.state.flags.get("final_discussion_done"):
@@ -2370,7 +3201,7 @@ class GameSession:
         events: list[EventRecord] = []
         present_ids: list[str] = []
         for agent in self.state.agents.values():
-            if agent.life_state == LifeState.DEAD or "escaped" in agent.conditions:
+            if agent.life_state == LifeState.DEAD:
                 continue
             present_ids.append(agent.agent_id)
             if agent.location_id != "lobby":
@@ -2443,31 +3274,20 @@ class GameSession:
         token: str,
         suspect_id: str,
         reason: str,
-        goal_assessments: list[dict[str, Any]] | None = None,
+        answers: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         player_id = self.verify_player_token(token)
         if self.state.phase != GamePhase.VOTING:
             raise ValueError("当前还没有进入终局投票")
         if suspect_id == player_id:
             raise ValueError("不能把票投给自己")
-        authored_goals = {
-            str(goal) for participant in self.loaded.scenario.get("participants", [])
-            if participant["id"] == player_id for goal in participant.get("goals", [])
-        }
-        cleaned_assessments = []
-        for assessment in goal_assessments or []:
-            goal = str(assessment.get("goal", ""))
-            if goal not in authored_goals:
-                continue
-            cleaned_assessments.append({
-                "goal": goal,
-                "achieved": bool(assessment.get("achieved")),
-                "reason": str(assessment.get("reason", ""))[:180],
-            })
+        cleaned_answers = self._clean_final_answers(player_id, answers)
+        if any(not item["answer"] for item in cleaned_answers):
+            raise ValueError("请回答全部终局客观题后再提交")
         self._run_final_vote(player_decision={
             "suspect_id": suspect_id,
             "reason": reason.strip() or "依据我的记忆作出判断。",
-            "goal_assessments": cleaned_assessments,
+            "answers": cleaned_answers,
         })
         self.save()
         self.save_recap()
@@ -2477,83 +3297,179 @@ class GameSession:
         self,
         votes: list[dict[str, Any]],
         *,
-        killer_identified: bool,
+        killer_found: bool,
     ) -> None:
         if self.state.flags.get("scores_finalized"):
             return
         killer_id = str(self.state.flags.get("killer_id", ""))
+        for agent in self.state.agents.values():
+            agent.score = 0
+            agent.score_breakdown = []
+
+        if not killer_found and killer_id in self.state.agents:
+            self._award_score(
+                killer_id,
+                5,
+                "凶手成功从终局投票中脱身",
+                reference_id="killer-evaded-vote",
+                category="killer_evaded_vote",
+            )
+
+        if killer_found:
+            for agent_id in self.state.agents:
+                if agent_id == killer_id:
+                    continue
+                self._award_score(
+                    agent_id,
+                    5,
+                    "好人阵营的终局结论正确找到真凶",
+                    reference_id="innocent-team-found-killer",
+                    category="innocent_team_found_killer",
+                )
+
         for vote in votes:
             voter_id = vote["voter_id"]
             if voter_id == killer_id:
                 continue
             if vote["suspect_id"] == killer_id:
                 self._award_score(
-                    voter_id, 5, "终局投票正确找出凶手", reference_id="final-vote-correct"
+                    voter_id,
+                    3,
+                    "个人终局投票正确",
+                    reference_id="final-vote-correct",
+                    category="correct_vote",
                 )
-            else:
-                self._award_score(
-                    voter_id, -2, "终局被误导，未能投中凶手", reference_id="final-vote-wrong"
-                )
-        if killer_id in self.state.agents:
-            self._award_score(
-                killer_id,
-                -5 if killer_identified else 6,
-                "身份被多数票锁定" if killer_identified else "成功隐藏身份直到终局",
-                reference_id="killer-outcome",
-            )
-        for secret in self.state.secrets.values():
-            if secret.category != "personal" or secret.owner_id not in self.state.agents:
-                continue
-            outsiders = [item for item in secret.exposed_to if item != secret.owner_id]
-            points = secret.conceal_score if not outsiders else 1 if len(outsiders) == 1 else -2
-            reason = (
-                f"秘密“{secret.title}”无人发现"
-                if not outsiders
-                else f"秘密“{secret.title}”仅被一人知晓"
-                if len(outsiders) == 1
-                else f"秘密“{secret.title}”已被多人识破"
-            )
-            self._award_score(
-                secret.owner_id,
-                points,
-                reason,
-                reference_id=f"secret-conceal:{secret.secret_id}",
-            )
-        for agent_id, assessments in self.state.flags.get("goal_assessments", {}).items():
-            if agent_id not in self.state.agents:
-                continue
-            for index, assessment in enumerate(assessments):
-                if not assessment.get("achieved"):
-                    continue
-                self._award_score(
-                    agent_id,
-                    2,
-                    f"终局自述并说明完成个人目标：{assessment.get('goal', '')}",
-                    reference_id=f"self-reported-goal:{agent_id}:{index}",
-                )
+
+        for agent_id in self.state.agents:
+            submission = self.state.final_submissions.setdefault(agent_id, {
+                "vote": {},
+                "answers": [],
+            })
+            submitted = {
+                str(item.get("question_id", "")): str(item.get("answer", ""))
+                for item in submission.get("answers", [])
+            }
+            answer_results: list[dict[str, Any]] = []
+            for question in self.final_questions_for(agent_id):
+                question_id = str(question["id"])
+                answer = submitted.get(question_id, "")
+                correct_answer = self._correct_answer_for(question_id)
+                is_correct = bool(answer) and answer == correct_answer
+                options = {
+                    str(option.get("id", "")): str(option.get("label", ""))
+                    for option in question.get("options", [])
+                }
+                result = {
+                    "question_id": question_id,
+                    "prompt": str(question.get("prompt", "")),
+                    "submitted_answer": answer or None,
+                    "submitted_label": options.get(answer, "未作答"),
+                    "correct_answer": correct_answer,
+                    "correct_label": options.get(correct_answer, correct_answer),
+                    "is_correct": is_correct,
+                    "points": 1 if is_correct else 0,
+                }
+                answer_results.append(result)
+                if is_correct:
+                    self._award_score(
+                        agent_id,
+                        1,
+                        f"客观题回答正确：{question.get('prompt', '')}",
+                        reference_id=f"correct-answer:{question_id}",
+                        category="correct_answer",
+                    )
+            submission["answer_results"] = answer_results
         self.state.flags["scores_finalized"] = True
+        record_completed_game(self.results_root, self.state, self.loaded.scenario)
 
     def _add_notice_beliefs(self, notice: Notice, agent_ids: list[str]) -> None:
         confidence = 0.7 if notice.authority == "host" else 0.5
+        universally_known = notice.authority == "host"
+        all_agent_ids = list(self.state.agents)
         for agent_id in agent_ids:
             agent = self.state.agents[agent_id]
-            if any(belief.source == notice.notice_id for belief in agent.beliefs):
+            existing = next(
+                (
+                    belief for belief in agent.beliefs
+                    if belief.source == notice.notice_id
+                ),
+                None,
+            )
+            known_readers = [
+                other_id for other_id in notice.seen_by
+                if other_id != agent_id
+            ]
+            if existing:
+                existing.shared_with = list(dict.fromkeys([
+                    *existing.shared_with,
+                    *known_readers,
+                ]))
                 continue
             agent.beliefs.append(Belief(
                 belief_id=f"belief-{agent_id}-{notice.notice_id}",
-                claim=f"公告板声称：{notice.content}",
+                claim=(
+                    f"主持人公开公告：{notice.content}"
+                    if universally_known
+                    else f"公告板声称：{notice.content}"
+                ),
                 source=notice.notice_id,
                 confidence=confidence,
                 stance="reported",
                 learned_round=self.state.round_number,
+                shared_with=(
+                    [other_id for other_id in all_agent_ids if other_id != agent_id]
+                    if universally_known
+                    else known_readers
+                ),
             ))
+
+    def _normalize_universal_public_knowledge(self) -> None:
+        """Upgrade persisted host publications to the current public-knowledge rules."""
+
+        active_agent_ids = [
+            agent_id for agent_id, agent in self.state.agents.items()
+            if agent.can_act
+        ]
+        all_agent_ids = set(self.state.agents)
+        for notice in self.state.notices:
+            if notice.authority == "host":
+                notice.seen_by = list(dict.fromkeys([
+                    *notice.seen_by, *active_agent_ids,
+                ]))
+            readers = [
+                agent_id for agent_id in notice.seen_by
+                if agent_id in self.state.agents
+            ]
+            self._add_notice_beliefs(notice, readers)
+            for agent_id in readers:
+                for belief in self.state.agents[agent_id].beliefs:
+                    if belief.source != notice.notice_id:
+                        continue
+                    if notice.authority == "host":
+                        belief.claim = f"主持人公开公告：{notice.content}"
+                    belief.shared_with = sorted(set(readers) - {agent_id})
+
+        universal_event_ids = {
+            event.event_id for event in self.state.events
+            if event.public and event.event_type in {
+                "public_fact", "public_intel", "object_hint", "object_revealed",
+                "health_changed", "life_state_changed", "object_dropped",
+            }
+        }
+        for agent_id, agent in self.state.agents.items():
+            for belief in agent.beliefs:
+                if belief.source in universal_event_ids:
+                    belief.shared_with = sorted(all_agent_ids - {agent_id})
 
     def _distribute_public_events(self, events: list[EventRecord]) -> None:
         for event in events:
-            if event.event_type != "public_fact":
+            if not event.public or event.event_type == "event_card_selected":
                 continue
+            all_agent_ids = list(self.state.agents)
             for agent in self.state.agents.values():
                 if not agent.can_act:
+                    continue
+                if any(belief.source == event.event_id for belief in agent.beliefs):
                     continue
                 agent.beliefs.append(Belief(
                     belief_id=f"belief-{agent.agent_id}-{event.event_id}",
@@ -2562,6 +3478,10 @@ class GameSession:
                     confidence=0.8,
                     stance="reported",
                     learned_round=min(self.state.round_number + 1, self.state.max_rounds),
+                    shared_with=[
+                        agent_id for agent_id in all_agent_ids
+                        if agent_id != agent.agent_id
+                    ],
                 ))
 
     def _event(

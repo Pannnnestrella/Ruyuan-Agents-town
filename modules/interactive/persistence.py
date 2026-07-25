@@ -2,33 +2,108 @@
 
 from __future__ import annotations
 
+import json
+import os
+import threading
+import time
+import uuid
+from pathlib import Path
 from typing import Any
 
 from .models import (
     AgentState,
     Belief,
+    ConversationRecord,
     EventRecord,
     GamePhase,
     GameState,
     LifeState,
+    ItemHistoryEntry,
     Notice,
     ObjectState,
     SecretState,
 )
 
 
+_WRITE_LOCKS: dict[str, threading.RLock] = {}
+_WRITE_LOCKS_GUARD = threading.Lock()
+
+
+def _write_lock(path: Path) -> threading.RLock:
+    key = str(path.resolve())
+    with _WRITE_LOCKS_GUARD:
+        return _WRITE_LOCKS.setdefault(key, threading.RLock())
+
+
+def atomic_write_text(
+    path: str | Path,
+    content: str,
+    *,
+    encoding: str = "utf-8",
+    retries: int = 10,
+) -> Path:
+    """Write via a unique sibling file and retry transient Windows file locks."""
+
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_name(
+        f".{destination.name}.{os.getpid()}.{threading.get_ident()}.{uuid.uuid4().hex}.tmp"
+    )
+    lock = _write_lock(destination)
+    with lock:
+        try:
+            temporary.write_text(content, encoding=encoding)
+            for attempt in range(max(1, retries)):
+                try:
+                    os.replace(temporary, destination)
+                    return destination
+                except PermissionError:
+                    if attempt + 1 >= max(1, retries):
+                        raise
+                    time.sleep(min(0.05 * (2 ** attempt), 0.5))
+        finally:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
+    return destination
+
+
+def atomic_write_json(path: str | Path, data: Any) -> Path:
+    return atomic_write_text(
+        path,
+        json.dumps(data, ensure_ascii=False, indent=2),
+    )
+
+
 def game_state_from_dict(data: dict[str, Any]) -> GameState:
     agents: dict[str, AgentState] = {}
     for agent_id, raw in data["agents"].items():
-        beliefs = [Belief(**belief) for belief in raw.get("beliefs", [])]
-        raw_life_state = str(raw.get("life_state", "alive"))
-        if raw_life_state in {"incapacitated", "dying"}:
-            raw_life_state = LifeState.SEVERELY_INJURED.value
+        beliefs = []
+        for belief in raw.get("beliefs", []):
+            migrated = dict(belief)
+            confidence = float(migrated.get("confidence", 0.5))
+            migrated.setdefault("confidence_score", max(0, min(5, round(confidence * 5))))
+            migrated.setdefault(
+                "information_type",
+                "testimony" if migrated.get("stance") in {"reported", "overheard"} else "fact",
+            )
+            migrated.setdefault("source_type", str(migrated.get("stance") or "legacy"))
+            beliefs.append(Belief(**migrated))
+        raw_life_state = str(raw.get("life_state", ""))
+        if not raw_life_state:
+            legacy_health = int(raw.get("health", 100))
+            raw_life_state = (
+                LifeState.DEAD.value if legacy_health <= 0
+                else LifeState.INJURED.value if legacy_health <= 70
+                else LifeState.ALIVE.value
+            )
+        if raw_life_state in {"severely_injured", "incapacitated", "dying"}:
+            raw_life_state = LifeState.INJURED.value
         agents[agent_id] = AgentState(
             agent_id=raw["agent_id"],
             display_name=raw["display_name"],
             location_id=raw["location_id"],
-            health=int(raw.get("health", 100)),
             life_state=LifeState(raw_life_state),
             conditions=list(raw.get("conditions", [])),
             inventory=list(raw.get("inventory", [])),
@@ -40,16 +115,59 @@ def game_state_from_dict(data: dict[str, Any]) -> GameState:
             score=int(raw.get("score", 0)),
             score_breakdown=list(raw.get("score_breakdown", [])),
             discovered_secret_ids=list(raw.get("discovered_secret_ids", [])),
+            state_schema_version=int(raw.get("state_schema_version", 1)),
+            identity_state=dict(raw.get("identity_state", {})),
+            location_state=dict(raw.get("location_state", {
+                "current_area": raw["location_id"],
+                "previous_area": None,
+                "movement_history": [],
+            })),
+            inventory_state=dict(raw.get("inventory_state", {
+                "held_items": list(raw.get("inventory", [])),
+                "exchanged_items": [],
+                "publicly_revealed_items": [],
+            })),
+            information_state=dict(raw.get("information_state", {
+                "facts": [
+                    belief.belief_id for belief in beliefs
+                    if belief.information_type == "fact"
+                ],
+                "testimonies": [
+                    belief.belief_id for belief in beliefs
+                    if belief.information_type == "testimony"
+                ],
+                "hypotheses": [
+                    belief.belief_id for belief in beliefs
+                    if belief.information_type == "hypothesis"
+                ],
+                "contradictions": [],
+                "unanswered_questions": [],
+            })),
+            case_model=dict(raw.get("case_model", {})),
+            social_model=dict(raw.get("social_model", {})),
+            strategy_state=dict(raw.get("strategy_state", raw.get("strategic_plan", {}))),
+            personal_tasks=list(raw.get("personal_tasks", [])),
+            public_story=dict(raw.get("public_story", {})),
         )
+        agents[agent_id].state_schema_version = 2
 
     objects: dict[str, ObjectState] = {}
     for object_id, raw in data["objects"].items():
         if raw is None:
             continue
-        objects[object_id] = ObjectState(**raw)
+        migrated = dict(raw)
+        migrated["history"] = [
+            ItemHistoryEntry(**entry) for entry in migrated.get("history", [])
+        ]
+        migrated.setdefault("original_location", migrated.get("location_id"))
+        migrated.setdefault("original_holder", migrated.get("holder_id"))
+        objects[object_id] = ObjectState(**migrated)
 
     notices = [Notice(**raw) for raw in data.get("notices", [])]
     events = [EventRecord(**raw) for raw in data.get("events", [])]
+    conversations = [
+        ConversationRecord(**raw) for raw in data.get("conversations", [])
+    ]
     secrets = {
         secret_id: SecretState(**raw)
         for secret_id, raw in data.get("secrets", {}).items()
@@ -70,6 +188,7 @@ def game_state_from_dict(data: dict[str, Any]) -> GameState:
         secrets=secrets,
         notices=notices,
         events=events,
+        conversations=conversations,
         used_event_cards=list(data.get("used_event_cards", [])),
         seen_event_cards=list(data.get("seen_event_cards", data.get("used_event_cards", []))),
         suggested_event_cards=list(data.get("suggested_event_cards", [])),
@@ -79,5 +198,7 @@ def game_state_from_dict(data: dict[str, Any]) -> GameState:
         public_intel_history=list(data.get("public_intel_history", [])),
         active_public_intel=data.get("active_public_intel"),
         votes=list(data.get("votes", [])),
+        final_submissions=dict(data.get("final_submissions", {})),
+        model_usage=list(data.get("model_usage", [])),
         flags=dict(data.get("flags", {})),
     )

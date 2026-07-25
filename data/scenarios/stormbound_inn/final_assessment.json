@@ -1,0 +1,196 @@
+{
+  "final_assessment": {
+    "version": 1,
+    "questions_by_agent": {
+      "广陵王": [
+        {
+          "id": "guangling-report-authenticity",
+          "prompt": "陆成带来的鸢报是真是假？",
+          "type": "single_choice",
+          "options": [
+            {"id": "authentic", "label": "是真实的紧急鸢报"},
+            {"id": "forged", "label": "是经过伪造的鸢报"}
+          ]
+        },
+        {
+          "id": "guangling-report-purpose",
+          "prompt": "这份鸢报的真实目的是什么？",
+          "type": "single_choice",
+          "options": [
+            {"id": "warn-dongzhuo", "label": "预警董卓密使潜入广陵"},
+            {"id": "draw-away-east-guards", "label": "诱使绣衣楼调走城东守备"},
+            {"id": "frame-jiangdong", "label": "嫁祸江东军调动兵力"}
+          ]
+        },
+        {
+          "id": "guangling-killer",
+          "prompt": "杀害陆成的真正凶手是谁？",
+          "type": "agent_choice",
+          "option_source": "agents"
+        }
+      ],
+      "傅融": [
+        {
+          "id": "furong-ledger-purpose",
+          "prompt": "账目中的异常军饷实际用于什么？",
+          "type": "single_choice",
+          "options": [
+            {"id": "personal-embezzlement", "label": "傅融私人侵吞"},
+            {"id": "safehouse-relocation", "label": "转移并保护城东安全屋人员"},
+            {"id": "weapon-purchase", "label": "购买毒针与假腰牌"}
+          ]
+        },
+        {
+          "id": "furong-badge-authenticity",
+          "prompt": "陆成携带的绣衣楼腰牌是真是假？",
+          "type": "single_choice",
+          "options": [
+            {"id": "authentic", "label": "是真腰牌"},
+            {"id": "forged", "label": "是伪造腰牌"}
+          ]
+        },
+        {
+          "id": "furong-missing-item",
+          "prompt": "凶手从陆成信囊中取走的关键物是什么？",
+          "type": "single_choice",
+          "options": [
+            {"id": "east_safehouse_list", "label": "城东安全屋撤离名单"},
+            {"id": "jiangdong_forged_order", "label": "调动江东军的伪令正文"},
+            {"id": "yuan_purchase_correspondence", "label": "袁氏旁支购牌往来底信"}
+          ]
+        }
+      ],
+      "刘辩": [
+        {
+          "id": "liubian-code-origin",
+          "prompt": "“雁归北阙”属于哪一类暗语？",
+          "type": "single_choice",
+          "options": [
+            {"id": "palace-emergency-code", "label": "宫中传递紧急口信的旧暗语"},
+            {"id": "jiangdong-command", "label": "江东军中调兵暗语"},
+            {"id": "yuan-merchant-code", "label": "袁氏商路联络暗语"}
+          ]
+        },
+        {
+          "id": "liubian-stitch-origin",
+          "prompt": "死者袖口的宫制针脚说明了什么？",
+          "type": "single_choice",
+          "options": [
+            {"id": "trained-palace-tailor", "label": "制作者受过完整宫中训练"},
+            {"id": "untrained-imitation", "label": "制作者只见过样本并进行了错误仿制"},
+            {"id": "ordinary-inn-repair", "label": "只是客栈普通缝补"}
+          ]
+        },
+        {
+          "id": "liubian-killer",
+          "prompt": "杀害陆成的真正凶手是谁？",
+          "type": "agent_choice",
+          "option_source": "agents"
+        }
+      ],
+      "孙策": [
+        {
+          "id": "sunce-arrow-origin",
+          "prompt": "带有江东箭羽的断箭真实来源是什么？",
+          "type": "single_choice",
+          "options": [
+            {"id": "authentic-jiangdong", "label": "江东军制式箭矢"},
+            {"id": "imitated-jiangdong", "label": "外行使用江东箭羽仿制"},
+            {"id": "palace-arrow", "label": "宫中禁军箭矢"}
+          ]
+        },
+        {
+          "id": "sunce-cover-focus",
+          "prompt": "凶手最可能利用哪处旧痕迹转移众人对案发现场的注意？",
+          "type": "single_choice",
+          "options": [
+            {"id": "front-gate", "label": "正门封锁记录"},
+            {"id": "stable-back-wall", "label": "马厩后墙旧痕"},
+            {"id": "second-floor-window", "label": "二层客房窗痕"}
+          ]
+        },
+        {
+          "id": "sunce-killer",
+          "prompt": "杀害陆成的真正凶手是谁？",
+          "type": "agent_choice",
+          "option_source": "agents"
+        }
+      ],
+      "左慈": [
+        {
+          "id": "zuoci-poison-delivery",
+          "prompt": "致死毒物通过什么方式进入陆成体内？",
+          "type": "single_choice",
+          "options": [
+            {"id": "food", "label": "混入食物或茶水"},
+            {"id": "poisoned-needle", "label": "通过淬毒细针刺入"},
+            {"id": "smoke", "label": "通过烟道吸入"}
+          ]
+        },
+        {
+          "id": "zuoci-poison-onset",
+          "prompt": "陆成所中之毒具有怎样的发作特点？",
+          "type": "single_choice",
+          "options": [
+            {"id": "immediate", "label": "接触后立即发作"},
+            {"id": "delayed-hours", "label": "进入体内数个时辰后发作"},
+            {"id": "only-with-alcohol", "label": "只有饮酒后才发作"}
+          ]
+        },
+        {
+          "id": "zuoci-killer",
+          "prompt": "杀害陆成的真正凶手是谁？",
+          "type": "agent_choice",
+          "option_source": "agents"
+        }
+      ],
+      "袁基": [
+        {
+          "id": "yuan-badge-purchase",
+          "prompt": "购买旧式假腰牌的人如何利用袁氏身份？",
+          "type": "single_choice",
+          "options": [
+            {"id": "yuan-main-house", "label": "由袁氏主家正式采购"},
+            {"id": "borrowed-branch-name", "label": "借袁氏旁支名义分笔购买"},
+            {"id": "no-yuan-link", "label": "与袁氏完全无关"}
+          ]
+        },
+        {
+          "id": "yuan-buyer-knowledge",
+          "prompt": "袁基在案发前是否知道假腰牌买主的真实身份？",
+          "type": "single_choice",
+          "options": [
+            {"id": "knew-buyer", "label": "知道买主身份"},
+            {"id": "did-not-know-buyer", "label": "不知道买主身份"}
+          ]
+        },
+        {
+          "id": "yuan-killer",
+          "prompt": "杀害陆成的真正凶手是谁？",
+          "type": "agent_choice",
+          "option_source": "agents"
+        }
+      ]
+    },
+    "answer_key": {
+      "guangling-report-authenticity": {"resolver": "literal", "answer": "forged"},
+      "guangling-report-purpose": {"resolver": "literal", "answer": "draw-away-east-guards"},
+      "guangling-killer": {"resolver": "state_flag", "path": "killer_id"},
+      "furong-ledger-purpose": {"resolver": "literal", "answer": "safehouse-relocation"},
+      "furong-badge-authenticity": {"resolver": "literal", "answer": "forged"},
+      "furong-missing-item": {"resolver": "case_manifest", "path": "stolen_item_id"},
+      "liubian-code-origin": {"resolver": "literal", "answer": "palace-emergency-code"},
+      "liubian-stitch-origin": {"resolver": "literal", "answer": "untrained-imitation"},
+      "liubian-killer": {"resolver": "state_flag", "path": "killer_id"},
+      "sunce-arrow-origin": {"resolver": "literal", "answer": "imitated-jiangdong"},
+      "sunce-cover-focus": {"resolver": "literal", "answer": "stable-back-wall"},
+      "sunce-killer": {"resolver": "state_flag", "path": "killer_id"},
+      "zuoci-poison-delivery": {"resolver": "literal", "answer": "poisoned-needle"},
+      "zuoci-poison-onset": {"resolver": "literal", "answer": "delayed-hours"},
+      "zuoci-killer": {"resolver": "state_flag", "path": "killer_id"},
+      "yuan-badge-purchase": {"resolver": "literal", "answer": "borrowed-branch-name"},
+      "yuan-buyer-knowledge": {"resolver": "literal", "answer": "did-not-know-buyer"},
+      "yuan-killer": {"resolver": "state_flag", "path": "killer_id"}
+    }
+  }
+}

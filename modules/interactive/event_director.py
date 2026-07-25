@@ -153,22 +153,19 @@ class EventDirector:
                         payload={"object_id": item.object_id, "source_card_id": card.card_id},
                     )
                 )
-            elif effect_type == "set_health_state":
+            elif effect_type in {"set_life_state", "set_health_state"}:
                 agent = state.agents[effect["agent_id"]]
                 if agent.life_state != LifeState.DEAD:
-                    target_state = LifeState(str(effect.get("life_state", "injured")))
+                    raw_target_state = str(effect.get("life_state", "injured"))
+                    if raw_target_state in {"severely_injured", "incapacitated", "dying"}:
+                        raw_target_state = LifeState.INJURED.value
+                    target_state = LifeState(raw_target_state)
                     agent.life_state = target_state
-                    agent.health = {
-                        LifeState.ALIVE: 100,
-                        LifeState.INJURED: 65,
-                        LifeState.SEVERELY_INJURED: 30,
-                        LifeState.DEAD: 0,
-                    }.get(target_state, 30)
-                    health_event = self._event(
+                    state_event = self._event(
                         event_round,
-                        "health_changed",
+                        "life_state_changed",
                         str(effect.get("summary") or f"{agent.display_name}当前状态变为{target_state.value}。"),
-                        public=True,
+                        public=False,
                         location_id=agent.location_id,
                         payload={
                             "agent_id": agent.agent_id,
@@ -176,9 +173,9 @@ class EventDirector:
                             "source_card_id": card.card_id,
                         },
                     )
-                    health_event.actors = [agent.agent_id]
-                    health_event.witnesses = state.occupants(agent.location_id, include_dead=False)
-                    events.append(health_event)
+                    state_event.actors = [agent.agent_id]
+                    state_event.witnesses = state.occupants(agent.location_id, include_dead=False)
+                    events.append(state_event)
             elif effect_type == "drop_random_carried_item":
                 candidates = [
                     (holder, state.objects[object_id])
@@ -192,16 +189,13 @@ class EventDirector:
                         candidates, key=lambda pair: (pair[0].agent_id, pair[1].object_id)
                     ))
                     holder.inventory.remove(item.object_id)
-                    item.holder_id = None
-                    item.location_id = holder.location_id
-                    item.hidden = False
+                    holder.inventory_state["held_items"] = list(holder.inventory)
                     witnesses = state.occupants(holder.location_id, include_dead=False)
-                    item.discovered_by = list(dict.fromkeys([*item.discovered_by, *witnesses]))
                     drop_event = self._event(
                         event_round,
                         "object_dropped",
                         f"一阵突如其来的碰撞中，{holder.display_name}随身的{item.name}掉落在{state.locations[holder.location_id]['name']}。",
-                        public=True,
+                        public=False,
                         location_id=holder.location_id,
                         payload={
                             "object_id": item.object_id,
@@ -211,7 +205,81 @@ class EventDirector:
                     )
                     drop_event.actors = [holder.agent_id]
                     drop_event.witnesses = witnesses
+                    item.transition(
+                        "drop",
+                        round_number=event_round,
+                        actor_id=holder.agent_id,
+                        event_id=drop_event.event_id,
+                        holder_id=None,
+                        location_id=holder.location_id,
+                        hidden=False,
+                        witnesses=witnesses,
+                        public=False,
+                    )
+                    item.discovered_by = list(dict.fromkeys([
+                        *item.discovered_by, *witnesses,
+                    ]))
                     events.append(drop_event)
+            elif effect_type == "reveal_random_hidden_object":
+                candidates = [
+                    item for item in state.objects.values()
+                    if item.location_id and item.hidden and not item.discovered_by
+                ]
+                if candidates:
+                    item = self.random.choice(sorted(candidates, key=lambda candidate: candidate.object_id))
+                    readers = state.occupants(item.location_id, include_dead=False)
+                    location_name = state.locations[item.location_id]["name"]
+                    reveal_event = self._event(
+                        event_round,
+                        "object_revealed",
+                        str(effect.get("summary") or f"局势变化使{location_name}藏着的{item.name}暴露在众人眼前。"),
+                        public=False,
+                        location_id=item.location_id,
+                        payload={
+                            "object_id": item.object_id,
+                            "source_card_id": card.card_id,
+                        },
+                    )
+                    reveal_event.witnesses = readers
+                    item.transition(
+                        "world_reveal",
+                        round_number=event_round,
+                        event_id=reveal_event.event_id,
+                        hidden=False,
+                        witnesses=readers,
+                        public=False,
+                    )
+                    item.discovered_by = list(dict.fromkeys([
+                        *item.discovered_by, *readers,
+                    ]))
+                    events.append(reveal_event)
+            elif effect_type == "injure_random_agent":
+                candidates = [
+                    agent for agent in state.agents.values()
+                    if agent.life_state == LifeState.ALIVE and agent.can_act
+                ]
+                if candidates:
+                    agent = self.random.choice(sorted(candidates, key=lambda candidate: candidate.agent_id))
+                    agent.life_state = LifeState.INJURED
+                    location_name = state.locations[agent.location_id]["name"]
+                    summary_template = str(effect.get("summary_template") or "{agent}在突发意外中受伤。")
+                    state_event = self._event(
+                        event_round,
+                        "life_state_changed",
+                        summary_template.format(agent=agent.display_name, location=location_name),
+                        public=True,
+                        location_id=agent.location_id,
+                        payload={
+                            "agent_id": agent.agent_id,
+                            "life_state": agent.life_state.value,
+                            "source_card_id": card.card_id,
+                        },
+                    )
+                    state_event.actors = [agent.agent_id]
+                    state_event.witnesses = state.occupants(
+                        agent.location_id, include_dead=False
+                    )
+                    events.append(state_event)
             else:
                 raise ValueError(f"Unsupported event-card effect: {effect_type}")
 

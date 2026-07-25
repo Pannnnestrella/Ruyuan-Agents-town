@@ -11,13 +11,15 @@ from modules.interactive import (
     EventDirector,
     GameSession,
     GamePhase,
+    HeuristicIntentPlanner,
     LifeState,
     LLMIntentPlanner,
     RoundEngine,
     ScenarioLoader,
     TriggerResolver,
+    game_state_from_dict,
 )
-from modules.interactive.models import Belief
+from modules.interactive.models import AgentState, Belief
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,7 +35,21 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(self.state.max_rounds, 6)
         self.assertEqual(self.state.actions_per_round, 3)
         self.assertIn("lobby", self.state.locations)
+        self.assertEqual(
+            set(self.loaded.scenario["llm_scope"]["participant_ids"]),
+            {"广陵王", "傅融", "刘辩", "孙策", "左慈", "袁基"},
+        )
         self.assertIn("courier_body", self.state.objects)
+        self.assertEqual(self.loaded.scenario["behavior_guidelines"]["version"], 2)
+        self.assertIn("下毒", self.loaded.scenario["behavior_guidelines"]["text"])
+        action_values = {action.value for action in ActionType}
+        self.assertTrue({"hide", "escape", "attack"}.isdisjoint(action_values))
+        for agent in self.state.agents.values():
+            self.assertEqual(agent.state_schema_version, 2)
+            self.assertIn("current_area", agent.location_state)
+            self.assertIn("held_items", agent.inventory_state)
+            self.assertIn("testimonies", agent.information_state)
+            self.assertIn("suspect_profiles", agent.case_model)
         self.assertGreaterEqual(len(self.loaded.scenario["event_cards"]), 30)
         self.assertGreaterEqual(len(self.loaded.scenario["public_intel"]), 12)
         for location_id in self.state.locations:
@@ -58,6 +74,47 @@ class ScenarioTests(unittest.TestCase):
         public_text = str(self.state.public_view())
         self.assertNotIn("killer_id", public_text)
         self.assertNotIn("凶手记忆", public_text)
+
+    def test_heuristic_dialogue_uses_character_voice_without_fixed_wrapper(self):
+        planner = HeuristicIntentPlanner(seed=3)
+        for index, agent in enumerate(self.state.agents.values()):
+            agent.location_id = "lobby"
+            agent.beliefs.append(Belief(
+                belief_id=f"dialogue-style-{index}",
+                claim=f"第{index + 1}封驿报的落款时辰与登记簿不符",
+                source=f"dialogue-style-source-{index}",
+                confidence=0.8,
+            ))
+        for item in self.state.objects.values():
+            if item.location_id == "lobby":
+                item.discovered_by = list(self.state.agents)
+        intents = planner.plan(
+            self.state,
+            self.loaded.scenario,
+            actor_ids=["广陵王", "傅融", "刘辩", "孙策", "左慈", "袁基"],
+        )
+        dialogue = [
+            intent.content for intent in intents
+            if intent.action_type == ActionType.TALK
+        ]
+
+        self.assertGreaterEqual(len(dialogue), 3)
+        self.assertEqual(len(dialogue), len(set(dialogue)))
+        self.assertTrue(all(
+            "我愿意分享一条尚未与你核对的信息" not in line
+            and "你有能相互印证的线索吗" not in line
+            for line in dialogue
+        ))
+
+    def test_legacy_health_states_are_migrated_without_numeric_health(self):
+        raw = self.state.to_dict(include_private=True)
+        raw["agents"]["刘辩"]["life_state"] = "severely_injured"
+        raw["agents"]["刘辩"]["health"] = 30
+
+        restored = game_state_from_dict(raw)
+
+        self.assertEqual(restored.agents["刘辩"].life_state, LifeState.INJURED)
+        self.assertNotIn("health", restored.agents["刘辩"].to_dict())
 
     def test_shared_pregame_events_are_identical_in_every_participant_timeline(self):
         timelines = self.state.flags["character_timelines"]
@@ -123,6 +180,12 @@ class ScenarioTests(unittest.TestCase):
     def test_private_objects_do_not_leak_into_public_state(self):
         public_objects = self.state.public_view()["objects"]
         self.assertNotIn("palace_token", public_objects)
+        public_text = str(self.state.public_view())
+        self.assertNotIn("identity_state", public_text)
+        self.assertNotIn("case_model", public_text)
+        self.assertTrue(all(
+            "history" not in item for item in public_objects.values()
+        ))
         self.assertNotIn("yuan_sealed_letter", public_objects)
         private_objects = self.state.to_dict(include_private=True)["objects"]
         self.assertIn("palace_token", private_objects)
@@ -172,6 +235,8 @@ class ScenarioTests(unittest.TestCase):
         self.assertIsNone(item.location_id)
         self.assertEqual(item.metadata["removed_reason"], "stable_in_disarray")
         self.assertEqual(events[0].event_type, "evidence_lost")
+        self.assertEqual(item.history[-1].action, "world_remove")
+        self.assertEqual(item.history[-1].event_id, events[0].event_id)
 
     def test_director_keeps_three_choices_after_authored_cards_are_exhausted(self):
         director = EventDirector(self.loaded.scenario["event_cards"], seed=0)
@@ -215,6 +280,36 @@ class RoundEngineTests(unittest.TestCase):
         self.assertEqual(len(result.rejected_intents), 1)
         self.assertIn("one major action", result.rejected_intents[0]["reason"])
 
+    def test_versioned_state_conversations_and_item_history_round_trip(self):
+        self.state.phase = GamePhase.READY
+        for agent_id in ("广陵王", "傅融", "左慈"):
+            self.state.agents[agent_id].location_id = "lobby"
+        result = self.engine.resolve_free_action(
+            self.state,
+            ActionIntent(
+                "广陵王",
+                ActionType.TALK,
+                target_id="傅融",
+                content="请核对你记得的时辰。",
+            ),
+        )
+
+        restored = game_state_from_dict(
+            self.state.to_dict(include_private=True)
+        )
+
+        self.assertEqual(restored.agents["广陵王"].state_schema_version, 2)
+        self.assertIn("testimonies", restored.agents["傅融"].information_state)
+        self.assertEqual(restored.conversations[-1].event_id, result.events[0].event_id)
+        self.assertEqual(
+            set(restored.conversations[-1].witnesses),
+            {"广陵王", "傅融", "左慈"},
+        )
+        self.assertTrue(all(
+            item.history and hasattr(item.history[0], "action")
+            for item in restored.objects.values()
+        ))
+
     def test_equivalent_intelligence_is_not_echoed_back_but_can_reach_a_new_person(self):
         self.state.phase = GamePhase.READY
         for agent_id in ("广陵王", "傅融", "左慈"):
@@ -248,26 +343,37 @@ class RoundEngineTests(unittest.TestCase):
         ))
         self.assertEqual(len(reshared.events), 1)
 
-    def test_attack_is_world_adjudicated_and_updates_life_state(self):
+    def test_poison_is_private_and_takes_effect_next_round(self):
         self.state.agents["孙策"].location_id = "lobby"
         self.state.agents["刘辩"].location_id = "lobby"
-        self.state.flags["killer_id"] = "傅融"
-        self.state.agents["刘辩"].health = 60
+        self.state.flags["killer_id"] = "孙策"
         self.engine.random.random = lambda: 0.0
         result = self.engine.resolve_round(
             self.state,
             [
                 ActionIntent(
                     "孙策",
-                    ActionType.ATTACK,
+                    ActionType.POISON,
                     target_id="刘辩",
                 )
             ],
         )
-        self.assertEqual(self.state.agents["刘辩"].health, 60)
+        self.assertEqual(self.state.agents["刘辩"].life_state, LifeState.ALIVE)
+        poison_action = next(
+            event for event in result.events if event.event_type == "poison_queued"
+        )
+        self.assertFalse(poison_action.public)
+        self.assertEqual(poison_action.witnesses, ["孙策"])
+        self.assertEqual(poison_action.payload["ability_id"], "killer_poison")
+
+        next_round = self.engine.resolve_action_phase(self.state, [])
         self.assertEqual(self.state.agents["刘辩"].life_state, LifeState.INJURED)
-        self.assertEqual(result.events[0].event_type, "attack")
-        self.assertEqual(result.events[0].payload["ability_id"], "swift_restraint")
+        poison_effect = next(
+            event for event in next_round.events if event.event_type == "poison_effect"
+        )
+        self.assertFalse(poison_effect.public)
+        self.assertNotIn("孙策", poison_effect.summary)
+        self.assertNotIn("poisoner_id", poison_effect.payload)
 
     def test_search_records_room_traces_and_reports_progress(self):
         actor = self.state.agents["广陵王"]
@@ -286,27 +392,36 @@ class RoundEngineTests(unittest.TestCase):
         history = self.state.flags["location_search_history"]["front_gate"]
         self.assertEqual(history[-1]["agent_id"], "广陵王")
 
-    def test_attack_is_limited_once_per_round_and_death_drops_inventory(self):
+    def test_poison_is_limited_once_per_round_and_death_drops_inventory(self):
         self.state.flags["killer_id"] = "孙策"
         attacker = self.state.agents["孙策"]
         target = self.state.agents["刘辩"]
         attacker.location_id = target.location_id = "lobby"
-        target.life_state = LifeState.SEVERELY_INJURED
-        target.health = 30
+        target.life_state = LifeState.INJURED
         carried = target.inventory[0]
         self.engine.random.random = lambda: 0.0
         first = self.engine.resolve_action_phase(
             self.state,
-            [ActionIntent("孙策", ActionType.ATTACK, target_id="刘辩")],
+            [ActionIntent("孙策", ActionType.POISON, target_id="刘辩")],
         )
+        self.assertEqual(target.life_state, LifeState.INJURED)
+        self.assertTrue(any(event.event_type == "poison_queued" for event in first.events))
+        second = self.engine.resolve_action_phase(
+            self.state,
+            [ActionIntent("孙策", ActionType.POISON, target_id="广陵王")],
+        )
+        self.assertIn("at most one poisoning per round", second.rejected_intents[0]["reason"])
+        self.engine.resolve_action_phase(self.state, [])
+        next_round = self.engine.resolve_action_phase(self.state, [])
         self.assertEqual(target.life_state, LifeState.DEAD)
         self.assertNotIn(carried, target.inventory)
         self.assertEqual(self.state.objects[carried].location_id, "lobby")
-        second = self.engine.resolve_action_phase(
-            self.state,
-            [ActionIntent("孙策", ActionType.ATTACK, target_id="广陵王")],
-        )
-        self.assertIn("at most one attack", second.rejected_intents[0]["reason"])
+        self.assertTrue(any(
+            entry.action == "drop" for entry in self.state.objects[carried].history
+        ))
+        self.assertTrue(any(
+            event.event_type == "poison_effect" for event in next_round.events
+        ))
 
     def test_authored_events_can_injure_or_accidentally_drop_a_carried_item(self):
         director = EventDirector(self.loaded.scenario["event_cards"], seed=4)
@@ -322,6 +437,29 @@ class RoundEngineTests(unittest.TestCase):
             before_inventory - 1,
         )
         self.assertTrue(any(event.event_type == "object_dropped" for event in events))
+
+        reveal_state = self.loaded.create_game_state("reveal-event-test", seed=2)
+        hidden_before = sum(
+            1 for item in reveal_state.objects.values()
+            if item.location_id and item.hidden and not item.discovered_by
+        )
+        reveal_director = EventDirector(self.loaded.scenario["event_cards"], seed=4)
+        reveal_events = reveal_director.apply(reveal_state, "information-loose-floorboard")
+        hidden_after = sum(
+            1 for item in reveal_state.objects.values()
+            if item.location_id and item.hidden and not item.discovered_by
+        )
+        self.assertEqual(hidden_after, hidden_before - 1)
+        self.assertTrue(any(event.event_type == "object_revealed" for event in reveal_events))
+
+        injury_state = self.loaded.create_game_state("injury-event-test", seed=2)
+        injury_director = EventDirector(self.loaded.scenario["event_cards"], seed=4)
+        injury_events = injury_director.apply(injury_state, "pressure-falling-rafter")
+        self.assertEqual(
+            sum(agent.life_state == LifeState.INJURED for agent in injury_state.agents.values()),
+            1,
+        )
+        self.assertTrue(any(event.event_type == "life_state_changed" for event in injury_events))
 
 
 class GameSessionTests(unittest.TestCase):
@@ -344,8 +482,43 @@ class GameSessionTests(unittest.TestCase):
         beliefs = self.session.state.agents["广陵王"].beliefs
         received = next(belief for belief in beliefs if belief.source == notice.notice_id)
         self.assertEqual(received.stance, "reported")
-        self.assertTrue(received.claim.startswith("公告板声称："))
-        self.assertNotIn("傅融", notice.seen_by)
+        self.assertTrue(received.claim.startswith("主持人公开公告："))
+        self.assertEqual(set(notice.seen_by), set(self.session.state.agents))
+        self.assertEqual(set(received.shared_with), set(self.session.state.agents) - {"广陵王"})
+
+    def test_agent_notice_read_by_everyone_is_not_offered_as_new_information(self):
+        for agent in self.session.state.agents.values():
+            agent.location_id = "lobby"
+        notice = self.session.post_notice(
+            "西厢客房已经由众人共同检查。",
+            display_author="孙策",
+            authority="agent",
+            publisher="孙策",
+            location_id="lobby",
+        )
+        self.assertEqual(set(notice.seen_by), set(self.session.state.agents))
+        for agent_id, agent in self.session.state.agents.items():
+            belief = next(
+                item for item in agent.beliefs
+                if item.source == notice.notice_id
+            )
+            self.assertEqual(
+                set(belief.shared_with),
+                set(self.session.state.agents) - {agent_id},
+            )
+
+        intents = self.session.planner.plan(
+            self.session.state,
+            self.loaded.scenario,
+            actor_ids=list(self.session.state.agents),
+        )
+        shared_ids = {
+            intent.metadata.get("share_belief_id") for intent in intents
+        }
+        self.assertTrue(all(
+            f"belief-{agent_id}-{notice.notice_id}" not in shared_ids
+            for agent_id in self.session.state.agents
+        ))
 
     def test_card_and_round_form_a_persisted_interactive_cycle(self):
         cards = self.session.card_suggestions()
@@ -365,6 +538,60 @@ class GameSessionTests(unittest.TestCase):
         game_dir = Path(self.temporary_results.name) / "interactive" / "session-test"
         self.assertTrue((game_dir / "state.json").is_file())
         self.assertTrue((game_dir / "round-01.json").is_file())
+
+    def test_round_ends_with_bounded_structured_lobby_discussion(self):
+        self.session.select_event_card(
+            self.session.empty_event_option()["card_id"]
+        )
+        result = self.session.advance_round()
+        discussion = [
+            event for event in result.events
+            if event.event_type == "conversation"
+            and event.payload.get("round_discussion")
+        ]
+
+        self.assertGreaterEqual(len(discussion), 6)
+        self.assertLessEqual(len(discussion), 12)
+        self.assertEqual(
+            self.session.state.flags["round_discussion_turns"],
+            len(discussion),
+        )
+        self.assertTrue(all(
+            event.location_id == "lobby"
+            and event.payload["discussion_wave"] in {1, 2}
+            and event.payload["planner_source"]
+            for event in discussion
+        ))
+        self.assertTrue(all(
+            agent.location_id == "lobby"
+            for agent in self.session.state.agents.values()
+            if agent.can_act
+        ))
+        self.assertTrue(any(
+            record.event_id == discussion[0].event_id
+            and record.speaker_id
+            and record.listener_id
+            and record.location_id == "lobby"
+            for record in self.session.state.conversations
+        ))
+
+    def test_round_discussion_respects_global_one_hundred_turn_limit(self):
+        self.session.state.round_number = 1
+        self.session.state.phase = GamePhase.ROUND_COMPLETE
+        self.session.state.flags["round_discussion_turns"] = 98
+        self.session.state.flags["completed_round_discussions"] = []
+
+        events = self.session._prepare_round_discussion()
+        discussion = [
+            event for event in events
+            if event.event_type == "conversation"
+        ]
+
+        self.assertEqual(len(discussion), 2)
+        self.assertEqual(
+            self.session.state.flags["round_discussion_turns"],
+            100,
+        )
 
     def test_ai_free_movement_is_resolved_before_one_major_action(self):
         class FreeMoveThenMajorPlanner:
@@ -400,6 +627,51 @@ class GameSessionTests(unittest.TestCase):
         self.assertTrue(all(event.payload["free_action"] for event in free_moves))
         self.assertEqual(self.session.state.action_step, 1)
         self.assertEqual({event.actors[0] for event in major_events}, set(self.session.state.agents))
+
+    def test_crowded_lobby_conversation_does_not_starve_exploration(self):
+        agent_ids = list(self.session.state.agents)
+        for index, agent in enumerate(self.session.state.agents.values()):
+            agent.location_id = "lobby"
+            agent.beliefs.append(Belief(
+                belief_id=f"crowded-private-{index}",
+                claim=f"第{index + 1}份私人记录仍需找人核对",
+                source=f"private-observation-{index}",
+                confidence=0.8,
+            ))
+        for item in self.session.state.objects.values():
+            if item.location_id == "lobby":
+                item.discovered_by = list(agent_ids)
+
+        self.session.select_event_card(
+            self.session.empty_event_option()["card_id"]
+        )
+        result = self.session._advance_action_phase(player_intent=None)
+        free_moves = [
+            event for event in result.events
+            if event.event_type == "move"
+            and event.payload.get("free_action")
+        ]
+        major_events = [
+            event for event in result.events
+            if event.action_step == 1
+            and event.event_type not in {"move", "conversation"}
+        ]
+
+        self.assertEqual(
+            {event.actors[0] for event in free_moves},
+            set(agent_ids),
+        )
+        self.assertTrue(any(
+            event.event_type in {"discovery", "investigation_empty"}
+            for event in major_events
+        ))
+        self.assertFalse(all(
+            event.event_type == "wait" for event in major_events
+        ))
+        self.assertGreater(
+            len({agent.location_id for agent in self.session.state.agents.values()}),
+            1,
+        )
 
     def test_character_plan_survives_and_accumulates_outcomes_across_rounds(self):
         initial_objective = self.session.state.agents["广陵王"].strategic_plan["objective"]
@@ -441,7 +713,11 @@ class GameSessionTests(unittest.TestCase):
         published, event = self.session.publish_public_intel(intel["id"])
         self.assertEqual(published["id"], intel["id"])
         for agent in self.session.state.agents.values():
-            self.assertTrue(any(belief.source == event.event_id for belief in agent.beliefs))
+            received = next(belief for belief in agent.beliefs if belief.source == event.event_id)
+            self.assertEqual(
+                set(received.shared_with),
+                set(self.session.state.agents) - {agent.agent_id},
+            )
         self.assertEqual(self.session.state.public_intel_history[0]["claim"], intel["claim"])
         self.assertEqual(event.payload["title"], intel["title"])
         self.assertEqual(event.payload["claim"], intel["claim"])
@@ -583,14 +859,39 @@ class LLMPlannerTests(unittest.TestCase):
         killer_prompt_count = sum("你是本局隐藏凶手" in prompt for prompt in fake_model.prompts)
         self.assertEqual(killer_prompt_count, 1)
 
-    def test_all_resolved_character_actions_are_visible_to_the_player(self):
+    def test_llm_scope_rejects_unrelated_character_state_and_lore(self):
+        loaded = ScenarioLoader(ROOT).load("stormbound_inn")
+        state = loaded.create_game_state("llm-scope-test")
+        state.agents["吕布"] = AgentState(
+            agent_id="吕布",
+            display_name="吕布",
+            location_id="lobby",
+            public_role="不属于停云客栈的旧版角色",
+        )
+        fake_model = FakeModel()
+        planner = LLMIntentPlanner(fake_model)
+
+        intents = planner.plan(state, loaded.scenario)
+
+        self.assertEqual({intent.actor_id for intent in intents}, {
+            "广陵王", "傅融", "刘辩", "孙策", "左慈", "袁基",
+        })
+        combined = "\n".join(fake_model.prompts)
+        for unrelated_name in ("吕布", "祢衡", "周瑜", "太史慈", "史子眇"):
+            self.assertNotIn(unrelated_name, combined)
+
+    def test_resolved_character_actions_are_scoped_to_witnesses(self):
         loaded = ScenarioLoader(ROOT).load("stormbound_inn")
         state = loaded.create_game_state("visibility-test", seed=2)
         result = RoundEngine(seed=1).resolve_round(state, [
             ActionIntent("广陵王", ActionType.MOVE, location_id="stairs"),
             ActionIntent("傅融", ActionType.INVESTIGATE, location_id="study"),
         ])
-        self.assertTrue(all(event.public for event in result.events))
+        self.assertTrue(all(not event.public for event in result.events))
+        self.assertTrue(all(
+            set(event.actors).issubset(set(event.witnesses))
+            for event in result.events
+        ))
 
     def test_json_inside_code_fence_is_parsed(self):
         response = '```json\n{"action_type":"wait","reason":"观察"}\n```'
@@ -636,6 +937,26 @@ class LLMPlannerTests(unittest.TestCase):
         self.assertEqual(model.kwargs["api_key"], "secret-value")
         self.assertEqual(model.kwargs["model"], "GLM-test")
 
+    def test_deepseek_candidate_uses_environment_key_without_exposing_it(self):
+        class FakeCompatible:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+        import modules.interactive.llm_planner as planner_module
+        original = planner_module.OpenAICompatibleChatModel
+        planner_module.OpenAICompatibleChatModel = FakeCompatible
+        try:
+            planner = LLMIntentPlanner.from_deepseek(
+                "secret-deepseek-value",
+                model_name="deepseek-v4-flash",
+            )
+        finally:
+            planner_module.OpenAICompatibleChatModel = original
+        self.assertEqual(planner.model.kwargs["api_key"], "secret-deepseek-value")
+        self.assertEqual(planner.model.kwargs["base_url"], "https://api.deepseek.com")
+        self.assertEqual(planner.provider_name, "deepseek:deepseek-v4-flash")
+        self.assertNotIn("secret-deepseek-value", planner.provider_name)
+
     def test_compatible_endpoint_does_not_duplicate_chat_completions_suffix(self):
         from modules.interactive.llm_planner import OpenAICompatibleChatModel
 
@@ -667,6 +988,41 @@ class LLMPlannerTests(unittest.TestCase):
         finally:
             requests.post = original_post
         self.assertEqual(captured["url"], "https://example.invalid/v1/chat/completions")
+
+    def test_deepseek_compatible_request_disables_thinking_for_json_actions(self):
+        from modules.interactive.llm_planner import OpenAICompatibleChatModel
+
+        model = object.__new__(OpenAICompatibleChatModel)
+        model.base_url = "https://api.deepseek.com"
+        model.model = "deepseek-v4-flash"
+        model.api_key = "secret"
+        model.client = None
+        model.timeout_seconds = 20.0
+
+        import requests
+        original_post = requests.post
+        captured = {}
+
+        class Response:
+            ok = True
+            status_code = 200
+
+            @staticmethod
+            def json():
+                return {"choices": [{"message": {"content": "ok"}}]}
+
+        def fake_post(url, **kwargs):
+            captured["url"] = url
+            captured["json"] = kwargs["json"]
+            return Response()
+
+        requests.post = fake_post
+        try:
+            self.assertEqual(model.completion("prompt"), "ok")
+        finally:
+            requests.post = original_post
+        self.assertEqual(captured["url"], "https://api.deepseek.com/chat/completions")
+        self.assertEqual(captured["json"]["thinking"], {"type": "disabled"})
 
 
 if __name__ == "__main__":
