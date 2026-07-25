@@ -48,6 +48,22 @@ class AdapterRetryTests(unittest.TestCase):
         self.assertEqual(adapter.completion("hi", retry=3), "ok")
         self.assertEqual(len(attempts), 2)
 
+    def test_json_mode_kwarg_does_not_collide_with_retry_loop(self):
+        adapter = OpenAICompatibleChatModel(
+            base_url="http://127.0.0.1:9/v1", model="test", api_key="test",
+        )
+        seen: list[bool] = []
+
+        def fake(prompt: str, *, json_mode: bool = False, **kwargs: object) -> str:
+            seen.append(json_mode)
+            return "ok"
+
+        adapter._request_once = fake
+        self.assertEqual(
+            adapter.completion("hi", retry=2, json_mode=True, caller="x"), "ok",
+        )
+        self.assertEqual(seen, [True])
+
     def test_exhausted_retries_raise_last_error(self):
         adapter = OpenAICompatibleChatModel(
             base_url="http://127.0.0.1:9/v1",

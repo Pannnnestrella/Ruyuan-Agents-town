@@ -54,7 +54,7 @@
 - 现状:"角色只知道该知道的"这一核心不变量仅由提示词构造代码单点保证,无回归测试。
 - 方案:新增测试:对每个非凶手角色生成决策/对话/投票提示词,断言其中不出现凶手档案、他人秘密原文、物品 `secret_value`、作者真相。
 
-**D3. 落地校验规则双份维护 + 场景硬编码** ☐
+**D3. 落地校验规则双份维护 + 场景硬编码** ☑ 2026-07-26(RoundEngine.validate_intent 成为唯一规则源;公告栏位置由 bulletin_location_id 配置;终局聚集等编排类 lobby 用法属场景语义,保留)
 - 现状:`_intent_is_grounded`(planner)与 `RoundEngine._validate_intent` 两套规则独立演化;`post_notice` 与 `Notice` 默认值硬编码 `lobby`。
 - 方案:公告地点改由场景配置声明(如 `bulletin_location_id`);合法性预检收敛为调用引擎侧的校验入口。
 
@@ -66,7 +66,7 @@
 - 现状:prompt 与原始回复不落盘,异常决策无法复盘。
 - 方案:可开关的审计日志,按 `results/interactive/<game_id>/llm_trace/` 落盘 prompt/response/来源。
 
-**D6. 代码卫生** ☐
+**D6. 代码卫生** ☑ 2026-07-26(删除 memory/* copy.py;.gitignore 覆盖运行产物与评估产物)
 - 现状:`modules/memory/* copy.py` 死代码;`results/interactive/` 运行日志混入工作区未 ignore。
 - 方案:删除 copy 系列文件;`.gitignore` 补充 results 运行产物。
 

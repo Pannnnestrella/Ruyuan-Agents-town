@@ -15,8 +15,9 @@ from typing import Any, Callable
 from modules.model.llm_model import create_llm_model
 
 from .models import ActionIntent, ActionType, GameState
-from .abilities import abilities_for, action_is_authorized
+from .abilities import abilities_for
 from .belief_select import select_context_beliefs
+from .round_engine import RoundEngine, bulletin_location
 from .service import HeuristicIntentPlanner
 
 
@@ -90,8 +91,8 @@ class OpenAICompatibleChatModel:
         dropped after a failed attempt in case a gateway rejects it.
         """
 
-        attempts = max(1, int(kwargs.get("retry", 1)))
-        json_mode = bool(kwargs.get("json_mode", False))
+        attempts = max(1, int(kwargs.pop("retry", 1)))
+        json_mode = bool(kwargs.pop("json_mode", False))
         last_error: Exception | None = None
         for attempt in range(attempts):
             try:
@@ -793,24 +794,20 @@ player.message 中⟦玩家台词开始⟧与⟦玩家台词结束⟧之间的�
             for fragment in fragments
         )
 
+    # Shared legality checker; RoundEngine.validate_intent is the single
+    # source of truth for world rules, so planner pre-checks cannot drift.
+    _RULE_VALIDATOR = RoundEngine(seed=0)
+
     @staticmethod
     def _intent_is_grounded(state: GameState, intent: ActionIntent) -> bool:
-        """Reject references outside the actor's scoped, currently usable world."""
+        """Reject intents the engine would refuse, plus planner-only quality rules."""
 
         actor = state.agents.get(intent.actor_id)
         if actor is None or not actor.can_act:
             return False
-        if not action_is_authorized(state, intent):
+        if LLMIntentPlanner._RULE_VALIDATOR.validate_intent(state, intent) is not None:
             return False
-        location = state.locations[actor.location_id]
-        target = state.agents.get(intent.target_id) if intent.target_id else None
-        item = state.objects.get(intent.object_id) if intent.object_id else None
 
-        if intent.action_type == ActionType.MOVE:
-            return bool(
-                intent.location_id
-                and intent.location_id in location.get("connections", [])
-            )
         if intent.action_type == ActionType.INVESTIGATE:
             if intent.location_id not in {None, actor.location_id}:
                 return False
@@ -827,53 +824,23 @@ player.message 中⟦玩家台词开始⟧与⟦玩家台词结束⟧之间的�
             )
             return has_new_object or not already_exhausted
         if intent.action_type in {ActionType.TALK, ActionType.POISON}:
-            grounded = bool(
-                target
-                and target.agent_id != actor.agent_id
-                and target.can_act
-                and target.location_id == actor.location_id
-            )
-            if not grounded or intent.action_type != ActionType.TALK:
-                if grounded and intent.action_type == ActionType.POISON:
-                    return actor.agent_id not in state.flags.get(
-                        "poisons_by_round", {}
-                    ).get(str(state.round_number + 1), [])
-                return grounded
-            display_id = str(intent.metadata.get("display_object_id") or "")
-            if display_id and display_id not in actor.inventory:
+            target = state.agents.get(intent.target_id or "")
+            if target is None or not target.can_act:
                 return False
-            shared_id = str(intent.metadata.get("share_belief_id") or "")
-            if not shared_id:
-                return True
-            shared = next(
-                (belief for belief in actor.beliefs if belief.belief_id == shared_id),
-                None,
-            )
-            return bool(
-                shared
-                and target.agent_id not in shared.shared_with
-                and not any(
-                    LLMIntentPlanner._dialogue_fingerprint(known.claim)
-                    == LLMIntentPlanner._dialogue_fingerprint(shared.claim)
-                    for known in target.beliefs[-60:]
-                )
-            )
+            if intent.action_type == ActionType.TALK:
+                display_id = str(intent.metadata.get("display_object_id") or "")
+                if display_id and display_id not in actor.inventory:
+                    return False
+            return True
         if intent.action_type == ActionType.POST_NOTICE:
-            return bool(
-                actor.location_id == "lobby"
-                and intent.content.strip()
-                and intent.content.strip() not in {notice.content for notice in state.notices}
-            )
+            return intent.content.strip() not in {
+                notice.content for notice in state.notices
+            }
         if intent.action_type == ActionType.TRANSFER:
-            return bool(
-                target
-                and target.agent_id != actor.agent_id
-                and target.can_act
-                and target.location_id == actor.location_id
-                and item
-                and item.holder_id == actor.agent_id
-            )
+            item = state.objects.get(intent.object_id or "")
+            return bool(item and item.holder_id == actor.agent_id)
         if intent.action_type == ActionType.TREAT:
+            target = state.agents.get(intent.target_id or "")
             return bool(
                 target
                 and target.can_act
@@ -882,7 +849,7 @@ player.message 中⟦玩家台词开始⟧与⟦玩家台词结束⟧之间的�
                     or target.location_id == actor.location_id
                 )
             )
-        return intent.action_type == ActionType.WAIT
+        return True
 
     @staticmethod
     def _dialogue_fingerprint(value: str) -> str:
@@ -1219,7 +1186,7 @@ player.message 中⟦玩家台词开始⟧与⟦玩家台词结束⟧之间的�
             allowed_types.insert(0, "move")
         if not force_major and visible_people:
             allowed_types.insert(1 if "move" in allowed_types else 0, "talk")
-        if agent.location_id == "lobby":
+        if agent.location_id == bulletin_location(state):
             allowed_types.append("post_notice")
         for ability in special_abilities:
             if ability["action_type"] == "poison" and not can_poison_this_round:

@@ -146,3 +146,11 @@ results/checkpoints/
 
 # 互动推演的逐局运行存档由服务自动生成；保留同目录中的文档截图，避免提交本机测试局。
 results/interactive/game-*/
+results/interactive/eval-*/
+results/interactive/health-debug/
+results/interactive/history/
+results/interactive/server.stdout.log
+results/interactive/server.stderr.log
+
+# 批量自博弈评估产物（scripts/selfplay_eval.py）
+results/selfplay_eval/

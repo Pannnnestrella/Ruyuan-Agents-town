@@ -27,7 +27,7 @@ from .models import (
     Notice,
     RoundResult,
 )
-from .round_engine import RoundEngine
+from .round_engine import RoundEngine, bulletin_location
 from .recap import RecapBuilder
 from .persistence import atomic_write_json, atomic_write_text, game_state_from_dict
 from .history import record_completed_game
@@ -189,8 +189,9 @@ class HeuristicIntentPlanner:
                     or notice.expires_after_round >= state.round_number
                 )
             ]
-            if unseen_notices and agent.location_id != "lobby" and not force_major and self.random.random() < 0.45:
-                route = self._shortest_path(state, agent.location_id, "lobby")
+            board_location = bulletin_location(state)
+            if unseen_notices and agent.location_id != board_location and not force_major and self.random.random() < 0.45:
+                route = self._shortest_path(state, agent.location_id, board_location)
                 if len(route) > 1:
                     intents.append(ActionIntent(
                         agent_id,
@@ -283,7 +284,7 @@ class HeuristicIntentPlanner:
                 )
                 continue
 
-            if agent.location_id == "lobby":
+            if agent.location_id == bulletin_location(state):
                 existing_posts = {notice.content for notice in state.notices}
                 other_agent_ids = set(state.agents) - {agent_id}
                 publishable = next((
@@ -1584,7 +1585,7 @@ class GameSession:
                 and not self.state.active_event_card
             ),
             "can_post_notice": bool(
-                actor.location_id == "lobby"
+                actor.location_id == bulletin_location(self.state)
                 and self.state.phase in {
                     GamePhase.READY, GamePhase.PLAYER_TURN,
                     GamePhase.INTERVENTION, GamePhase.DISCUSSION,
@@ -1785,14 +1786,15 @@ class GameSession:
     def post_player_notice(self, token: str, content: str) -> Notice:
         player_id = self.verify_player_token(token)
         actor = self.state.agents[player_id]
-        if actor.location_id != "lobby":
+        board_location = bulletin_location(self.state)
+        if actor.location_id != board_location:
             raise ValueError("公告栏设在客栈大堂，必须亲自到场才能张贴")
         return self.post_notice(
             content,
             display_author=actor.display_name,
             authority="player",
             publisher=player_id,
-            location_id="lobby",
+            location_id=board_location,
         )
 
     def _materialize_agent_notices(self, events: list[EventRecord]) -> None:
@@ -1810,7 +1812,7 @@ class GameSession:
                 publisher=publisher,
                 display_author=str(event.payload.get("display_author") or publisher),
                 content=content,
-                location_id="lobby",
+                location_id=bulletin_location(self.state),
                 authority="agent",
                 seen_by=list(event.witnesses),
             )
@@ -1827,7 +1829,7 @@ class GameSession:
             "bulletin_updated",
             "客栈大堂的公告栏出现了新张贴；要知道原文，必须回到大堂查看。",
             public=True,
-            location_id="lobby",
+            location_id=bulletin_location(self.state),
             witnesses=all_agent_ids,
             payload={"notice_id": notice.notice_id, "content_hidden_until_read": True},
         )

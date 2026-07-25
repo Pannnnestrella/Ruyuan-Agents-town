@@ -268,6 +268,11 @@ class LoadedScenario:
 
         flags = dict(self.scenario.get("initial_flags", {}))
         flags["seed"] = seed
+        flags["bulletin_location_id"] = str(
+            self.scenario.get("bulletin_location_id")
+            or self.world.get("default_notice_location")
+            or "lobby"
+        )
         killer_setup = self.scenario.get("killer_setup") or {}
         killer_candidates = list(killer_setup.get("candidates", []))
         if killer_candidates:

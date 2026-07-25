@@ -18,6 +18,12 @@ from .models import (
 from .abilities import action_is_authorized, apply_ability
 
 
+def bulletin_location(state: GameState) -> str:
+    """Scenario-configured bulletin board location (defaults to the lobby)."""
+
+    return str(state.flags.get("bulletin_location_id") or "lobby")
+
+
 class RoundEngine:
     """Resolve a frozen set of intents against a single game state.
 
@@ -172,6 +178,15 @@ class RoundEngine:
         state.events.append(event)
         return RoundResult(active_round, [event], [], state, state.action_step)
 
+    def validate_intent(self, state: GameState, intent: ActionIntent) -> str | None:
+        """Public single-intent legality check (phase bookkeeping excluded).
+
+        Planners use this as the single source of truth for world rules so
+        pre-checks cannot drift from resolution-time validation.
+        """
+
+        return self._validate_intent(state, intent, set())
+
     def _validate_intent(
         self,
         state: GameState,
@@ -195,8 +210,8 @@ class RoundEngine:
             if intent.location_id not in state.locations[actor.location_id].get("connections", []):
                 return "destination is not connected to actor location"
         if intent.action_type == ActionType.POST_NOTICE:
-            if actor.location_id != "lobby":
-                return "the bulletin board is in the lobby"
+            if actor.location_id != bulletin_location(state):
+                return "the bulletin board is not at the actor's location"
             if not intent.content.strip():
                 return "bulletin content cannot be empty"
         if intent.target_id and intent.target_id not in state.agents:
@@ -549,14 +564,15 @@ class RoundEngine:
     def _resolve_post_notice(self, state: GameState, intent: ActionIntent, round_number: int) -> EventRecord:
         actor = state.agents[intent.actor_id]
         content = intent.content.strip()[:500]
+        board_location = bulletin_location(state)
         return self._event(
             round_number,
             "notice_posted",
             f"{actor.display_name}在客栈大堂公告栏写下：{content}",
             actors=[actor.agent_id],
-            location_id="lobby",
+            location_id=board_location,
             public=True,
-            witnesses=state.occupants("lobby", include_dead=False),
+            witnesses=state.occupants(board_location, include_dead=False),
             payload={
                 "publisher": actor.agent_id,
                 "display_author": actor.display_name,
