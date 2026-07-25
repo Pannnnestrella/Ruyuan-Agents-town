@@ -104,6 +104,12 @@ def create_app(
             context=context,
         )
 
+    # Raw prompt/response audit trail per game; set GA_INTERACTIVE_LLM_TRACE=0
+    # to disable.
+    llm_trace_root = (
+        Path(results_root) if results_root else root / "results"
+    ) if os.environ.get("GA_INTERACTIVE_LLM_TRACE", "1") != "0" else None
+
     def build_planner(seed: int, provider: str, model: str = ""):
         fallback = HeuristicIntentPlanner(seed=seed)
         provider = provider.lower().strip()
@@ -116,6 +122,7 @@ def create_app(
                 ),
                 fallback=fallback,
                 error_callback=planner_error_callback,
+                trace_root=llm_trace_root,
             )
         if provider == "deepseek":
             return LLMIntentPlanner.from_deepseek(
@@ -132,12 +139,14 @@ def create_app(
                 ),
                 fallback=fallback,
                 error_callback=planner_error_callback,
+                trace_root=llm_trace_root,
             )
         if provider == "project":
             return LLMIntentPlanner.from_project_config(
                 root,
                 fallback=fallback,
                 error_callback=planner_error_callback,
+                trace_root=llm_trace_root,
             )
         raise ValueError("未知决策接口；请选择 heuristic、ollama、deepseek 或 project")
 
