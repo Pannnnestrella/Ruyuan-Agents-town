@@ -542,6 +542,11 @@ class RoundEngine:
                     item_disposition if item_disposition == "refuse" else "none"
                 ),
                 "_host_item_disposition": item_disposition,
+                "promise": (
+                    intent.metadata.get("promise")
+                    if isinstance(intent.metadata.get("promise"), dict)
+                    else None
+                ),
             },
         )
         if displayed_item and displayed_item.history:

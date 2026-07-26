@@ -1146,6 +1146,32 @@ player.message 中⟦玩家台词开始⟧与⟦玩家台词结束⟧之间的�
             },
             "visible_people": visible_people,
             "visible_objects": visible_objects,
+            "open_commitments": {
+                "made_by_me": [
+                    {
+                        "commitment_id": entry.get("commitment_id"),
+                        "to": entry.get("promisee_id"),
+                        "content": entry.get("content"),
+                        "object_id": entry.get("object_id"),
+                        "due_round": entry.get("due_round"),
+                    }
+                    for entry in state.flags.get("commitments", [])
+                    if entry.get("status") == "open"
+                    and entry.get("promisor_id") == agent.agent_id
+                ],
+                "owed_to_me": [
+                    {
+                        "commitment_id": entry.get("commitment_id"),
+                        "from": entry.get("promisor_id"),
+                        "content": entry.get("content"),
+                        "object_id": entry.get("object_id"),
+                        "due_round": entry.get("due_round"),
+                    }
+                    for entry in state.flags.get("commitments", [])
+                    if entry.get("status") == "open"
+                    and entry.get("promisee_id") == agent.agent_id
+                ],
+            },
             "recent_known_events": recent_known_events,
             "exhausted_locations": exhausted_locations,
             "prior_exchanges": prior_exchanges,
@@ -1210,7 +1236,7 @@ behavior_guidelines 是本局唯一行为准则，优先于旧提示习惯；pla
 可用行动：
 - move：前往 connected_locations 中一个相邻地点，填写 location_id。
 - investigate：调查当前地点，location_id 必须是当前地点。
-- talk：与 visible_people 中一人自由交谈，填写 target_id，并在 content 中写出符合人物身份和当前目的的自然台词（不超过一百字）。你可以询问、试探、质疑、玩笑、回避、谈条件、误导或直接陈述，不要每次都使用同一种“分享情报—索要印证”的固定句式。若要交换一条自己确实知道的记忆，可把 private_beliefs 中的 belief_id 填入 share_belief_id；结构化记录会另行保存该信息，台词无需套统一前后缀。这会把该记忆连同来源交给对方。若你在台词中明确自愿出示 visible_objects 中由自己“持有”的一件物品，可填写 display_object_id 并令 item_disposition="show"；也可以在被要求时拒绝或撒谎，但不得凭空出示物品。
+- talk：与 visible_people 中一人自由交谈，填写 target_id，并在 content 中写出符合人物身份和当前目的的自然台词（不超过一百字）。你可以询问、试探、质疑、玩笑、回避、谈条件、误导或直接陈述，不要每次都使用同一种“分享情报—索要印证”的固定句式。若要交换一条自己确实知道的记忆，可把 private_beliefs 中的 belief_id 填入 share_belief_id；结构化记录会另行保存该信息，台词无需套统一前后缀。这会把该记忆连同来源交给对方。若你在台词中明确自愿出示 visible_objects 中由自己“持有”的一件物品，可填写 display_object_id 并令 item_disposition="show"；也可以在被要求时拒绝或撒谎，但不得凭空出示物品。若愿意作出可被记录核对的承诺（例如下一轮交出某件物品），在 promise 字段填写 {{"content":"承诺内容","object_id":"可选，必须是你持有的物品"}}：带物品的承诺会被系统在时限内核对，兑现或违约都会成为你与对方共同的记忆；open_commitments 列出你未兑现的承诺与他人欠你的承诺，违约会损害你的可信度。
 - post_notice：仅在大堂可用。把一条你愿意实名公开、且 bulletin_posts 中尚未出现的可靠情报写入 content；不得公开自己的秘密或凶手身份。
 - transfer：把自己持有的物品交给同地点角色，填写 target_id 与 object_id。
 - wait：留在原地观察。
@@ -1228,6 +1254,7 @@ behavior_guidelines 是本局唯一行为准则，优先于旧提示习惯；pla
   "share_belief_id": null,
   "item_disposition": "none|show|refuse|lie",
   "display_object_id": null,
+  "promise": null,
   "reason": "角色作出这个选择的简短内在理由",
   "plan": {{
     "objective": "未来二至三轮最重要的私人目标",
@@ -1302,6 +1329,15 @@ behavior_guidelines 是本局唯一行为准则，优先于旧提示习惯；pla
             intent.metadata["display_object_id"] = display_object_id
         if item_disposition in {"none", "show", "refuse", "lie"}:
             intent.metadata["item_disposition"] = item_disposition
+        promise = data.get("promise")
+        if isinstance(promise, dict):
+            promise_content = str(promise.get("content") or "").strip()[:160]
+            if promise_content:
+                sanitized: dict[str, Any] = {"content": promise_content}
+                promise_object = str(promise.get("object_id") or "").strip()[:80]
+                if promise_object:
+                    sanitized["object_id"] = promise_object
+                intent.metadata["promise"] = sanitized
         plan = LLMIntentPlanner._sanitize_plan(data.get("plan"))
         if plan:
             intent.metadata["strategic_plan"] = plan

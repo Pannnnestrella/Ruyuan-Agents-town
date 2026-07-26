@@ -1821,6 +1821,96 @@ class GameSession:
             self._add_notice_beliefs(notice, notice.seen_by)
             self._signal_bulletin_update(notice, notice.seen_by)
 
+    def _process_commitments(self, events: list[EventRecord]) -> None:
+        """Record spoken promises and settle them against real world events.
+
+        Only object-backed promises are auto-judged: fulfilled by a matching
+        transfer, broken once the deadline round has fully passed. Free-form
+        promises are remembered and shown to planners but never auto-labelled,
+        because their fulfilment is not decidable by rules.
+        """
+
+        bucket = self.state.flags.setdefault("commitments", [])
+        known_sources = {entry.get("source_event_id") for entry in bucket}
+        for event in events:
+            if event.event_type != "conversation":
+                continue
+            promise = event.payload.get("promise")
+            if not isinstance(promise, dict) or event.event_id in known_sources:
+                continue
+            content = str(promise.get("content") or "").strip()[:160]
+            promisor = str(event.payload.get("speaker_id") or "")
+            promisee = str(event.payload.get("listener_id") or "")
+            if not content or not promisor or not promisee:
+                continue
+            object_id = str(promise.get("object_id") or "").strip() or None
+            if object_id:
+                item = self.state.objects.get(object_id)
+                if item is None or item.holder_id != promisor:
+                    # A promise about an item the speaker does not hold is
+                    # just talk; keep it as a free-form promise.
+                    object_id = None
+            bucket.append({
+                "commitment_id": f"commitment-{len(bucket) + 1:04d}",
+                "source_event_id": event.event_id,
+                "promisor_id": promisor,
+                "promisee_id": promisee,
+                "content": content,
+                "object_id": object_id,
+                "made_round": event.round_number,
+                "due_round": event.round_number + 1,
+                "status": "open",
+            })
+            known_sources.add(event.event_id)
+
+        generated: list[EventRecord] = []
+        for entry in bucket:
+            if entry.get("status") != "open":
+                continue
+            promisor = self.state.agents.get(entry["promisor_id"])
+            promisee = self.state.agents.get(entry["promisee_id"])
+            if promisor is None or promisee is None:
+                entry["status"] = "void"
+                continue
+            if entry.get("object_id"):
+                fulfilled = any(
+                    event.event_type == "object_transfer"
+                    and event.actors[:2] == [entry["promisor_id"], entry["promisee_id"]]
+                    and any(
+                        change.get("object_id") == entry["object_id"]
+                        for change in event.state_changes
+                    )
+                    for event in events
+                )
+                if fulfilled:
+                    entry["status"] = "fulfilled"
+                    generated.append(self._event(
+                        "commitment_fulfilled",
+                        f"{promisor.display_name}兑现了对{promisee.display_name}的承诺：{entry['content']}",
+                        public=False,
+                        location_id=promisor.location_id,
+                        witnesses=[entry["promisor_id"], entry["promisee_id"]],
+                        payload={"commitment_id": entry["commitment_id"]},
+                    ))
+                    continue
+                if self.state.round_number > entry["due_round"]:
+                    entry["status"] = "broken"
+                    generated.append(self._event(
+                        "commitment_broken",
+                        f"{promisor.display_name}未在约定时限内兑现对{promisee.display_name}的承诺：{entry['content']}",
+                        public=False,
+                        location_id=promisee.location_id,
+                        witnesses=[entry["promisor_id"], entry["promisee_id"]],
+                        payload={"commitment_id": entry["commitment_id"]},
+                    ))
+            elif self.state.round_number > entry["due_round"]:
+                # Free-form promises quietly lapse; there is no rule-decidable
+                # fulfilment signal, so no verdict event is fabricated.
+                entry["status"] = "lapsed"
+        if generated:
+            self.state.events.extend(generated)
+            self._update_beliefs_from_round_events(generated)
+
     def _signal_bulletin_update(self, notice: Notice, readers: list[str]) -> None:
         """Tell everyone a post exists without leaking its text outside the lobby."""
 
@@ -2054,6 +2144,7 @@ class GameSession:
                             "completed": 1,
                             "total": 1,
                         })
+            self._process_commitments(result.events)
             self._update_beliefs_from_round_events(result.events)
             self._apply_scoring_from_events(result.events)
             self._deliver_unseen_notices()
@@ -2206,6 +2297,7 @@ class GameSession:
                     free_events.extend(free_result.events)
                     free_rejections.extend(free_result.rejected_intents)
                     if free_result.events:
+                        self._process_commitments(free_result.events)
                         self._update_beliefs_from_round_events(free_result.events)
                         self._apply_scoring_from_events(free_result.events)
                         self._deliver_unseen_notices()
@@ -2262,6 +2354,7 @@ class GameSession:
                     event.payload["player_reply_invited"] = True
         result.events[0:0] = [*trigger_events, *free_events]
         self._materialize_agent_notices(result.events)
+        self._process_commitments(result.events)
         self._commit_strategic_plans(intents, major_events)
         self._update_beliefs_from_round_events(major_events)
         self._apply_scoring_from_events(major_events)
@@ -2897,6 +2990,7 @@ class GameSession:
                 "treatment", "investigation_empty", "wait",
                 "object_dropped", "health_changed",
                 "life_state_changed",
+                "commitment_fulfilled", "commitment_broken",
             }:
                 recipients.extend((witness, "observed", 0.95) for witness in event.witnesses)
             elif event.event_type == "action_failed" and event.actors:
