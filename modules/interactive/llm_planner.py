@@ -962,6 +962,9 @@ player.message 中⟦玩家台词开始⟧与⟦玩家台词结束⟧之间的�
             stage=stage,
             agent_id=voter_id,
             temperature=0.35,
+            # Final submissions carry answers, a case conclusion, and personal
+            # task answers; the 700-token default truncates them mid-JSON.
+            max_tokens=1800,
         )
         text = str(response or "").strip()
         text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
@@ -970,7 +973,7 @@ player.message 中⟦玩家台词开始⟧与⟦玩家台词结束⟧之间的�
         suspect_id = str(data.get("suspect_id", ""))
         if suspect_id not in {item["id"] for item in candidates}:
             raise ValueError("invalid vote target")
-            authored_questions = {
+        authored_questions = {
             str(question.get("id", "")): {
                 str(option.get("id", ""))
                 for option in question.get("options", [])

@@ -151,6 +151,29 @@ class PlannerRetryAndTraceTests(unittest.TestCase):
         planner.plan(self.state, self.scenario, actor_ids=[self.actor_id])
         self.assertTrue(all(call.get("json_mode") for call in model.calls))
 
+    def test_valid_llm_vote_is_accepted_not_silently_discarded(self):
+        candidates = [
+            agent_id for agent_id in sorted(self.state.agents)
+            if agent_id != self.actor_id
+        ]
+        vote_json = json.dumps({
+            "suspect_id": candidates[0],
+            "reason": "他在案发前后行踪矛盾。",
+            "answers": [],
+            "case_conclusion": {"killer": candidates[0]},
+            "personal_task_answers": [],
+        }, ensure_ascii=False)
+        model = ScriptedModel([vote_json])
+        planner = LLMIntentPlanner(model)
+        decision = planner.vote(self.state, self.scenario, self.actor_id)
+        self.assertEqual(decision.get("_model_source"), "llm")
+        self.assertEqual(decision.get("suspect_id"), candidates[0])
+        self.assertEqual(len(model.calls), 1, "合法投票不应触发重试")
+        self.assertGreaterEqual(
+            int(model.calls[0].get("max_tokens", 0)), 1500,
+            "终局提交需要足够的输出预算,避免 JSON 被截断",
+        )
+
     def test_prompts_and_responses_are_traced_to_jsonl(self):
         valid = json.dumps({
             "action_type": "wait", "reason": "等待",
