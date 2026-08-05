@@ -137,8 +137,8 @@
                 <div class="planner-switcher">
                     <div><p class="control-kicker">决策接口</p><h2>切换后续角色行动使用的模型</h2></div>
                     <select id="planner-provider">
-                        <option value="deepseek" selected>DeepSeek API（默认）</option>
-                        <option value="ollama">Ollama 本地</option>
+                        <option value="ollama" selected>Ollama 本地（默认）</option>
+                        <option value="deepseek">DeepSeek API（失败时转本地）</option>
                         <option value="project">项目配置 API</option>
                         <option value="heuristic">本地规则（无 LLM）</option>
                     </select>

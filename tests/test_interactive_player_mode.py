@@ -23,8 +23,8 @@ class PlayerModeTests(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def select_quiet(self):
-        quiet = self.session.empty_event_option()
-        self.session.select_event_card(quiet["card_id"])
+        self.assertTrue(self.session.state.active_event_card)
+        self.assertFalse(self.session.state.public_intel_history)
 
     def test_first_person_view_does_not_leak_other_private_state_or_killer(self):
         view = self.session.player_state(self.token)
@@ -67,11 +67,11 @@ class PlayerModeTests(unittest.TestCase):
         self.assertGreaterEqual(len(view["background"]["background_memories"]), 2)
         self.assertIn("鸢报有假", view["opening_dispatch"]["dead_note"])
         self.assertGreaterEqual(len(view["player_guide"]["principles"]), 6)
-        self.assertEqual(view["story_guide"]["title"], "第 1 轮 · 风雨未歇")
-        self.assertIn("亲自选择", view["story_guide"]["objective"])
+        self.assertEqual(view["story_guide"]["title"], "第 1 轮 · 主要行动 0/3")
         self.assertGreaterEqual(len(view["background"]["timeline"]), 6)
-        self.assertEqual(len(view["host_options"]["cards"]), 3)
-        self.assertTrue(view["host_options"]["quiet"])
+        self.assertIsNone(view["host_options"])
+        self.assertFalse(view["available_actions"]["can_auto_host"])
+        self.assertFalse(view["public_intel_history"])
 
         self.select_quiet()
         ready = self.session.player_state(self.token)
@@ -127,8 +127,7 @@ class PlayerModeTests(unittest.TestCase):
         self.assertIn("investigate", actions["types"])
         skill = next(item for item in actions["special_actions"] if item["ability_id"] == "toxin_diagnosis")
         self.assertEqual(skill["action_type"], "investigate")
-        quiet = left_session.empty_event_option()
-        left_session.select_event_card(quiet["card_id"])
+        self.assertTrue(left_session.state.active_event_card)
         location_id = left_session.state.agents["左慈"].location_id
         basic = left_session.build_player_intent(left_session.issued_player_token, {
             "action_type": "investigate",
@@ -229,18 +228,58 @@ class PlayerModeTests(unittest.TestCase):
             "location_id": destination,
         })
         self.assertEqual(investigate.action_step, 1)
-        self.assertEqual(self.session.state.action_step, 1)
-
-    def test_player_can_choose_the_host_event_and_end_the_round(self):
-        intel = self.session.intel_suggestions()[0]
-        card = self.session.card_suggestions()[0]
-        hosted = self.session.choose_player_host_event(
-            self.token, card["card_id"], intel_id=intel["id"]
+        self.assertEqual(self.session.state.action_step, 0)
+        self.assertEqual(
+            self.session.state.actor_progress(1, "广陵王")["major_actions_used"],
+            1,
         )
-        self.assertTrue(hosted["card"])
-        self.assertIsNotNone(hosted["intel"])
+
+    def test_lobby_discussion_is_a_shared_chat_channel(self):
+        self.session.state.round_number = 1
+        self.session.state.phase = GamePhase.ROUND_COMPLETE
+        self.session.state.round_runtime = {
+            "round_number": 1,
+            "status": "discussing",
+        }
+        for agent in self.session.state.agents.values():
+            if agent.can_act:
+                agent.location_id = "lobby"
+
+        result = self.session.advance_player_action(self.token, {
+            "action_type": "talk",
+            "target_id": "傅融",
+            "content": "我认为这一轮还应核对大堂的时辰线索。",
+            "channel_id": "lobby-discussion",
+        })
+
+        discussion_events = [
+            event for event in result.events
+            if event.event_type == "conversation"
+        ]
+        self.assertEqual(len(discussion_events), 2)
+        self.assertTrue(all(
+            event.round_number == 1
+            and event.payload["round_discussion"]
+            for event in discussion_events
+        ))
+        view = self.session.player_state(self.token)
+        channel_messages = [
+            message for message in view["conversations"]
+            if message["event_id"] in {
+                event.event_id for event in discussion_events
+            }
+        ]
+        self.assertTrue(view["can_continue_after_discussion"])
+        self.assertTrue(view["available_actions"]["can_chat"])
+        self.assertTrue(all(
+            message["channel_id"] == "lobby-discussion"
+            for message in channel_messages
+        ))
+
+    def test_player_round_starts_quietly_and_ends_without_host_choice(self):
         self.assertEqual(self.session.state.phase, GamePhase.READY)
         self.assertTrue(self.session.state.active_event_card)
+        self.assertFalse(self.session.state.public_intel_history)
 
         self.session.advance_player_action(self.token, {
             "action_type": "investigate",
@@ -250,22 +289,25 @@ class PlayerModeTests(unittest.TestCase):
         self.assertEqual(result.round_number, 1)
         self.assertEqual(self.session.state.round_number, 1)
         self.assertEqual(self.session.state.action_step, 0)
-        self.assertEqual(self.session.state.phase, GamePhase.INTERVENTION)
+        self.assertEqual(self.session.state.phase, GamePhase.ROUND_COMPLETE)
+        self.assertIsNone(self.session.state.active_event_card)
+        self.assertFalse(self.session.state.public_intel_history)
         player_waits = [
             event for event in result.events
             if event.event_type == "wait" and event.actors == ["广陵王"]
         ]
-        self.assertEqual(len(player_waits), 2)
+        self.assertEqual(len(player_waits), 0)
 
-    def test_host_choice_never_publishes_or_selects_anything_until_confirmed(self):
+    def test_player_has_no_temporary_host_options(self):
         view = self.session.player_state(self.token)
-        self.assertIsNone(self.session.state.active_event_card)
+        self.assertIsNone(view["host_options"])
+        self.assertFalse(view["available_actions"]["can_auto_host"])
+        self.assertTrue(self.session.state.active_event_card)
         self.assertFalse(self.session.state.public_intel_history)
-        quiet = view["host_options"]["quiet"]
-        hosted = self.session.choose_player_host_event(self.token, quiet["card_id"])
-        self.assertIsNone(hosted["intel"])
-        self.assertEqual(hosted["card"]["category"], "quiet")
-        self.assertFalse(self.session.state.public_intel_history)
+        self.assertFalse(any(
+            event.event_type == "event_card_selected"
+            for event in self.session.state.events
+        ))
 
     def test_player_sees_departure_from_same_room_but_not_remote_actions(self):
         self.session.state.agents["傅融"].location_id = "lobby"
@@ -289,7 +331,7 @@ class PlayerModeTests(unittest.TestCase):
         )
         self.assertEqual(remote_event.events[0].witnesses.count("广陵王"), 0)
 
-    def test_three_sequential_actions_close_one_round(self):
+    def test_three_sequential_actions_use_player_budget_until_explicit_close(self):
         self.select_quiet()
         steps = []
         for _ in range(3):
@@ -300,14 +342,22 @@ class PlayerModeTests(unittest.TestCase):
             })
             steps.append(result.action_step)
         self.assertEqual(steps, [1, 2, 3])
-        self.assertEqual(self.session.state.round_number, 1)
+        self.assertEqual(self.session.state.round_number, 0)
         self.assertEqual(self.session.state.action_step, 0)
-        self.assertEqual(self.session.state.phase, GamePhase.INTERVENTION)
+        self.assertEqual(self.session.state.phase, GamePhase.READY)
+        self.assertTrue(self.session.state.active_event_card)
         player_events = [
             event for event in self.session.state.events
             if "广陵王" in event.actors and event.round_number == 1
         ]
         self.assertEqual([event.action_step for event in player_events], [1, 2, 3])
+        self.assertEqual(
+            self.session.player_state(self.token)["available_actions"]["major_actions_remaining"],
+            0,
+        )
+        self.session.end_player_round(self.token)
+        self.assertEqual(self.session.state.round_number, 1)
+        self.assertEqual(self.session.state.phase, GamePhase.ROUND_COMPLETE)
 
     def test_secret_discovery_is_scoped_without_official_process_score(self):
         self.session.state.agents["广陵王"].location_id = "room_east"
@@ -337,10 +387,10 @@ class PlayerModeTests(unittest.TestCase):
         known_ids = {secret["secret_id"] for secret in view["known_secrets"]}
         self.assertIn("secret-liubian-identity", known_ids)
 
-    def test_full_six_round_game_waits_for_player_vote_and_scores_everyone(self):
-        for _ in range(6):
+    def test_full_four_round_game_waits_for_player_vote_and_scores_everyone(self):
+        for round_number in range(1, 5):
             self.select_quiet()
-            for _ in range(3):
+            for _ in range(self.session.state.action_limit_for_round(round_number)):
                 view = self.session.player_state(self.token)
                 if view["self"]["life_state"] == "dead":
                     self.session.end_player_round(self.token)
@@ -354,6 +404,9 @@ class PlayerModeTests(unittest.TestCase):
                     else {"action_type": "wait"}
                 )
                 self.session.advance_player_action(self.token, action)
+            self.session.end_player_round(self.token)
+            if round_number < 4:
+                self.session.continue_after_round_discussion(self.token)
         self.assertEqual(self.session.state.phase, GamePhase.DISCUSSION)
         self.assertTrue(self.session.state.flags["final_discussion_done"])
         self.assertTrue(any(
@@ -403,6 +456,55 @@ class PlayerModeTests(unittest.TestCase):
             len(player_submission["personal_task_answers"]),
             len(self.session.state.agents["广陵王"].personal_tasks),
         )
+
+    def test_effective_clock_pauses_while_waiting_for_a_reply(self):
+        now = [1000.0]
+        self.session._clock = lambda: now[0]
+        self.session._ensure_timed_round_runtime(reset=True)
+        started = self.session.start_timed_round(self.token)
+        self.assertEqual(started["remaining_seconds"], 360)
+
+        for _ in range(12):
+            now[0] += 1
+            active = self.session.heartbeat_timed_round()
+        self.assertAlmostEqual(active["active_elapsed_seconds"], 12)
+
+        self.session.pause_timed_round("reply-1", "等待密探回复")
+        now[0] += 40
+        paused = self.session.heartbeat_timed_round()
+        self.assertAlmostEqual(paused["active_elapsed_seconds"], 12)
+        self.assertTrue(paused["is_paused"])
+
+        self.session.resume_timed_round("reply-1")
+        for _ in range(8):
+            now[0] += 1
+            resumed = self.session.heartbeat_timed_round()
+        self.assertAlmostEqual(resumed["active_elapsed_seconds"], 20)
+        self.assertFalse(resumed["is_paused"])
+
+    def test_thirty_second_agent_tick_is_claimed_once_and_coalesces_delays(self):
+        now = [2000.0]
+        self.session._clock = lambda: now[0]
+        self.session._ensure_timed_round_runtime(reset=True)
+        self.session.start_timed_round(self.token)
+
+        for _ in range(31):
+            now[0] += 1
+            self.session.heartbeat_timed_round()
+        first = self.session.claim_due_timed_work()
+        self.assertEqual(first["type"], "agent_tick")
+        self.assertEqual(first["tick_index"], 1)
+        self.assertIsNone(self.session.claim_due_timed_work())
+
+        for _ in range(65):
+            now[0] += 1
+            self.session.heartbeat_timed_round()
+        coalesced = self.session.claim_due_timed_work()
+        self.assertEqual(coalesced["tick_index"], 3)
+        self.assertTrue(all(
+            self.session.state.actor_progress(1, agent_id)["scheduled_opportunities"] == 2
+            for agent_id in coalesced["actor_ids"]
+        ))
 
     def test_official_scoring_and_history_cover_answers_votes_teams_and_models(self):
         killer_id = self.session.state.flags["killer_id"]

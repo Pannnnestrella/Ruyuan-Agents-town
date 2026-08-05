@@ -183,7 +183,8 @@ class InteractiveApiTests(unittest.TestCase):
         self.assertIn("实时地图", live.get_data(as_text=True))
         self.assertIn("导演台", director.get_data(as_text=True))
         director_html = director.get_data(as_text=True)
-        self.assertIn('option value="deepseek" selected', director_html)
+        self.assertIn('option value="ollama" selected', director_html)
+        self.assertIn('DeepSeek API（失败时转本地）', director_html)
         self.assertIn("interactive_map.js", director_html)
         self.assertIn("interactive_map.js", live.get_data(as_text=True))
 
@@ -244,7 +245,11 @@ class InteractiveApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
         timeline = response.get_json()["timeline"]
-        self.assertEqual(timeline["title"], "6轮18次主要行动事件线")
+        self.assertEqual(timeline["title"], "4轮18次主要行动事件线")
+        self.assertEqual(
+            [rule["major_action_limit"] for rule in timeline["round_schedule"]],
+            [3, 4, 5, 6],
+        )
         self.assertEqual(timeline["rounds_completed"], 1)
         self.assertEqual(timeline["discussion_limit"], 100)
         self.assertTrue(any(
@@ -266,7 +271,7 @@ class InteractiveApiTests(unittest.TestCase):
             download.headers["Content-Disposition"],
         )
         text = download.get_data(as_text=True)
-        self.assertIn("6轮18次主要行动事件线", text)
+        self.assertIn("4轮18次主要行动事件线", text)
         self.assertIn("[轮末讨论", text)
 
     def test_game_restores_after_service_restart(self):
@@ -287,7 +292,7 @@ class InteractiveApiTests(unittest.TestCase):
         self.assertEqual(restored.status_code, 200)
         self.assertEqual(restored.get_json()["state"]["round_number"], 1)
 
-    def test_player_free_action_manual_host_choice_and_end_round_endpoints(self):
+    def test_player_free_action_quiet_round_and_end_round_endpoints(self):
         created = self.client.post(
             "/api/interactive/games",
             json={
@@ -301,17 +306,10 @@ class InteractiveApiTests(unittest.TestCase):
         headers = {"X-Player-Token": token}
 
         player = created["player"]
-        self.assertIsNone(player["active_event_card"])
-        card_id = player["host_options"]["cards"][0]["card_id"]
-        hosted = self.client.post(
-            "/api/interactive/games/player-api-test/player/host-choice",
-            headers=headers,
-            json={"card_id": card_id, "intel_id": None},
-        )
-        self.assertEqual(hosted.status_code, 200)
-        self.assertEqual(hosted.get_json()["player"]["phase"], "ready")
-
-        player = hosted.get_json()["player"]
+        self.assertTrue(player["active_event_card"])
+        self.assertEqual(player["phase"], "ready")
+        self.assertIsNone(player["host_options"])
+        self.assertFalse(player["public_intel_history"])
         destination = player["available_actions"]["moves"][0]["id"]
         free = self.client.post(
             "/api/interactive/games/player-api-test/player/actions",
@@ -339,7 +337,16 @@ class InteractiveApiTests(unittest.TestCase):
         ended_task = self.wait_for_task(ended.get_json()["task_id"])
         self.assertEqual(ended_task["status"], "succeeded")
         self.assertEqual(ended_task["result"]["player"]["round_number"], 1)
-        self.assertEqual(ended_task["result"]["player"]["phase"], "intervention")
+        self.assertEqual(ended_task["result"]["player"]["phase"], "round_complete")
+        continued = self.client.post(
+            "/api/interactive/games/player-api-test/player/round/continue",
+            headers={"X-Player-Token": token},
+            json={},
+        )
+        self.assertEqual(continued.status_code, 200)
+        self.assertEqual(continued.get_json()["player"]["phase"], "ready")
+        self.assertIsNone(ended_task["result"]["player"]["host_options"])
+        self.assertFalse(ended_task["result"]["player"]["public_intel_history"])
 
 
 if __name__ == "__main__":

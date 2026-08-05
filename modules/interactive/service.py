@@ -8,6 +8,7 @@ import random
 import re
 import secrets as token_secrets
 import threading
+import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -31,6 +32,7 @@ from .round_engine import RoundEngine, bulletin_location
 from .recap import RecapBuilder
 from .persistence import atomic_write_json, atomic_write_text, game_state_from_dict
 from .history import record_completed_game
+from .information import render_belief_claim
 from .scenario_loader import LoadedScenario, ScenarioLoader
 from .trigger_resolver import TriggerResolver
 from .story_compiler import StoryCompiler
@@ -273,7 +275,11 @@ class HeuristicIntentPlanner:
                     content=self._compose_exchange_line(
                         agent_id,
                         target.display_name,
-                        shared.claim,
+                        render_belief_claim(
+                            shared,
+                            speaker_id=agent_id,
+                            owner_name=agent.display_name,
+                        ),
                     ),
                     reason="依据人物说话方式提出信息、质询或交换条件",
                     metadata={"share_belief_id": shared.belief_id},
@@ -301,7 +307,11 @@ class HeuristicIntentPlanner:
                     intents.append(ActionIntent(
                         agent_id,
                         ActionType.POST_NOTICE,
-                        content=publishable.claim,
+                        content=render_belief_claim(
+                            publishable,
+                            speaker_id=agent_id,
+                            owner_name=agent.display_name,
+                        ),
                         reason="这条情报已经足够可靠，公开后能让分散的调查者共同核对",
                     ))
                     completed = self._report_progress(
@@ -559,17 +569,44 @@ class HeuristicIntentPlanner:
                 for known in listener.beliefs
             )
         ]
-        shared = shareable[-1] if shareable else None
-        if speaker_id == state.flags.get("killer_id"):
+        message = str(player_message).strip()
+        item_request = any(
+            word in message for word in ("出示", "展示", "随身", "物品", "搜身", "给我看")
+        )
+        information_request = (
+            "?" in message
+            or "？" in message
+            or any(word in message for word in (
+                "线索", "情报", "知道", "看见", "听见", "记得", "昨晚",
+                "时辰", "何时", "哪里", "谁", "为何", "为什么", "怎么",
+            ))
+        )
+        social_opening = (
+            not information_request
+            and not item_request
+            and len(GameSession._normalize_dialogue_text(message)) <= 8
+        )
+        shared = None
+        if social_opening:
+            text = self.random.choice([
+                f"{listener.display_name}，我在。你想说什么？",
+                f"嗯，我听着呢，{listener.display_name}。",
+                f"{listener.display_name}？怎么了？",
+            ])
+        elif speaker_id == state.flags.get("killer_id"):
             evasions = [
                 f"{listener.display_name}，你现在追问的是推测，还是已经有了能落到时辰和地点上的证据？",
                 f"先说清楚你依据的是谁的口供。没有来源的怀疑，我不会顺着它替任何人定罪。",
                 f"你把问题问得太快了。若真要查我，就先解释这句话与你掌握的物证如何相连。",
             ]
             text = self.random.choice(evasions)
-            shared = None
-        elif shared:
-            fact = shared.claim.strip().rstrip("。！？")
+        elif information_request and shareable:
+            shared = shareable[-1]
+            fact = render_belief_claim(
+                shared,
+                speaker_id=speaker_id,
+                owner_name=speaker.display_name,
+            ).strip().rstrip("。！？")
             replies = [
                 f"{fact}。这与刚才的说法究竟相合还是冲突，得把时辰重新排一遍。",
                 f"等等，{listener.display_name}。{fact}。你刚才的判断漏掉了这一处。",
@@ -577,20 +614,19 @@ class HeuristicIntentPlanner:
                 f"我想到另一件事：{fact}。你愿意用自己的行踪来验证它吗？",
             ]
             text = self.random.choice(replies)
-        elif "?" in player_message or "？" in player_message:
+        elif information_request:
             text = self.random.choice([
                 f"这个问题我现在答不死。{listener.display_name}，先把你引用的那条证词来源说清楚。",
                 "我没有能直接支持这个结论的记忆。与其逼我选边，不如先找出两段口供冲突的时辰。",
                 "若只凭现有这些话，我只能说两种解释都成立。你手里有没有能排除其中一种的物证？",
             ])
         else:
-            excerpt = str(player_message).strip()[:45]
+            excerpt = message[:45]
             text = self.random.choice([
                 f"你刚才说“{excerpt}”。这句话里最需要核对的是时间，而不是态度。",
                 f"我听见了，但这还只是你的陈述。谁在场、何时发生、有什么实物能留下来？",
                 f"这条说法可以先记下。下一步应当找一个不依赖你我立场的证据来验证。",
             ])
-        item_request = any(word in player_message for word in ("出示", "展示", "随身", "物品", "搜身", "给我看"))
         display_object_id = None
         item_disposition = "none"
         if item_request:
@@ -626,6 +662,7 @@ class GameSession:
         results_root: str | Path,
         seed: int = 0,
         planner: IntentPlanner | None = None,
+        clock: Callable[[], float] | None = None,
     ):
         self.loaded = loaded
         self.state = state
@@ -637,9 +674,11 @@ class GameSession:
         self.trigger_resolver = TriggerResolver(loaded.scenario.get("round_triggers", []))
         self.story_compiler = StoryCompiler()
         self.random = random.Random(seed + 711)
+        self._clock = clock or time.time
         self._notice_sequence = len(state.notices)
         self._event_sequence = len(state.events)
         self._save_lock = threading.RLock()
+        self._state_lock = threading.RLock()
         self.engine._event_sequence = len(state.events)
         self.director._event_sequence = len(state.events)
         self.trigger_resolver._event_sequence = len(state.events)
@@ -649,7 +688,185 @@ class GameSession:
         self._discard_recursive_conversation_beliefs()
         self._normalize_universal_public_knowledge()
         self._record_model_assignments()
+        self._ensure_timed_round_runtime()
+        if self.state.round_runtime.get("status") == "exploring":
+            # Loading a save never counts server downtime as active play time.
+            self.state.round_runtime["last_clock_at"] = self._clock()
         self.save()
+
+    def _timed_round_enabled(self) -> bool:
+        return bool(
+            self.state.player_agent_id
+            and self.state.duration_for_round(
+                min(self.state.max_rounds, self.state.round_number + 1)
+            ) > 0
+        )
+
+    def _ensure_timed_round_runtime(self, *, reset: bool = False) -> dict[str, Any]:
+        """Create or refresh the persisted effective-time clock state."""
+
+        if not self._timed_round_enabled():
+            return self.state.round_runtime
+        active_round = min(self.state.max_rounds, self.state.round_number + 1)
+        runtime = self.state.round_runtime
+        if not reset and runtime.get("status") == "discussing":
+            return runtime
+        if reset or int(runtime.get("round_number", 0)) != active_round:
+            runtime = {
+                "round_number": active_round,
+                "status": "pending",
+                "duration_seconds": self.state.duration_for_round(active_round),
+                "active_elapsed_seconds": 0.0,
+                "agent_interval_seconds": int(
+                    self.loaded.scenario.get(
+                        "agent_action_interval_seconds", 30
+                    )
+                ),
+                "agent_tick_index": 0,
+                "pause_tokens": {},
+                "last_clock_at": None,
+                "last_heartbeat_at": None,
+                "closing_reason": None,
+            }
+            self.state.round_runtime = runtime
+        return runtime
+
+    def start_timed_round(self, token: str | None = None) -> dict[str, Any]:
+        if token is not None:
+            self.verify_player_token(token)
+        with self._state_lock:
+            runtime = self._ensure_timed_round_runtime()
+            if not runtime:
+                return runtime
+            if runtime.get("status") == "pending":
+                now = self._clock()
+                runtime.update({
+                    "status": "exploring",
+                    "last_clock_at": now,
+                    "last_heartbeat_at": now,
+                })
+                self.save()
+            return self.timed_round_view()
+
+    def _sync_timed_clock(
+        self,
+        *,
+        now: float | None = None,
+        heartbeat: bool = False,
+    ) -> dict[str, Any]:
+        runtime = self._ensure_timed_round_runtime()
+        if not runtime:
+            return runtime
+        current = self._clock() if now is None else float(now)
+        if runtime.get("status") != "exploring":
+            runtime["last_clock_at"] = current
+            if heartbeat:
+                runtime["last_heartbeat_at"] = current
+            return runtime
+        previous = runtime.get("last_clock_at")
+        last_heartbeat = runtime.get("last_heartbeat_at")
+        disconnected = bool(
+            heartbeat
+            and last_heartbeat is not None
+            and current - float(last_heartbeat) > 5.0
+        )
+        if (
+            previous is not None
+            and not runtime.get("pause_tokens")
+            and not disconnected
+        ):
+            runtime["active_elapsed_seconds"] = min(
+                float(runtime["duration_seconds"]),
+                float(runtime.get("active_elapsed_seconds", 0.0))
+                + max(0.0, current - float(previous)),
+            )
+        runtime["last_clock_at"] = current
+        if heartbeat:
+            runtime["last_heartbeat_at"] = current
+        return runtime
+
+    def heartbeat_timed_round(self) -> dict[str, Any]:
+        with self._state_lock:
+            self._sync_timed_clock(heartbeat=True)
+            return self.timed_round_view()
+
+    def pause_timed_round(self, token: str, reason: str) -> None:
+        with self._state_lock:
+            runtime = self._sync_timed_clock()
+            if runtime.get("status") != "exploring":
+                return
+            runtime.setdefault("pause_tokens", {})[token] = reason
+            runtime["last_clock_at"] = self._clock()
+
+    def resume_timed_round(self, token: str) -> None:
+        with self._state_lock:
+            runtime = self._sync_timed_clock()
+            runtime.setdefault("pause_tokens", {}).pop(token, None)
+            runtime["last_clock_at"] = self._clock()
+
+    def timed_round_view(self) -> dict[str, Any]:
+        runtime = self._ensure_timed_round_runtime()
+        if not runtime:
+            return {}
+        duration = float(runtime.get("duration_seconds", 0.0))
+        elapsed = min(duration, float(runtime.get("active_elapsed_seconds", 0.0)))
+        interval = max(1, int(runtime.get("agent_interval_seconds", 30)))
+        next_tick = (int(runtime.get("agent_tick_index", 0)) + 1) * interval
+        pause_reasons = list(runtime.get("pause_tokens", {}).values())
+        return {
+            "round_number": int(runtime.get("round_number", 0)),
+            "status": str(runtime.get("status", "pending")),
+            "duration_seconds": int(duration),
+            "active_elapsed_seconds": elapsed,
+            "remaining_seconds": max(0.0, duration - elapsed),
+            "is_paused": bool(pause_reasons),
+            "pause_reasons": pause_reasons,
+            "agent_interval_seconds": interval,
+            "agent_tick_index": int(runtime.get("agent_tick_index", 0)),
+            "next_agent_action_in": max(0.0, next_tick - elapsed),
+            "closing_reason": runtime.get("closing_reason"),
+        }
+
+    def claim_due_timed_work(self) -> dict[str, Any] | None:
+        """Atomically claim one coalesced scheduler job after a player heartbeat."""
+
+        with self._state_lock:
+            runtime = self._sync_timed_clock()
+            if runtime.get("status") != "exploring" or runtime.get("pause_tokens"):
+                return None
+            elapsed = float(runtime.get("active_elapsed_seconds", 0.0))
+            duration = float(runtime.get("duration_seconds", 0.0))
+            if elapsed >= duration:
+                runtime["status"] = "closing"
+                runtime["closing_reason"] = "timeout"
+                self.save()
+                return {"type": "close", "reason": "timeout"}
+            interval = max(1, int(runtime.get("agent_interval_seconds", 30)))
+            due_index = int(elapsed // interval)
+            completed_index = int(runtime.get("agent_tick_index", 0))
+            if due_index <= completed_index:
+                return None
+            # Coalesce missed boundaries after a slow model call into one current
+            # decision opportunity instead of replaying a burst of stale ticks.
+            runtime["agent_tick_index"] = due_index
+            active_round = int(runtime["round_number"])
+            actor_ids = [
+                agent_id for agent_id, agent in self.state.agents.items()
+                if agent.can_act and agent_id != self.state.player_agent_id
+            ]
+            for agent_id in actor_ids:
+                progress = self.state.actor_progress(active_round, agent_id)
+                progress["scheduled_opportunities"] = int(
+                    progress.get("scheduled_opportunities", 0)
+                ) + 1
+                progress["next_action_at"] = (due_index + 1) * interval
+            self.save()
+            return {
+                "type": "agent_tick",
+                "round_number": active_round,
+                "tick_index": due_index,
+                "actor_ids": actor_ids,
+            }
 
     def _ensure_pregame_timelines(self) -> None:
         """Backfill authored chronologies when opening a save from an older build."""
@@ -682,6 +899,7 @@ class GameSession:
                         "truth-killer"
                         if entry.get("kind") == "killer-private" else None
                     ),
+                    perspective_owner_id=agent_id,
                 ))
 
     def _discard_legacy_movement_beliefs(self) -> None:
@@ -1300,7 +1518,10 @@ class GameSession:
         location = self.state.locations.get(actor.location_id, {})
         location_name = str(location.get("name", actor.location_id))
         display_round = min(self.state.round_number + 1, self.state.max_rounds)
-        action_number = min(self.state.action_step + 1, self.state.actions_per_round)
+        action_limit = self.state.action_limit_for_round(display_round)
+        player_progress = self.state.actor_progress(display_round, player_id)
+        player_actions_used = int(player_progress.get("major_actions_used", 0))
+        action_number = min(player_actions_used + 1, action_limit)
         latest_event = next(
             (
                 event for event in reversed(known_events)
@@ -1321,12 +1542,12 @@ class GameSession:
         killer_id = str(self.state.flags.get("killer_id", ""))
 
         if phase == GamePhase.INTERVENTION:
-            title = f"第 {display_round} 轮 · 风雨未歇"
-            situation = "客栈暂时陷入压抑的安静。主持权现在交到你手中：事件与公开情报都不会自动发生。"
-            objective = "查看三张候选事件卡，决定是否发布一条公开情报，再亲自选择本轮变局或“无事件”。"
-            suggestions = ["先读事件影响再选择", "公开情报也可以留空", "主持选择不会替角色作出行动"]
+            title = f"第 {display_round} 轮 · 准备中"
+            situation = "客栈暂时平静，本轮没有额外事件或公开情报。"
+            objective = "准备以角色身份继续探索。"
+            suggestions = ["确认当前位置", "回顾已知线索", "决定下一步行动"]
         elif phase in {GamePhase.READY, GamePhase.PLAYER_TURN}:
-            title = f"第 {display_round} 轮 · 主要行动 {self.state.action_step}/{self.state.actions_per_round}"
+            title = f"第 {display_round} 轮 · 主要行动 {player_actions_used}/{action_limit}"
             situation = card_description or recent or f"你此刻位于{location_name}，所有人都在根据刚刚发生的事重新打算。"
             if player_id == killer_id:
                 objective = "选择一个能推进表面目标、又不会暴露作案事实的行动。别人会记住你做过和说过的一切。"
@@ -1334,7 +1555,7 @@ class GameSession:
                 objective = "自由移动和交谈以探索现场；确认目标后再使用有限的搜查、交付或治疗行动。"
             if action_number == 1:
                 suggestions = ["先确认现场与同室者", "调查最贴近个人任务的房间", "用问题试探他人掌握了什么"]
-            elif action_number < self.state.actions_per_round:
+            elif action_number < action_limit:
                 suggestions = ["根据刚发生的行动修正判断", "追问一条矛盾信息", "交换一条不致暴露自己的记忆"]
             else:
                 suggestions = ["这是本轮最后一次行动", "补上尚未验证的关键环节", "为下一轮保留可追查的目标"]
@@ -1453,19 +1674,29 @@ class GameSession:
                 "shared_claim": event.payload.get("shared_claim"),
                 "overheard": player_id not in {speaker_id, listener_id},
                 "final_discussion": event.event_type == "final_discussion",
+                "round_discussion": bool(
+                    event.payload.get("round_discussion")
+                    or event.event_type == "final_discussion"
+                ),
+                "channel_id": (
+                    "lobby-discussion"
+                    if event.payload.get("round_discussion")
+                    or event.event_type == "final_discussion"
+                    else None
+                ),
             })
-        may_choose_host_event = bool(
-            self.state.phase in {GamePhase.INTERVENTION, GamePhase.ROUND_COMPLETE}
-            and not self.state.active_event_card
-        )
+        active_round = min(self.state.round_number + 1, self.state.max_rounds)
+        player_progress = self.state.actor_progress(active_round, player_id)
         state = {
             "game_id": self.state.game_id,
             "title": self.loaded.scenario["title"],
             "premise": self.loaded.scenario["premise"],
             "round_number": self.state.round_number,
             "max_rounds": self.state.max_rounds,
-            "action_step": self.state.action_step,
-            "actions_per_round": self.state.actions_per_round,
+            "action_step": int(player_progress.get("major_actions_used", 0)),
+            "actions_per_round": self.state.action_limit_for_round(active_round),
+            "round_schedule": [dict(rule) for rule in self.state.round_schedule],
+            "round_runtime": self.timed_round_view(),
             "phase": self.state.phase.value,
             "active_event_card": self.state.active_event_card,
             "locations": self.state.locations,
@@ -1507,17 +1738,17 @@ class GameSession:
             "conversations": conversation_history,
             "story_guide": self._build_story_guide(player_id, known_events),
             "available_actions": self.available_player_actions(player_id),
-            "host_options": {
-                "cards": self.card_suggestions(),
-                "quiet": self.empty_event_option(),
-                "intel": self.intel_suggestions(),
-            } if may_choose_host_event else None,
+            "host_options": None,
             "requires_vote": self.state.phase == GamePhase.VOTING,
             "final_questions": (
                 self.final_questions_for(player_id)
                 if self.state.phase == GamePhase.VOTING else []
             ),
             "can_open_voting": self.state.phase == GamePhase.DISCUSSION,
+            "can_continue_after_discussion": bool(
+                self.state.phase == GamePhase.ROUND_COMPLETE
+                and self.state.round_runtime.get("status") == "discussing"
+            ),
             "voting_candidates": [
                 {"id": other.agent_id, "name": other.display_name, "role": other.public_role}
                 for other in self.state.agents.values()
@@ -1540,10 +1771,21 @@ class GameSession:
 
     def available_player_actions(self, player_id: str) -> dict[str, Any]:
         actor = self.state.agents[player_id]
+        active_round = min(self.state.round_number + 1, self.state.max_rounds)
+        action_limit = self.state.action_limit_for_round(active_round)
+        major_actions_used = int(
+            self.state.actor_progress(active_round, player_id).get(
+                "major_actions_used", 0
+            )
+        )
         special_actions = abilities_for(self.state, player_id)
         can_submit = bool(
             self.state.active_event_card
             and self.state.phase in {GamePhase.READY, GamePhase.PLAYER_TURN}
+        )
+        can_discuss = bool(
+            self.state.phase in {GamePhase.ROUND_COMPLETE, GamePhase.DISCUSSION}
+            and self.state.round_runtime.get("status") == "discussing"
         )
         people = [
             {"id": other.agent_id, "name": other.display_name, "life_state": other.life_state.value}
@@ -1559,7 +1801,11 @@ class GameSession:
         shareable_memories = [
             {
                 "id": belief.belief_id,
-                "claim": belief.claim,
+                "claim": render_belief_claim(
+                    belief,
+                    speaker_id=player_id,
+                    owner_name=actor.display_name,
+                ),
                 "source": belief.source,
                 "confidence": belief.confidence,
             }
@@ -1578,12 +1824,11 @@ class GameSession:
         ).get(str(self.state.round_number + 1), [])
         return {
             "can_submit": can_submit,
+            "can_chat": can_submit or can_discuss,
+            "can_submit_major": can_submit and major_actions_used < action_limit,
             "can_act": actor.can_act,
             "can_end_round": can_submit,
-            "can_auto_host": bool(
-                self.state.phase in {GamePhase.INTERVENTION, GamePhase.ROUND_COMPLETE}
-                and not self.state.active_event_card
-            ),
+            "can_auto_host": False,
             "can_post_notice": bool(
                 actor.location_id == bulletin_location(self.state)
                 and self.state.phase in {
@@ -1591,12 +1836,14 @@ class GameSession:
                     GamePhase.INTERVENTION, GamePhase.DISCUSSION,
                 }
             ),
-            "round_number": min(self.state.round_number + 1, self.state.max_rounds),
-            "action_step": self.state.action_step + 1,
-            "major_actions_used": self.state.action_step,
+            "round_number": active_round,
+            "action_step": major_actions_used + 1,
+            "major_actions_used": major_actions_used,
             "major_actions_remaining": max(
-                0, self.state.actions_per_round - self.state.action_step
+                0, action_limit - major_actions_used
             ),
+            "major_action_limit": action_limit,
+            "round_duration_seconds": self.state.duration_for_round(active_round),
             "free_action_types": ["move", "talk"],
             "moves": [
                 {"id": location_id, "name": self.state.locations[location_id]["name"]}
@@ -1616,12 +1863,18 @@ class GameSession:
 
     def build_player_intent(self, token: str, raw: dict[str, Any]) -> ActionIntent:
         player_id = self.verify_player_token(token)
-        if self.state.phase not in {GamePhase.READY, GamePhase.PLAYER_TURN}:
-            raise ValueError("当前不是角色行动阶段")
         try:
             action_type = ActionType(str(raw.get("action_type", "")))
         except ValueError as error:
             raise ValueError("未知的行动类型") from error
+        discussing = bool(
+            self.state.phase in {GamePhase.ROUND_COMPLETE, GamePhase.DISCUSSION}
+            and self.state.round_runtime.get("status") == "discussing"
+        )
+        if self.state.phase not in {GamePhase.READY, GamePhase.PLAYER_TURN} and not (
+            discussing and action_type == ActionType.TALK
+        ):
+            raise ValueError("当前不是角色行动阶段")
         intent = ActionIntent(
             actor_id=player_id,
             action_type=action_type,
@@ -1648,6 +1901,8 @@ class GameSession:
                 raise ValueError("只能交换自己记忆中真实存在的情报")
             intent.metadata["share_belief_id"] = share_belief_id
         if action_type == ActionType.TALK:
+            if discussing or raw.get("channel_id") == "lobby-discussion":
+                intent.metadata["round_discussion"] = True
             lowered = intent.content.lower()
             display_words = ("出示", "展示", "给你看", "让你看", "验看")
             if any(word in lowered for word in display_words):
@@ -1706,6 +1961,26 @@ class GameSession:
 
     def empty_event_option(self) -> dict[str, Any]:
         return self.director.quiet_card(self.state).to_dict()
+
+    def start_quiet_player_round(self) -> None:
+        """Enter a player-controlled round without publishing intel or an event."""
+
+        if not self.state.player_agent_id or self.state.active_event_card:
+            return
+        if self.state.phase not in {GamePhase.INTERVENTION, GamePhase.ROUND_COMPLETE}:
+            return
+        quiet_card = self.director.quiet_card(self.state)
+        self.director.cards[quiet_card.card_id] = quiet_card
+        self.state.active_event_card = quiet_card.card_id
+        if quiet_card.card_id not in self.state.used_event_cards:
+            self.state.used_event_cards.append(quiet_card.card_id)
+        self.state.phase = GamePhase.READY
+        active_round = min(self.state.max_rounds, self.state.round_number + 1)
+        self.state.actions_per_round = self.state.action_limit_for_round(active_round)
+        self.state.suggested_event_cards = []
+        self.state.suggested_public_intel = []
+        self._ensure_timed_round_runtime(reset=True)
+        self.save()
 
     def intel_suggestions(self) -> list[dict[str, Any]]:
         if self.state.active_public_intel:
@@ -2020,6 +2295,7 @@ class GameSession:
         all_rejected: list[dict[str, Any]] = []
         explicit_intents = intents
         resolved_round = self.state.round_number + 1
+        action_limit = self.state.action_limit_for_round(resolved_round)
         active_at_start = sum(1 for agent in self.state.agents.values() if agent.can_act)
 
         def report_round_progress(update: dict[str, Any]) -> None:
@@ -2029,7 +2305,7 @@ class GameSession:
             phase_index = self.state.action_step
             enriched["action_step"] = phase_index + 1
             enriched["completed"] = phase_index * active_at_start + int(update.get("completed", 0))
-            enriched["total"] = self.state.actions_per_round * active_at_start
+            enriched["total"] = action_limit * active_at_start
             progress_callback(enriched)
 
         while self.state.round_number < resolved_round:
@@ -2047,7 +2323,7 @@ class GameSession:
             all_events,
             all_rejected,
             self.state,
-            self.state.actions_per_round,
+            action_limit,
         )
         self.save(round_result=result)
         if self.state.phase == GamePhase.FINISHED:
@@ -2063,6 +2339,8 @@ class GameSession:
     ) -> RoundResult:
         if not self.state.player_agent_id:
             raise ValueError("这不是角色代入局")
+        if self._timed_round_enabled():
+            self.start_timed_round(token)
         player_intent = self.build_player_intent(token, raw_intent)
         self._record_model_usage(
             player_intent.actor_id,
@@ -2111,13 +2389,33 @@ class GameSession:
                             player_intent.actor_id,
                             player_intent.content,
                         )
+                    response_source = str(
+                        response.get("_model_source") or "heuristic_fallback"
+                    )
+                    response_provider = str(
+                        response.get("_model_provider")
+                        or getattr(self.planner, "provider_name", "heuristic")
+                    )
+                    self._record_model_usage(
+                        player_intent.target_id or "",
+                        stage="conversation_reply",
+                        actual_source=response_source,
+                        provider_name=response_provider,
+                        succeeded=response_source != "heuristic_fallback",
+                    )
                     reply_intent = ActionIntent(
                         actor_id=player_intent.target_id or "",
                         action_type=ActionType.TALK,
                         target_id=player_intent.actor_id,
                         content=str(response.get("content") or "我听见了，但现在还不能作答。")[:200],
                         reason="回应玩家的当面交谈",
-                        metadata={"planner_source": "conversation_reply"},
+                        metadata={
+                            "planner_source": response_source,
+                            "planner_provider": response_provider,
+                            "round_discussion": bool(
+                                player_intent.metadata.get("round_discussion")
+                            ),
+                        },
                     )
                     shared_belief_id = str(response.get("share_belief_id") or "")
                     if shared_belief_id:
@@ -2131,6 +2429,9 @@ class GameSession:
                         reply = reply_result.events[0]
                         reply.payload["is_reply"] = True
                         reply.payload["reply_to_event_id"] = outgoing.event_id
+                        reply.payload["planner_source"] = response_source
+                        reply.payload["planner_provider"] = response_provider
+                        reply.payload["model_error"] = response.get("_model_error")
                         if self.state.conversations:
                             self.state.conversations[-1].reply_to_event_id = outgoing.event_id
                         result.events.extend(reply_result.events)
@@ -2148,6 +2449,11 @@ class GameSession:
             self._update_beliefs_from_round_events(result.events)
             self._apply_scoring_from_events(result.events)
             self._deliver_unseen_notices()
+        elif self._timed_round_enabled():
+            result = self.engine.resolve_timed_actions(
+                self.state, [player_intent]
+            )
+            self._process_timed_actions([player_intent], result)
         else:
             result = self._advance_action_phase(
                 player_intent=player_intent,
@@ -2155,6 +2461,87 @@ class GameSession:
             )
         self.save(round_result=result)
         return result
+
+    def _process_timed_actions(
+        self,
+        intents: list[ActionIntent],
+        result: RoundResult,
+    ) -> None:
+        self._materialize_agent_notices(result.events)
+        self._process_commitments(result.events)
+        self._commit_strategic_plans(intents, result.events)
+        self._update_beliefs_from_round_events(result.events)
+        self._apply_scoring_from_events(result.events)
+        self._deliver_unseen_notices()
+
+    def advance_agent_tick(
+        self,
+        actor_ids: list[str] | None = None,
+        *,
+        progress_callback: Callable[[dict[str, Any]], None] | None = None,
+    ) -> RoundResult:
+        """Resolve one independent timed opportunity for every due AI actor."""
+
+        if not self._timed_round_enabled():
+            raise ValueError("当前游戏没有启用限时探索")
+        with self._state_lock:
+            runtime = self._ensure_timed_round_runtime()
+            if runtime.get("status") != "exploring":
+                raise ValueError("当前不在限时探索阶段")
+            active_round = int(runtime["round_number"])
+            requested = actor_ids or [
+                agent_id for agent_id, agent in self.state.agents.items()
+                if agent.can_act and agent_id != self.state.player_agent_id
+            ]
+            due_ids = [
+                agent_id for agent_id in requested
+                if agent_id in self.state.agents
+                and self.state.agents[agent_id].can_act
+                and agent_id != self.state.player_agent_id
+            ]
+            intents = self._plan_actor_intents(
+                due_ids,
+                progress_callback=progress_callback,
+                force_major=False,
+            )
+            sanitized: list[ActionIntent] = []
+            action_limit = self.state.action_limit_for_round(active_round)
+            for intent in intents:
+                used = int(
+                    self.state.actor_progress(
+                        active_round, intent.actor_id
+                    ).get("major_actions_used", 0)
+                )
+                if (
+                    self.engine.consumes_major_action(intent.action_type)
+                    and used >= action_limit
+                ):
+                    location = self.state.locations[
+                        self.state.agents[intent.actor_id].location_id
+                    ]
+                    connections = list(location.get("connections", []))
+                    intent = ActionIntent(
+                        actor_id=intent.actor_id,
+                        action_type=(
+                            ActionType.MOVE if connections else ActionType.WAIT
+                        ),
+                        location_id=(
+                            sorted(connections)[0] if connections else None
+                        ),
+                        reason="本轮主要行动额度已用完，继续移动观察" if connections
+                        else "本轮主要行动额度已用完，留在原地观察",
+                        metadata={"planner_source": "timed_budget_guard"},
+                    )
+                sanitized.append(intent)
+            result = self.engine.resolve_timed_actions(self.state, sanitized)
+            elapsed = float(runtime.get("active_elapsed_seconds", 0.0))
+            for agent_id in due_ids:
+                progress = self.state.actor_progress(active_round, agent_id)
+                progress["last_action_at"] = elapsed
+                progress["currently_resolving"] = False
+            self._process_timed_actions(sanitized, result)
+            self.save(round_result=result)
+            return result
 
     def end_player_round(
         self,
@@ -2165,6 +2552,11 @@ class GameSession:
         """Let the player stop exploring and resolve every unused major phase."""
 
         player_id = self.verify_player_token(token)
+        if self._timed_round_enabled():
+            return self._end_timed_player_round(
+                player_id,
+                progress_callback=progress_callback,
+            )
         if self.state.phase not in {GamePhase.READY, GamePhase.PLAYER_TURN}:
             raise ValueError("当前没有可以结束的行动轮")
         if not self.state.active_event_card:
@@ -2199,6 +2591,123 @@ class GameSession:
         self.save(round_result=result)
         return result
 
+    def _end_timed_player_round(
+        self,
+        player_id: str,
+        *,
+        progress_callback: Callable[[dict[str, Any]], None] | None = None,
+    ) -> RoundResult:
+        """Fast-forward useful AI plans, gather everyone, and open discussion."""
+
+        with self._state_lock:
+            if self.state.phase not in {GamePhase.READY, GamePhase.PLAYER_TURN}:
+                raise ValueError("当前没有可以结束的探索轮")
+            runtime = self._ensure_timed_round_runtime()
+            if runtime.get("status") not in {"pending", "exploring", "closing"}:
+                raise ValueError("当前探索轮已经进入讨论")
+            runtime["status"] = "closing"
+            runtime["closing_reason"] = runtime.get("closing_reason") or "player"
+            active_round = int(runtime["round_number"])
+            action_limit = self.state.action_limit_for_round(active_round)
+            ai_ids = [
+                agent_id for agent_id, agent in self.state.agents.items()
+                if agent.can_act and agent_id != player_id
+            ]
+            all_events: list[EventRecord] = []
+            all_rejected: list[dict[str, Any]] = []
+            voluntarily_done: set[str] = set()
+            free_preludes: dict[str, int] = {agent_id: 0 for agent_id in ai_ids}
+
+            for _ in range(max(1, action_limit * 2)):
+                pending = [
+                    agent_id for agent_id in ai_ids
+                    if agent_id not in voluntarily_done
+                    and int(self.state.actor_progress(
+                        active_round, agent_id
+                    ).get("major_actions_used", 0)) < action_limit
+                ]
+                if not pending:
+                    break
+                intents = self._plan_actor_intents(
+                    pending,
+                    progress_callback=progress_callback,
+                    force_major=True,
+                )
+                by_actor = {intent.actor_id: intent for intent in intents}
+                voluntarily_done.update(
+                    agent_id for agent_id in pending if agent_id not in by_actor
+                )
+                if not intents:
+                    break
+                phase_result = self.engine.resolve_timed_actions(
+                    self.state, intents
+                )
+                self._process_timed_actions(intents, phase_result)
+                all_events.extend(phase_result.events)
+                all_rejected.extend(phase_result.rejected_intents)
+                for intent in intents:
+                    if intent.action_type == ActionType.WAIT:
+                        voluntarily_done.add(intent.actor_id)
+                    elif not self.engine.consumes_major_action(
+                        intent.action_type
+                    ):
+                        free_preludes[intent.actor_id] += 1
+                        if free_preludes[intent.actor_id] >= 2:
+                            voluntarily_done.add(intent.actor_id)
+
+            self.state.round_number = active_round
+            self.state.action_step = 0
+            self.state.active_event_card = None
+            self.state.active_public_intel = None
+            self.state.phase = (
+                GamePhase.DISCUSSION
+                if active_round >= self.state.max_rounds
+                else GamePhase.ROUND_COMPLETE
+            )
+            discussion_events = self._prepare_round_discussion(
+                progress_callback=progress_callback,
+            )
+            all_events.extend(discussion_events)
+            if active_round >= self.state.max_rounds:
+                final_events = self._prepare_final_discussion()
+                all_events.extend(final_events)
+            runtime.update({
+                "status": "discussing",
+                "last_clock_at": self._clock(),
+                "pause_tokens": {},
+            })
+            result = RoundResult(
+                active_round,
+                all_events,
+                all_rejected,
+                self.state,
+                max(
+                    (
+                        int(self.state.actor_progress(
+                            active_round, agent_id
+                        ).get("major_actions_used", 0))
+                        for agent_id in ai_ids
+                    ),
+                    default=0,
+                ),
+            )
+            self.save(round_result=result)
+            return result
+
+    def continue_after_round_discussion(self, token: str) -> dict[str, Any]:
+        """Start the next timed round after the player finishes lobby discussion."""
+
+        self.verify_player_token(token)
+        with self._state_lock:
+            if self.state.round_number >= self.state.max_rounds:
+                raise ValueError("最后一轮讨论后应进入终局投票")
+            runtime = self.state.round_runtime
+            if runtime.get("status") != "discussing":
+                raise ValueError("当前不在轮末讨论阶段")
+            self.state.phase = GamePhase.INTERVENTION
+            self.start_quiet_player_round()
+            return self.player_state(token)
+
     def choose_player_host_event(
         self,
         token: str,
@@ -2206,9 +2715,11 @@ class GameSession:
         *,
         intel_id: str | None = None,
     ) -> dict[str, Any]:
-        """Let the role-seat player explicitly make the host's between-round choice."""
+        """Reject the removed temporary-host flow kept only for API compatibility."""
 
         self.verify_player_token(token)
+        if self.state.player_agent_id:
+            raise ValueError("用户推演模式已取消临时主持权")
         if self.state.phase not in {GamePhase.INTERVENTION, GamePhase.ROUND_COMPLETE}:
             raise ValueError("当前还不能展开下一轮")
         if self.state.active_event_card:
@@ -2368,6 +2879,7 @@ class GameSession:
                 )
                 result.events.extend(discussion_events)
                 self.state.phase = GamePhase.INTERVENTION
+                self.start_quiet_player_round()
             elif self.state.phase == GamePhase.DISCUSSION:
                 discussion_events = self._prepare_round_discussion(
                     progress_callback=progress_callback,
@@ -2553,6 +3065,7 @@ class GameSession:
                     "round_discussion": True,
                     "discussion_wave": wave + 1,
                     "planner_source": source,
+                    "planner_provider": reply.get("_model_provider"),
                     "model_error": reply.get("_model_error"),
                 })
                 self._update_beliefs_from_round_events([event])
@@ -2565,7 +3078,8 @@ class GameSession:
                     stage="round_discussion",
                     actual_source=source,
                     provider_name=str(
-                        getattr(self.planner, "provider_name", "heuristic")
+                        reply.get("_model_provider")
+                        or getattr(self.planner, "provider_name", "heuristic")
                     ),
                 )
                 if progress_callback:
@@ -2705,6 +3219,7 @@ class GameSession:
                 intent.actor_id,
                 stage="action",
                 actual_source=source,
+                provider_name=str(intent.metadata.get("planner_provider") or "") or None,
                 succeeded=source not in {"heuristic_fallback", "ability_guard"},
             )
         return intents
@@ -2718,8 +3233,14 @@ class GameSession:
         """Return an analysis-friendly chronology without secret poison attempts."""
 
         max_rounds = self.state.max_rounds
-        actions_per_round = self.state.actions_per_round
-        title = f"{max_rounds}轮{max_rounds * actions_per_round}次主要行动事件线"
+        round_schedule = [
+            self.state.rule_for_round(round_number)
+            for round_number in range(1, max_rounds + 1)
+        ]
+        total_major_actions = sum(
+            rule["major_action_limit"] for rule in round_schedule
+        )
+        title = f"{max_rounds}轮{total_major_actions}次主要行动事件线"
         rounds: list[dict[str, Any]] = []
         for round_number in range(1, max_rounds + 1):
             items = []
@@ -2761,7 +3282,9 @@ class GameSession:
             "scenario_id": self.state.scenario_id,
             "rounds_completed": self.state.round_number,
             "max_rounds": max_rounds,
-            "actions_per_round": actions_per_round,
+            "actions_per_round": self.state.actions_per_round,
+            "round_schedule": round_schedule,
+            "total_major_action_limit": total_major_actions,
             "discussion_turns": int(
                 self.state.flags.get("round_discussion_turns", 0)
             ),
@@ -3272,6 +3795,7 @@ class GameSession:
                 voter.agent_id,
                 stage="final_submission",
                 actual_source=model_source,
+                provider_name=str(decision.get("_model_provider") or "") or None,
                 succeeded=model_source != "heuristic_fallback",
             )
             vote = {
@@ -3755,6 +4279,7 @@ class GameService:
             planner=self.planner_factory(seed) if self.planner_factory else None,
         )
         session.issued_player_token = issued_player_token
+        session.start_quiet_player_round()
         self.sessions[game_id] = session
         return session
 
@@ -3783,5 +4308,6 @@ class GameService:
             seed=0,
             planner=self.planner_factory(0) if self.planner_factory else None,
         )
+        session.start_quiet_player_round()
         self.sessions[game_id] = session
         return session

@@ -35,6 +35,7 @@
                 <span id="live-status" class="live-status"><i></i> 等待导演干预</span>
                 <span class="round-chip">第 <strong id="live-round">0</strong>/<span id="live-max-rounds">10</span> 轮</span>
                 <span id="live-action-step" class="round-chip">行动 0/3</span>
+                <span id="live-round-timer" class="round-chip round-timer"><strong id="live-round-timer-value">--:--</strong><small id="live-round-timer-state">尚未开始</small></span>
                 <span id="live-view-mode" class="round-chip">全局观察</span>
                 <a href="/interactive/director" class="director-link">导演台</a>
                 <button id="live-new-game" class="director-link" type="button">新开一局</button>
@@ -44,7 +45,7 @@
         <section class="rule-strip">
             <span>凶手就在六人之中</span>
             <span>正门禁止离开</span>
-            <span>每轮 3 次主要行动 · 移动交谈自由</span>
+            <span>4 轮限时探索 · 3/4/5/6 次主要行动</span>
             <span id="live-planner">决策引擎读取中</span>
             <span id="live-game-id"></span>
         </section>
@@ -59,6 +60,10 @@
                     <p>每个回合按行动顺序播放</p>
                 </div>
                 <div id="live-map" class="live-map"></div>
+                <div id="map-move-confirm" class="map-move-confirm hidden" role="status">
+                    <span>准备前往 <strong id="map-move-destination"></strong>？</span>
+                    <div><button id="confirm-map-move" class="primary" type="button">确认移动</button><button id="cancel-map-move" class="secondary" type="button">取消</button></div>
+                </div>
                 <article id="bulletin-board" class="bulletin-board">
                     <div class="bulletin-heading">
                         <div><p class="eyebrow">客栈大堂</p><h3>公开公告栏</h3></div>
@@ -113,18 +118,7 @@
                     <div class="round-control-row">
                         <button id="end-player-round" class="secondary hidden" type="button">结束本轮</button>
                     </div>
-                    <section id="player-host-choice" class="player-host-choice hidden">
-                        <div class="host-choice-heading">
-                            <div><p class="eyebrow">临时主持权</p><h3>亲自选择下一轮发生什么</h3></div>
-                            <span>不会自动抽取</span>
-                        </div>
-                        <label>本轮公开情报（可不发布）
-                            <select id="player-host-intel"><option value="">不发布公开情报</option></select>
-                        </label>
-                        <div id="player-host-cards" class="player-host-cards"></div>
-                        <button id="confirm-player-host" class="auto-host-button" type="button" disabled>确认主持选择 · 展开下一轮</button>
-                    </section>
-                    <p id="decision-hint" class="hint">移动与交谈可自由进行；搜查等主要行动每轮最多 3 次。</p>
+                    <p id="decision-hint" class="hint">点击地图上高亮的相邻房间移动；点击同室密探进入聊天。搜查等行动会消耗本轮次数。</p>
                 </article>
             </aside>
 
@@ -185,11 +179,20 @@
         </section>
         <section id="conversation-archive" class="conversation-archive hidden">
             <div class="section-heading">
-                <div><p class="eyebrow">私密案卷</p><h2>对话档案</h2></div>
-                <p>只记录你亲自参与或在现场听见的交谈；交换过的情报可继续转述</p>
+                <div><p class="eyebrow">即时联络</p><h2>密探对话</h2></div>
+                <p>点击同室密探直接交谈；轮末所有发言汇入同一个大堂讨论频道</p>
             </div>
             <div id="conversation-tabs" class="conversation-tabs"></div>
             <div id="conversation-thread" class="conversation-thread"></div>
+            <div id="conversation-composer" class="conversation-composer hidden">
+                <div class="conversation-composer-heading"><strong id="conversation-context">选择一名同室密探</strong><span id="conversation-presence"></span></div>
+                <label>交换一条记忆（可选）<select id="conversation-memory"><option value="">只发送消息</option></select></label>
+                <div class="conversation-input-row">
+                    <textarea id="conversation-content" maxlength="200" rows="2" placeholder="写下你要当面说的话……"></textarea>
+                    <button id="send-conversation" class="primary" type="button">发送</button>
+                </div>
+            </div>
+            <button id="continue-next-round" class="primary continue-next-round hidden" type="button">结束讨论 · 进入下一轮</button>
         </section>
         <section id="final-discussion-panel" class="vote-panel hidden">
             <div class="section-heading">

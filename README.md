@@ -140,7 +140,7 @@ python __main__.py interactive
 - 角色席：<http://127.0.0.1:5001/interactive>
 - 导演台：<http://127.0.0.1:5001/interactive/director>
 
-导演台可在项目配置 API、系统变量 `DEEPSEEK_API`、本地 Ollama 与启发式规划器之间切换。运行旧版 AI 小镇、测试方式、项目结构及数据输出说明，请阅读 **[完整开发文档](docs/development.md)**。
+互动游戏默认使用本地 Ollama（`qwen2.5:7b-instruct`）；导演台仍可切换到 DeepSeek 或项目配置 API，远端调用失败时会自动回落到本地 Ollama，只有本地模型也不可用时才启用规则兜底。运行旧版 AI 小镇、测试方式、项目结构及数据输出说明，请阅读 **[完整开发文档](docs/development.md)**。
 
 ## ✨ 从 Generative Agents 到自主推理剧场
 

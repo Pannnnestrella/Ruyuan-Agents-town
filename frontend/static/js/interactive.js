@@ -112,6 +112,31 @@ function escapeHtml(value) {
         .replaceAll("'", '&#039;');
 }
 
+const earthlyBranchStartHours = {
+    子: 23, 丑: 1, 寅: 3, 卯: 5, 辰: 7, 巳: 9,
+    午: 11, 未: 13, 申: 15, 酉: 17, 戌: 19, 亥: 21,
+};
+
+function formatTimelineTime(value) {
+    const text = String(value ?? '');
+    return text.replace(/([子丑寅卯辰巳午未申酉戌亥])(初|正)([一二三四]?刻)?|([子丑寅卯辰巳午未申酉戌亥])末/g,
+        (match, branch, phase, quarter, endBranch) => {
+            const activeBranch = branch || endBranch;
+            let minutes = earthlyBranchStartHours[activeBranch] * 60;
+            if (endBranch) {
+                minutes += 105;
+            } else {
+                if (phase === '正') minutes += 60;
+                const quarterCount = {'一刻': 1, '二刻': 2, '三刻': 3, '四刻': 4}[quarter] || 0;
+                minutes += quarterCount * 15;
+            }
+            minutes %= 24 * 60;
+            const hours = String(Math.floor(minutes / 60)).padStart(2, '0');
+            const mins = String(minutes % 60).padStart(2, '0');
+            return `${match}(${hours}:${mins})`;
+        });
+}
+
 function showToast(message) {
     ui.toast.textContent = message;
     ui.toast.classList.remove('hidden');
@@ -424,7 +449,7 @@ function renderDirectorCasebook(state) {
         .map(truth => `<li>${escapeHtml(truth.claim)}</li>`).join('');
     ui.objectiveTimeline.innerHTML = (casebook.objective_timeline || []).map(entry => `
         <article class="${entry.private ? 'private' : ''}">
-            <time>${escapeHtml(entry.time)}</time>
+            <time>${escapeHtml(formatTimelineTime(entry.time))}</time>
             <div><strong>${escapeHtml(entry.location_name || '')}</strong><p>${escapeHtml(entry.text)}</p>
             <small>${escapeHtml((entry.participants || []).join('、'))}${entry.private ? ' · 凶手私密记忆' : ''}</small></div>
         </article>`).join('');
@@ -454,7 +479,7 @@ function renderDirectorCasebook(state) {
                         ${(character.background_story || []).map(text => `<p>${escapeHtml(text)}</p>`).join('') || '<p>未记录。</p>'}
                     </section>
                     <section class="file-block full"><h4>案发前个人时间线</h4><ol class="pregame-ledger">${(character.pregame_timeline || []).map(entry => `
-                        <li class="${entry.private ? 'private' : ''}"><time>${escapeHtml(entry.time)}</time><span>${escapeHtml(entry.text)}</span><small>${escapeHtml(entry.location_name || '')}</small></li>
+                        <li class="${entry.private ? 'private' : ''}"><time>${escapeHtml(formatTimelineTime(entry.time))}</time><span>${escapeHtml(entry.text)}</span><small>${escapeHtml(entry.location_name || '')}</small></li>
                     `).join('') || '<li>未记录。</li>'}</ol></section>
                     ${renderFileList('初始记忆', character.background_memories)}
                     ${renderFileList('个人目标', character.goals)}

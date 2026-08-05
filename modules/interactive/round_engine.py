@@ -16,6 +16,7 @@ from .models import (
     RoundResult,
 )
 from .abilities import action_is_authorized, apply_ability
+from .information import neutral_belief_claim, render_belief_claim
 
 
 def bulletin_location(state: GameState) -> str:
@@ -46,6 +47,16 @@ class RoundEngine:
     def __init__(self, *, seed: int = 0):
         self.random = random.Random(seed)
         self._event_sequence = 0
+
+    @staticmethod
+    def consumes_major_action(action_type: ActionType) -> bool:
+        """Whether a timed exploration action spends the actor's round budget."""
+
+        return action_type not in {
+            ActionType.MOVE,
+            ActionType.TALK,
+            ActionType.WAIT,
+        }
 
     def resolve_round(
         self,
@@ -80,6 +91,7 @@ class RoundEngine:
         state.phase = GamePhase.RESOLVING
         active_round = state.round_number + 1
         action_step = state.action_step + 1
+        action_limit = state.action_limit_for_round(active_round)
         accepted: list[ActionIntent] = []
         rejected: list[dict] = []
         seen_actors: set[str] = set()
@@ -99,9 +111,17 @@ class RoundEngine:
                 self._resolve_pending_poisons(state, active_round, action_step)
             )
         for intent in accepted:
+            actor_index = 0
+            if self.consumes_major_action(intent.action_type):
+                progress = state.actor_progress(active_round, intent.actor_id)
+                progress["major_actions_used"] = int(
+                    progress.get("major_actions_used", 0)
+                ) + 1
+                actor_index = int(progress["major_actions_used"])
             event = self._resolve_intent(state, intent, active_round)
             event.action_step = action_step
             event.payload.setdefault("action_step", action_step)
+            event.payload.setdefault("actor_action_index", actor_index)
             round_events.append(event)
 
         # Characters without a submitted intent explicitly wait.  This keeps
@@ -124,7 +144,7 @@ class RoundEngine:
 
         state.events.extend(round_events)
         state.action_step = action_step
-        round_finished = finish_round or state.action_step >= state.actions_per_round
+        round_finished = finish_round or state.action_step >= action_limit
         if round_finished:
             state.round_number = active_round
             state.action_step = 0
@@ -171,12 +191,73 @@ class RoundEngine:
                 state,
                 state.action_step,
             )
-        active_round = state.round_number + 1
+        active_round = (
+            state.round_number
+            if state.phase in {GamePhase.ROUND_COMPLETE, GamePhase.DISCUSSION}
+            else state.round_number + 1
+        )
         event = self._resolve_intent(state, intent, active_round)
         event.action_step = state.action_step
         event.payload["free_action"] = True
         state.events.append(event)
         return RoundResult(active_round, [event], [], state, state.action_step)
+
+    def resolve_timed_actions(
+        self,
+        state: GameState,
+        intents: Iterable[ActionIntent],
+    ) -> RoundResult:
+        """Resolve one asynchronous exploration opportunity per submitted actor.
+
+        Unlike the legacy synchronous phase resolver, this method never advances
+        a global ``action_step`` or closes the round. Each character owns an
+        independent major-action budget while movement, conversation, and an
+        explicit decision to wait remain budget-free.
+        """
+
+        if state.phase not in {GamePhase.READY, GamePhase.PLAYER_TURN}:
+            raise ValueError(
+                f"Cannot resolve timed actions while phase is {state.phase.value}"
+            )
+        active_round = min(state.max_rounds, state.round_number + 1)
+        accepted: list[ActionIntent] = []
+        rejected: list[dict[str, Any]] = []
+        seen_actors: set[str] = set()
+        for intent in intents:
+            reason = self._validate_intent(state, intent, seen_actors)
+            if reason:
+                rejected.append({"intent": intent.to_dict(), "reason": reason})
+                continue
+            accepted.append(intent)
+            seen_actors.add(intent.actor_id)
+
+        accepted.sort(key=lambda item: self.ACTION_ORDER[item.action_type])
+        events: list[EventRecord] = []
+        highest_actor_index = 0
+        for intent in accepted:
+            progress = state.actor_progress(active_round, intent.actor_id)
+            actor_index = int(progress.get("major_actions_used", 0))
+            if self.consumes_major_action(intent.action_type):
+                actor_index += 1
+                progress["major_actions_used"] = actor_index
+            event = self._resolve_intent(state, intent, active_round)
+            event.action_step = actor_index
+            event.payload.update({
+                "actor_action_index": actor_index,
+                "timed_action": True,
+            })
+            if intent.action_type in {ActionType.MOVE, ActionType.TALK}:
+                event.payload["free_action"] = True
+            state.events.append(event)
+            events.append(event)
+            highest_actor_index = max(highest_actor_index, actor_index)
+        return RoundResult(
+            active_round,
+            events,
+            rejected,
+            state,
+            highest_actor_index,
+        )
 
     def validate_intent(self, state: GameState, intent: ActionIntent) -> str | None:
         """Public single-intent legality check (phase bookkeeping excluded).
@@ -198,6 +279,15 @@ class RoundEngine:
             return "unknown actor"
         if not actor.can_act:
             return f"actor cannot act while {actor.life_state.value}"
+        if self.consumes_major_action(intent.action_type):
+            active_round = min(state.max_rounds, state.round_number + 1)
+            used = int(
+                state.actor_progress(active_round, intent.actor_id).get(
+                    "major_actions_used", 0
+                )
+            )
+            if used >= state.action_limit_for_round(active_round):
+                return "actor has exhausted the major action budget for this round"
         if intent.actor_id in seen_actors:
             return "only one major action is allowed per actor in one action phase"
         if not action_is_authorized(state, intent):
@@ -495,8 +585,20 @@ class RoundEngine:
                 (belief for belief in actor.beliefs if belief.belief_id == share_belief_id),
                 None,
             )
+        spoken_shared_claim = (
+            render_belief_claim(
+                shared_belief,
+                speaker_id=actor.agent_id,
+                owner_name=actor.display_name,
+            )
+            if shared_belief else None
+        )
+        neutral_shared_claim = (
+            neutral_belief_claim(shared_belief, owner_name=actor.display_name)
+            if shared_belief else None
+        )
         if shared_belief and not intent.content.strip():
-            topic = f"我愿意把这条情报告诉你：{shared_belief.claim}"
+            topic = f"我愿意把这条情报告诉你：{spoken_shared_claim}"
         displayed_item = None
         display_object_id = str(intent.metadata.get("display_object_id") or "")
         item_disposition = str(intent.metadata.get("item_disposition") or "none")
@@ -533,7 +635,10 @@ class RoundEngine:
                 "speaker_id": actor.agent_id,
                 "listener_id": target.agent_id,
                 "shared_belief_id": shared_belief.belief_id if shared_belief else None,
-                "shared_claim": shared_belief.claim if shared_belief else None,
+                "shared_claim": neutral_shared_claim,
+                "shared_claim_subject_id": (
+                    shared_belief.perspective_owner_id if shared_belief else None
+                ),
                 "shared_truth_id": shared_belief.truth_id if shared_belief else None,
                 "shared_confidence": shared_belief.confidence if shared_belief else None,
                 "displayed_object_id": displayed_item.object_id if displayed_item else None,
@@ -546,6 +651,9 @@ class RoundEngine:
                     intent.metadata.get("promise")
                     if isinstance(intent.metadata.get("promise"), dict)
                     else None
+                ),
+                "round_discussion": bool(
+                    intent.metadata.get("round_discussion", False)
                 ),
             },
         )

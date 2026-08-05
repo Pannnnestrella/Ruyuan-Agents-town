@@ -35,6 +35,7 @@ const { chromium } = require('playwright');
         await killerFile.locator('summary').click();
         const killerText = await killerFile.textContent();
         const fullTimelineTitle = (await page.locator('.timeline-panel h2').textContent()).trim();
+        const objectiveTimelineText = await page.locator('#casebook-objective-timeline').textContent();
 
         const result = {
             killerSeal,
@@ -51,6 +52,8 @@ const { chromium } = require('playwright');
             hasMemories: killerText.includes('完整记忆与情报'),
             hasInventory: killerText.includes('当前持有物'),
             hasActions: killerText.includes('本局行动与发言'),
+            hasMidnightTime: objectiveTimelineText.includes('子初(23:00)'),
+            hasAfternoonTime: objectiveTimelineText.includes('申正(16:00)'),
             fullTimelineTitle,
             errors,
         };
@@ -70,6 +73,8 @@ const { chromium } = require('playwright');
             || !result.hasMemories
             || !result.hasInventory
             || !result.hasActions
+            || !result.hasMidnightTime
+            || !result.hasAfternoonTime
             || fullTimelineTitle !== '全量推演事件'
             || errors.length
         ) process.exitCode = 1;

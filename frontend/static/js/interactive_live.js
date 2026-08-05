@@ -9,10 +9,17 @@ const liveUi = {
     round: document.getElementById('live-round'),
     maxRounds: document.getElementById('live-max-rounds'),
     actionStep: document.getElementById('live-action-step'),
+    roundTimer: document.getElementById('live-round-timer'),
+    roundTimerValue: document.getElementById('live-round-timer-value'),
+    roundTimerState: document.getElementById('live-round-timer-state'),
     viewMode: document.getElementById('live-view-mode'),
     gameId: document.getElementById('live-game-id'),
     planner: document.getElementById('live-planner'),
     map: document.getElementById('live-map'),
+    mapMoveConfirm: document.getElementById('map-move-confirm'),
+    mapMoveDestination: document.getElementById('map-move-destination'),
+    confirmMapMove: document.getElementById('confirm-map-move'),
+    cancelMapMove: document.getElementById('cancel-map-move'),
     bulletinBoard: document.getElementById('bulletin-board'),
     bulletinPosts: document.getElementById('bulletin-posts'),
     bulletinLocationHint: document.getElementById('bulletin-location-hint'),
@@ -96,10 +103,6 @@ const liveUi = {
     actionProgressBar: document.getElementById('action-progress-bar'),
     actionProgressAgents: document.getElementById('action-progress-agents'),
     endPlayerRound: document.getElementById('end-player-round'),
-    playerHostChoice: document.getElementById('player-host-choice'),
-    playerHostIntel: document.getElementById('player-host-intel'),
-    playerHostCards: document.getElementById('player-host-cards'),
-    confirmPlayerHost: document.getElementById('confirm-player-host'),
     decisionHint: document.getElementById('decision-hint'),
     playerVotePanel: document.getElementById('player-vote-panel'),
     playerVoteTarget: document.getElementById('player-vote-target'),
@@ -111,6 +114,13 @@ const liveUi = {
     conversationArchive: document.getElementById('conversation-archive'),
     conversationTabs: document.getElementById('conversation-tabs'),
     conversationThread: document.getElementById('conversation-thread'),
+    conversationComposer: document.getElementById('conversation-composer'),
+    conversationContext: document.getElementById('conversation-context'),
+    conversationPresence: document.getElementById('conversation-presence'),
+    conversationMemory: document.getElementById('conversation-memory'),
+    conversationContent: document.getElementById('conversation-content'),
+    sendConversation: document.getElementById('send-conversation'),
+    continueNextRound: document.getElementById('continue-next-round'),
     votePanel: document.getElementById('vote-panel'),
     voteResult: document.getElementById('vote-result'),
     dispatchLayer: document.getElementById('live-dispatch-layer'),
@@ -152,7 +162,8 @@ let pendingPlayerEntry = null;
 let feedbackDismiss = null;
 let pendingReplyEvent = null;
 let selectedConversationKey = null;
-let selectedHostCardId = null;
+let pendingMoveLocationId = null;
+let roundStartRequested = false;
 
 function escapeHtml(value) {
     return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;')
@@ -175,6 +186,53 @@ async function playerApi(path, options = {}) {
             ...(options.headers || {}),
         },
     });
+}
+
+function renderRoundClock(state) {
+    if (!liveUi.roundTimer) return;
+    const runtime = state.round_runtime || {};
+    if (!runtime.duration_seconds) {
+        liveUi.roundTimer.classList.add('hidden');
+        return;
+    }
+    liveUi.roundTimer.classList.remove('hidden', 'paused', 'closing');
+    const seconds = Math.max(0, Math.ceil(Number(runtime.remaining_seconds || 0)));
+    const minutes = Math.floor(seconds / 60);
+    liveUi.roundTimerValue.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+    const statusLabels = {
+        pending: '读完卷宗后开始',
+        exploring: '本轮探索',
+        closing: '正在收束',
+        discussing: '大堂讨论',
+    };
+    if (runtime.is_paused) {
+        liveUi.roundTimer.classList.add('paused');
+        liveUi.roundTimerState.textContent = runtime.pause_reasons?.[0] || '等待回复 · 已暂停';
+    } else {
+        liveUi.roundTimerState.textContent = statusLabels[runtime.status] || '轮次计时';
+    }
+    if (runtime.status === 'closing') liveUi.roundTimer.classList.add('closing');
+}
+
+async function ensureTimedRoundStarted() {
+    if (
+        viewMode !== 'player'
+        || !gameId
+        || roundStartRequested
+        || liveState?.round_runtime?.status !== 'pending'
+    ) return;
+    roundStartRequested = true;
+    try {
+        const data = await playerApi(`/api/interactive/games/${gameId}/player/round/start`, {
+            method: 'POST', body: '{}',
+        });
+        receivePlayerState(data.player);
+        showLiveToast(`第 ${data.player.round_runtime?.round_number || 1} 轮计时开始。`);
+    } catch (error) {
+        showLiveToast(error.message);
+    } finally {
+        roundStartRequested = false;
+    }
 }
 
 async function waitForPlayerTask(taskId) {
@@ -280,6 +338,7 @@ function hideStoryScroll() {
         liveUi.storyOverlay.setAttribute('aria-hidden', 'true');
         liveUi.storyScroll.classList.remove('rolling');
         if (viewMode === 'player') liveUi.dossierEdgeTabs.classList.remove('hidden');
+        ensureTimedRoundStarted();
     }, 520);
 }
 
@@ -407,10 +466,43 @@ function eventLocationName(event) {
 }
 
 function buildMap(state) {
+    const moves = state.available_actions?.can_submit
+        ? (state.available_actions.moves || []).map(item => item.id)
+        : [];
+    const talkable = state.available_actions?.can_chat
+        ? (state.available_actions.people || []).map(item => item.id)
+        : [];
     window.InteractiveMap.render(liveUi.map, state, {
         visualLocations,
         colors: agentColors,
+        currentLocationId: viewMode === 'player' ? state.self?.location_id : null,
+        reachableLocationIds: viewMode === 'player' ? moves : [],
+        talkableAgentIds: viewMode === 'player' ? talkable : [],
+        onLocationClick: requestMapMove,
+        onAgentClick: openConversationWithAgent,
     });
+}
+
+function requestMapMove(locationId) {
+    if (viewMode !== 'player' || !liveState?.available_actions?.can_submit) return;
+    const destination = (liveState.available_actions.moves || [])
+        .find(item => item.id === locationId);
+    if (!destination) return;
+    pendingMoveLocationId = locationId;
+    liveUi.mapMoveDestination.textContent = destination.name;
+    liveUi.confirmMapMove.disabled = false;
+    liveUi.mapMoveConfirm.classList.remove('hidden');
+}
+
+function openConversationWithAgent(agentId) {
+    if (viewMode !== 'player') return;
+    const person = (liveState?.available_actions?.people || [])
+        .find(item => item.id === agentId);
+    if (!person) return;
+    selectedConversationKey = agentId;
+    renderConversationArchive(liveState);
+    liveUi.conversationArchive.scrollIntoView({behavior: 'smooth', block: 'start'});
+    window.setTimeout(() => liveUi.conversationContent?.focus(), 260);
 }
 
 function renderTokens(state) {
@@ -498,10 +590,11 @@ async function playEvent(event) {
     focusEvent(event);
     addFeedEvent(event);
     if (event.event_type === 'move') await animateMove(event);
-    if (event.event_type === 'conversation') await showConversation(event);
+    if (event.event_type === 'conversation' && viewMode !== 'player') await showConversation(event);
     if (!['move', 'conversation'].includes(event.event_type)) await delay(event.actors?.length ? 850 : 540);
     if (
         viewMode === 'player'
+        && !['move', 'conversation'].includes(event.event_type)
         && !['event_card_selected', 'public_intel', 'public_fact', 'object_hint', 'notice_posted', 'vote_cast', 'killer_revealed'].includes(event.event_type)
         && !event.payload?.awaiting_reply
         && !event.payload?.suppress_player_feedback
@@ -639,17 +732,14 @@ function renderPlayerPrivateState(state) {
     liveUi.decisionTitle.textContent = state.phase === 'discussion'
         ? '终局公议正在大堂进行'
         : state.phase === 'voting'
-        ? '六轮已经结束，请完成最终指认'
+        ? '四轮已经结束，请完成最终指认'
         : available.can_submit
             ? `第 ${nextRound} 轮 · 主要行动 ${state.action_step || 0}/${state.actions_per_round}`
-            : available.can_auto_host
-                ? '由你决定何时展开下一轮'
             : state.active_event_card
                 ? '其他角色正在行动'
-                : '等待主持人选择本轮事件卡';
+                : '本轮行动已经结束';
     liveUi.endPlayerRound.classList.toggle('hidden', !available.can_end_round);
     liveUi.endPlayerRound.disabled = !available.can_end_round;
-    renderPlayerHostChoice(state);
     renderActionComposer(state);
     renderPlayerVoting(state);
     liveUi.finalDiscussionPanel.classList.toggle('hidden', !state.can_open_voting);
@@ -662,42 +752,6 @@ function renderPlayerPrivateState(state) {
     }
 }
 
-function renderPlayerHostChoice(state) {
-    const options = state.host_options;
-    const available = Boolean(state.available_actions?.can_auto_host && options);
-    liveUi.playerHostChoice.classList.toggle('hidden', !available);
-    if (!available) {
-        selectedHostCardId = null;
-        return;
-    }
-    const intel = options.intel || [];
-    const currentIntel = liveUi.playerHostIntel.value;
-    liveUi.playerHostIntel.innerHTML = '<option value="">不发布公开情报</option>' + intel.map(item =>
-        `<option value="${escapeHtml(item.id)}">${escapeHtml(item.title)} · ${escapeHtml(item.source || '来源不明')}</option>`
-    ).join('');
-    if ([...liveUi.playerHostIntel.options].some(option => option.value === currentIntel)) {
-        liveUi.playerHostIntel.value = currentIntel;
-    }
-    const cards = [...(options.cards || []), ...(options.quiet ? [options.quiet] : [])];
-    if (!cards.some(card => card.card_id === selectedHostCardId)) selectedHostCardId = null;
-    liveUi.playerHostCards.innerHTML = cards.map(card => `
-        <button type="button" class="player-host-card ${card.card_id === selectedHostCardId ? 'selected' : ''}" data-card-id="${escapeHtml(card.card_id)}">
-            <strong>${escapeHtml(card.title)}</strong>
-            <span>${escapeHtml(card.description || '')}</span>
-            <span>${escapeHtml(card.impact_preview || '')}</span>
-        </button>`).join('');
-    liveUi.playerHostCards.querySelectorAll('.player-host-card').forEach(button => {
-        button.addEventListener('click', () => {
-            selectedHostCardId = button.dataset.cardId;
-            liveUi.playerHostCards.querySelectorAll('.player-host-card').forEach(item =>
-                item.classList.toggle('selected', item === button)
-            );
-            liveUi.confirmPlayerHost.disabled = false;
-        });
-    });
-    liveUi.confirmPlayerHost.disabled = !selectedHostCardId;
-}
-
 function portraitUrl(name) {
     return `/static/assets/village/agents/${encodeURIComponent(name)}/portrait.png`;
 }
@@ -705,45 +759,98 @@ function portraitUrl(name) {
 function renderConversationArchive(state) {
     const conversations = state.conversations || [];
     liveUi.conversationArchive.classList.toggle('hidden', viewMode !== 'player');
-    if (!conversations.length) {
-        liveUi.conversationTabs.innerHTML = '<span class="hint">还没有可归档的对话</span>';
-        liveUi.conversationThread.innerHTML = '<p class="hint">与同室密探交谈，或在现场听见谈话后，这里会按人物整理。</p>';
-        return;
-    }
     const selfId = state.self.agent_id;
+    const discussing = state.round_runtime?.status === 'discussing';
     const groups = {};
+    if (!discussing) {
+        for (const person of state.available_actions?.people || []) {
+            groups[person.id] = {
+                key: person.id,
+                label: person.name,
+                kind: 'direct',
+                targetId: person.id,
+                messages: [],
+            };
+        }
+    }
     for (const message of conversations) {
         const directPartnerId = message.speaker_id === selfId ? message.listener_id
             : message.listener_id === selfId ? message.speaker_id : '';
-        const key = message.final_discussion ? '__discussion__'
+        const inLobbyDiscussion = Boolean(
+            message.channel_id === 'lobby-discussion'
+            || message.round_discussion
+            || message.final_discussion
+        );
+        if (discussing && !inLobbyDiscussion) continue;
+        const key = inLobbyDiscussion ? 'lobby-discussion'
             : directPartnerId || `overheard:${message.speaker_id}:${message.listener_id}`;
-        const label = message.final_discussion ? '终局公议'
+        const label = inLobbyDiscussion ? '大堂讨论'
             : directPartnerId ? (state.visible_agents?.[directPartnerId]?.display_name ||
                 (message.speaker_id === directPartnerId ? message.speaker_name : message.listener_name))
                 : `${message.speaker_name} / ${message.listener_name}`;
-        (groups[key] ||= {key, label, messages: []}).messages.push(message);
+        const kind = inLobbyDiscussion ? 'discussion' : directPartnerId ? 'direct' : 'overheard';
+        (groups[key] ||= {key, label, kind, targetId: directPartnerId || null, messages: []})
+            .messages.push(message);
+    }
+    if (discussing) {
+        groups['lobby-discussion'] ||= {
+            key: 'lobby-discussion', label: '大堂讨论', kind: 'discussion',
+            targetId: null, messages: [],
+        };
+    }
+    if (!Object.keys(groups).length) {
+        liveUi.conversationTabs.innerHTML = '<span class="hint">当前房间没有可以交谈的密探</span>';
+        liveUi.conversationThread.innerHTML = '<p class="hint">移动到有人的房间后，点击地图上的角色即可开始聊天。</p>';
+        liveUi.conversationComposer.classList.add('hidden');
+        liveUi.continueNextRound.classList.add('hidden');
+        return;
     }
     if (!selectedConversationKey || !groups[selectedConversationKey]) {
-        selectedConversationKey = Object.keys(groups)[0];
+        selectedConversationKey = discussing && groups['lobby-discussion']
+            ? 'lobby-discussion' : Object.keys(groups)[0];
     }
     liveUi.conversationTabs.innerHTML = Object.values(groups).map(group => `
-        <button type="button" data-conversation-key="${escapeHtml(group.key)}" class="${group.key === selectedConversationKey ? 'selected' : ''}">
-            ${group.key === '__discussion__' ? '<span class="portrait-fallback">议</span>' : `<img src="${portraitUrl(group.label)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'portrait-fallback',textContent:'${escapeHtml(group.label.slice(0, 1))}'}))">`}
+        <button type="button" data-conversation-key="${escapeHtml(group.key)}" class="${group.key === selectedConversationKey ? 'selected' : ''} ${group.kind === 'discussion' ? 'discussion-channel' : ''}">
+            ${group.kind === 'discussion' ? '<span class="portrait-fallback">议</span>' : `<img src="${portraitUrl(group.label)}" alt="">`}
             <strong>${escapeHtml(group.label)}</strong><small>${group.messages.length} 条</small>
         </button>`).join('');
     const active = groups[selectedConversationKey];
-    liveUi.conversationThread.innerHTML = active.messages.map(message => `
+    liveUi.conversationThread.innerHTML = active.messages.length ? active.messages.map(message => `
         <article class="dialogue-entry ${message.speaker_id === selfId ? 'mine' : ''}">
             <img src="${portraitUrl(message.speaker_name)}" alt="${escapeHtml(message.speaker_name)}" onerror="this.style.display='none'">
             <div><span>第 ${message.round_number} 轮 · ${escapeHtml(message.speaker_name)}${message.overheard ? ' · 现场听见' : ''}</span>
             <p>${escapeHtml(message.content)}</p>${message.shared_claim ? `<em>交换情报：${escapeHtml(message.shared_claim)}</em>` : ''}</div>
-        </article>`).join('');
+        </article>`).join('') : '<p class="hint">还没有消息。你可以直接开始这段对话。</p>';
+    const people = state.available_actions?.people || [];
+    const activeTarget = active.kind === 'discussion'
+        ? people[0] : people.find(person => person.id === active.targetId);
+    const canSend = Boolean(state.available_actions?.can_chat && activeTarget);
+    liveUi.conversationComposer.classList.toggle('hidden', active.kind === 'overheard');
+    liveUi.conversationContext.textContent = active.kind === 'discussion'
+        ? '大堂共享讨论' : `与 ${active.label} 交谈`;
+    liveUi.conversationPresence.textContent = canSend
+        ? (active.kind === 'discussion' ? '在场所有人都能听见' : '对方与你在同一房间')
+        : '对方当前不在同一房间';
+    const selectedMemory = liveUi.conversationMemory.value;
+    liveUi.conversationMemory.innerHTML = '<option value="">只发送消息</option>' +
+        (state.available_actions?.shareable_memories || []).map(item => `
+            <option value="${escapeHtml(item.id)}">${escapeHtml(item.claim.slice(0, 70))}</option>`).join('');
+    if ([...liveUi.conversationMemory.options].some(option => option.value === selectedMemory)) {
+        liveUi.conversationMemory.value = selectedMemory;
+    }
+    liveUi.conversationMemory.disabled = !canSend;
+    liveUi.conversationContent.disabled = !canSend;
+    liveUi.sendConversation.disabled = !canSend;
+    liveUi.sendConversation.dataset.targetId = activeTarget?.id || '';
+    liveUi.sendConversation.dataset.channelId = active.kind === 'discussion' ? 'lobby-discussion' : '';
+    liveUi.continueNextRound.classList.toggle('hidden', !state.can_continue_after_discussion);
     liveUi.conversationTabs.querySelectorAll('[data-conversation-key]').forEach(button => {
         button.addEventListener('click', () => {
             selectedConversationKey = button.dataset.conversationKey;
             renderConversationArchive(state);
         });
     });
+    liveUi.conversationThread.scrollTop = liveUi.conversationThread.scrollHeight;
 }
 
 function renderBulletin(state) {
@@ -783,7 +890,9 @@ function renderActionComposer(state) {
     if (!inventory.length) disabledTypes.add('transfer');
     if (!people.length || !inventory.length) disabledTypes.add('transfer');
     if (!available.can_poison_this_round) disabledTypes.add('poison');
-    const baseTypes = (available.types || []).filter(type => !['poison', 'treat'].includes(type));
+    const baseTypes = (available.types || []).filter(type =>
+        !['poison', 'treat', 'move', 'talk'].includes(type)
+    );
     const baseButtons = baseTypes.map(type => `
         <button type="button" data-intent-type="${escapeHtml(type)}"
             ${disabledTypes.has(type) || !available.can_submit ? 'disabled' : ''}
@@ -805,6 +914,10 @@ function renderActionComposer(state) {
     liveUi.object.innerHTML = inventory.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('');
     liveUi.memory.innerHTML = '<option value="">不交出具体记忆</option>' + (available.shareable_memories || []).map(item => `
         <option value="${escapeHtml(item.id)}">${escapeHtml(item.claim.slice(0, 70))}</option>`).join('');
+    if (['move', 'talk'].includes(selectedActionType)) {
+        selectedActionType = null;
+        selectedAbilityId = null;
+    }
     liveUi.actionTypeGrid.querySelectorAll('[data-intent-type]').forEach(button => {
         button.addEventListener('click', () => selectActionType(
             button.dataset.intentType,
@@ -820,11 +933,14 @@ function renderActionComposer(state) {
             ? '所有仍在客栈的人正在公开最后陈述；读完后再进入投票。'
             : state.phase === 'voting'
             ? '行动阶段已经结束。'
-            : available.can_auto_host
-                ? '主持权在你手中：事件与公开情报都不会自动发生，请在下方亲自选择。'
-                : '主持人需要先选择本轮事件卡。';
+            : '本轮行动已经结束。';
     } else if (selectedActionType) {
         selectActionType(selectedActionType, state, selectedAbilityId);
+    } else {
+        ['destinationField', 'targetField', 'objectField', 'memoryField', 'contentField']
+            .forEach(key => liveUi[key].classList.add('hidden'));
+        liveUi.submitAction.disabled = true;
+        liveUi.decisionHint.textContent = '点击高亮相邻房间移动，点击同室密探聊天；这里用于选择会消耗次数的主要行动。';
     }
     if (!available.can_act && available.can_submit) liveUi.decisionHint.textContent = '你的角色当前无法主动行动，可以直接结束本轮。';
     if (selectedActionType === 'treat') {
@@ -857,7 +973,7 @@ function selectActionType(type, state, abilityId = null) {
         ? '交谈不消耗主要行动。你可以只说一句话，也可以选择一条真实记忆交给对方。'
         : isFree
             ? '移动不消耗主要行动，也不会让其他角色凭空多行动一次。你可以充分探索客栈。'
-            : `这会消耗 1 次主要行动；其余 AI 角色也会在该阶段推进自己的计划。`;
+        : '这会消耗 1 次主要行动；其他密探仍按自己的 30 秒节奏行动。';
     const special = (state.available_actions?.special_actions || [])
         .find(ability => ability.ability_id === abilityId);
     if (special) liveUi.decisionHint.textContent = special.description;
@@ -897,6 +1013,14 @@ function receivePlayerState(state, {initial = false} = {}) {
     viewMode = 'player';
     const synthetic = playerSyntheticState(state);
     receiveState(synthetic, {initial});
+    renderRoundClock(state);
+    if (
+        pendingMoveLocationId
+        && !(state.available_actions?.moves || []).some(item => item.id === pendingMoveLocationId)
+    ) {
+        pendingMoveLocationId = null;
+        liveUi.mapMoveConfirm.classList.add('hidden');
+    }
     const renderKey = JSON.stringify({
         round: state.round_number,
         step: state.action_step,
@@ -912,17 +1036,25 @@ function receivePlayerState(state, {initial = false} = {}) {
         guideRecent: state.story_guide?.recent_event,
         visible: Object.keys(state.visible_agents || {}).sort(),
         objects: Object.keys(state.visible_objects || {}).sort(),
+        conversations: state.conversations?.length,
+        conversationLast: state.conversations?.at(-1)?.event_id,
+        runtimeStatus: state.round_runtime?.status,
+        canContinue: state.can_continue_after_discussion,
+        actionLimit: state.actions_per_round,
+        people: (state.available_actions?.people || []).map(item => item.id).sort(),
+        moves: (state.available_actions?.moves || []).map(item => item.id).sort(),
     });
     if (initial || renderKey !== lastPlayerRenderKey) {
         lastPlayerRenderKey = renderKey;
         renderPlayerPrivateState(state);
-        if (liveUi.map.children.length) renderTokens(synthetic);
+        buildMap(synthetic);
     }
 }
 
 function updateHeader(state) {
     liveUi.title.textContent = state.title;
-    liveUi.round.textContent = state.round_number;
+    liveUi.round.textContent = state.round_runtime?.round_number
+        || Math.min(state.max_rounds, state.round_number + (state.phase === 'finished' ? 0 : 1));
     liveUi.maxRounds.textContent = state.max_rounds;
     liveUi.actionStep.textContent = `主要行动 ${state.action_step || 0}/${state.actions_per_round || 3}`;
     liveUi.viewMode.textContent = viewMode === 'player'
@@ -942,7 +1074,7 @@ function updateHeader(state) {
                     : '在线模型'
         }`
         : '本地规则决策';
-    liveUi.status.innerHTML = `<i></i> ${state.phase === 'finished' ? '推演结束' : state.phase === 'voting' ? '等待终局投票' : state.phase === 'resolving' ? '人物正在行动' : state.active_event_card ? '等待角色行动' : '等待导演干预'}`;
+    liveUi.status.innerHTML = `<i></i> ${state.phase === 'finished' ? '推演结束' : state.phase === 'voting' ? '等待终局投票' : state.round_runtime?.status === 'discussing' ? '大堂集中讨论' : state.phase === 'resolving' ? '人物正在行动' : state.active_event_card ? '自由探索中' : '等待导演干预'}`;
 }
 
 function receiveState(state, {initial = false} = {}) {
@@ -1031,6 +1163,7 @@ async function enterPlayerGame(data, {newGame = false} = {}) {
     liveUi.dossierEdgeTabs.classList.remove('hidden');
     window.clearTimeout(pollTimer);
     pollGame();
+    ensureTimedRoundStarted();
 }
 
 function renderRoleOptions(scenario) {
@@ -1113,39 +1246,97 @@ liveUi.create.addEventListener('click', async () => {
     }
 });
 
-liveUi.submitAction?.addEventListener('click', async () => {
-    if (!selectedActionType || !gameId) return;
-    liveUi.submitAction.disabled = true;
-    const submittedType = selectedActionType;
-    const submittedAbilityId = selectedAbilityId;
-    const submittedTarget = liveUi.target.value;
-    const body = {
-        action_type: selectedActionType,
-        location_id: selectedActionType === 'move' ? liveUi.destination.value : null,
-        target_id: ['talk', 'transfer', 'poison', 'treat'].includes(selectedActionType) ? liveUi.target.value : null,
-        object_id: selectedActionType === 'transfer' ? liveUi.object.value : null,
-        share_belief_id: selectedActionType === 'talk' ? liveUi.memory.value : null,
-        content: selectedActionType === 'talk' ? liveUi.content.value : '',
-        ability_id: selectedAbilityId,
-        reply_to_event_id: selectedActionType === 'talk' && pendingReplyEvent?.payload?.speaker_id === submittedTarget
-            ? pendingReplyEvent.event_id : null,
-    };
+async function submitPlayerAction(body, button = null) {
+    if (!gameId) return null;
+    if (button) button.disabled = true;
     try {
         const queued = await playerApi(`/api/interactive/games/${gameId}/player/actions`, {
             method: 'POST',
             body: JSON.stringify(body),
         });
         const result = await waitForPlayerTask(queued.task_id);
-        const keepSelected = ['move', 'talk'].includes(submittedType);
-        selectedActionType = keepSelected ? submittedType : null;
-        selectedAbilityId = keepSelected ? submittedAbilityId : null;
-        if (body.reply_to_event_id) pendingReplyEvent = null;
-        liveUi.content.value = '';
         receivePlayerState(result.player);
+        return result;
     } catch (error) {
         showLiveToast(error.message);
         liveUi.actionProgress?.classList.add('hidden');
-        liveUi.submitAction.disabled = false;
+        if (button) button.disabled = false;
+        return null;
+    }
+}
+
+liveUi.submitAction?.addEventListener('click', async () => {
+    if (!selectedActionType || !gameId) return;
+    const body = {
+        action_type: selectedActionType,
+        target_id: ['transfer', 'poison', 'treat'].includes(selectedActionType) ? liveUi.target.value : null,
+        location_id: selectedActionType === 'investigate' ? liveState.self.location_id : null,
+        object_id: selectedActionType === 'transfer' ? liveUi.object.value : null,
+        ability_id: selectedAbilityId,
+    };
+    const result = await submitPlayerAction(body, liveUi.submitAction);
+    if (result) {
+        selectedActionType = null;
+        selectedAbilityId = null;
+    }
+});
+
+liveUi.confirmMapMove?.addEventListener('click', async () => {
+    if (!pendingMoveLocationId) return;
+    const destination = pendingMoveLocationId;
+    const result = await submitPlayerAction({
+        action_type: 'move', location_id: destination,
+    }, liveUi.confirmMapMove);
+    if (result) {
+        pendingMoveLocationId = null;
+        liveUi.mapMoveConfirm.classList.add('hidden');
+    }
+});
+
+liveUi.cancelMapMove?.addEventListener('click', () => {
+    pendingMoveLocationId = null;
+    liveUi.mapMoveConfirm.classList.add('hidden');
+});
+
+liveUi.sendConversation?.addEventListener('click', async () => {
+    const content = liveUi.conversationContent.value.trim();
+    const shareBeliefId = liveUi.conversationMemory.value;
+    const targetId = liveUi.sendConversation.dataset.targetId;
+    if (!targetId) return showLiveToast('对方当前不在同一房间。');
+    if (!content && !shareBeliefId) return showLiveToast('请先写下消息，或选择一条要交换的记忆。');
+    const result = await submitPlayerAction({
+        action_type: 'talk',
+        target_id: targetId,
+        content,
+        share_belief_id: shareBeliefId || null,
+        channel_id: liveUi.sendConversation.dataset.channelId || null,
+    }, liveUi.sendConversation);
+    if (result) {
+        liveUi.conversationContent.value = '';
+        liveUi.conversationMemory.value = '';
+    }
+});
+
+liveUi.conversationContent?.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        liveUi.sendConversation.click();
+    }
+});
+
+liveUi.continueNextRound?.addEventListener('click', async () => {
+    if (!gameId) return;
+    liveUi.continueNextRound.disabled = true;
+    try {
+        const data = await playerApi(`/api/interactive/games/${gameId}/player/round/continue`, {
+            method: 'POST', body: '{}',
+        });
+        selectedConversationKey = null;
+        receivePlayerState(data.player);
+        await ensureTimedRoundStarted();
+    } catch (error) {
+        showLiveToast(error.message);
+        liveUi.continueNextRound.disabled = false;
     }
 });
 
@@ -1162,33 +1353,10 @@ liveUi.endPlayerRound?.addEventListener('click', async () => {
         selectedActionType = null;
         selectedAbilityId = null;
         receivePlayerState(result.player);
-        showLiveToast('本轮已经收束。准备好后，由你决定何时展开下一轮。');
+        showLiveToast('本轮已经收束，所有密探已回到大堂讨论。');
     } catch (error) {
         showLiveToast(error.message);
         liveUi.endPlayerRound.disabled = false;
-    }
-});
-
-liveUi.confirmPlayerHost?.addEventListener('click', async () => {
-    if (!gameId) return;
-    if (!selectedHostCardId) return showLiveToast('请先选择一张事件卡或“无事件”。');
-    liveUi.confirmPlayerHost.disabled = true;
-    liveUi.decisionHint.textContent = '正在按你的主持选择展开本轮局势……';
-    try {
-        const data = await playerApi(`/api/interactive/games/${gameId}/player/host-choice`, {
-            method: 'POST',
-            body: JSON.stringify({
-                card_id: selectedHostCardId,
-                intel_id: liveUi.playerHostIntel.value || null,
-            }),
-        });
-        const publishedIntel = Boolean(data.intel);
-        selectedHostCardId = null;
-        receivePlayerState(data.player);
-        showLiveToast(publishedIntel ? '你发布了公开情报，并展开了选定事件。' : '你展开了选定事件。');
-    } catch (error) {
-        showLiveToast(error.message);
-        liveUi.confirmPlayerHost.disabled = false;
     }
 });
 

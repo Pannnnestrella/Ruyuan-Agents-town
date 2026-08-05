@@ -61,6 +61,7 @@ class LoadedScenario:
                     truth_id=fact.get("truth_id"),
                     information_type=str(fact.get("information_type", "fact")),
                     source_type=str(fact.get("source_type", "authored_memory")),
+                    perspective_owner_id=participant["id"],
                     confidence_score=max(
                         0, min(5, round(float(fact.get("confidence", 1.0)) * 5))
                     ),
@@ -86,6 +87,7 @@ class LoadedScenario:
                         learned_round=0,
                         information_type="fact",
                         source_type="memory",
+                        perspective_owner_id=participant["id"],
                         confidence_score=max(0, min(5, round(confidence * 5))),
                     ))
             agents[participant["id"]] = AgentState(
@@ -219,6 +221,7 @@ class LoadedScenario:
                     truth_id=f"secret:{secret.secret_id}",
                     information_type="fact",
                     source_type="private_secret",
+                    perspective_owner_id=secret.owner_id,
                     confidence_score=5,
                 ))
             owner.identity_state["personal_secrets"].append(secret.secret_id)
@@ -312,6 +315,7 @@ class LoadedScenario:
                     truth_id="truth-killer",
                     information_type="fact",
                     source_type="private_killer_memory",
+                    perspective_owner_id=killer_id,
                     confidence_score=5,
                 ),
                 Belief(
@@ -324,6 +328,7 @@ class LoadedScenario:
                     truth_id="truth-killer",
                     information_type="fact",
                     source_type="private_killer_memory",
+                    perspective_owner_id=killer_id,
                     confidence_score=5,
                 ),
                 Belief(
@@ -336,6 +341,7 @@ class LoadedScenario:
                     truth_id="truth-killer",
                     information_type="fact",
                     source_type="private_killer_memory",
+                    perspective_owner_id=killer_id,
                     confidence_score=5,
                 ),
             ])
@@ -366,6 +372,7 @@ class LoadedScenario:
                     truth_id="truth-killer",
                     information_type="fact",
                     source_type="private_killer_memory",
+                    perspective_owner_id=killer_id,
                     confidence_score=5,
                 ))
 
@@ -384,6 +391,7 @@ class LoadedScenario:
                         learned_round=0,
                         information_type="fact",
                         source_type="personal_experience",
+                        perspective_owner_id=candidate_id,
                         confidence_score=5,
                     ))
 
@@ -487,15 +495,38 @@ class LoadedScenario:
                         "truth-killer"
                         if entry.get("kind") == "killer-private" else None
                     ),
+                    perspective_owner_id=agent_id,
                 ))
+
+        legacy_max_rounds = int(self.scenario.get("max_rounds", 6))
+        legacy_action_limit = int(self.scenario.get("actions_per_round", 3))
+        raw_schedule = list(self.scenario.get("round_schedule") or [])
+        round_schedule = [
+            {
+                "round": int(rule["round"]),
+                "duration_seconds": int(rule.get("duration_seconds", 0)),
+                "major_action_limit": int(
+                    rule.get("major_action_limit", legacy_action_limit)
+                ),
+            }
+            for rule in raw_schedule
+        ] or [
+            {
+                "round": round_number,
+                "duration_seconds": 0,
+                "major_action_limit": legacy_action_limit,
+            }
+            for round_number in range(1, legacy_max_rounds + 1)
+        ]
 
         return GameState(
             game_id=game_id,
             scenario_id=self.scenario["id"],
             world_id=self.world["id"],
             round_number=0,
-            max_rounds=int(self.scenario.get("max_rounds", 6)),
-            actions_per_round=int(self.scenario.get("actions_per_round", 3)),
+            max_rounds=len(round_schedule),
+            actions_per_round=int(round_schedule[0]["major_action_limit"]),
+            round_schedule=round_schedule,
             player_agent_id=player_agent_id,
             phase=GamePhase.INTERVENTION,
             locations=locations,
@@ -645,6 +676,47 @@ class ScenarioLoader:
         errors: list[str] = []
         if world.get("id") != scenario.get("world_id"):
             errors.append("scenario.world_id does not match world.id")
+
+        raw_schedule = scenario.get("round_schedule")
+        if raw_schedule is not None:
+            if not isinstance(raw_schedule, list) or not raw_schedule:
+                errors.append("scenario.round_schedule must be a non-empty list")
+            else:
+                expected_rounds = list(range(1, len(raw_schedule) + 1))
+                actual_rounds: list[int] = []
+                for index, rule in enumerate(raw_schedule, start=1):
+                    if not isinstance(rule, dict):
+                        errors.append(
+                            f"round_schedule entry {index} must be an object"
+                        )
+                        continue
+                    try:
+                        round_number = int(rule.get("round", 0))
+                        duration = int(rule.get("duration_seconds", 0))
+                        action_limit = int(rule.get("major_action_limit", 0))
+                    except (TypeError, ValueError):
+                        errors.append(
+                            f"round_schedule entry {index} contains non-integer values"
+                        )
+                        continue
+                    actual_rounds.append(round_number)
+                    if duration <= 0:
+                        errors.append(
+                            f"round {round_number} duration_seconds must be positive"
+                        )
+                    if action_limit <= 0:
+                        errors.append(
+                            f"round {round_number} major_action_limit must be positive"
+                        )
+                if actual_rounds != expected_rounds:
+                    errors.append(
+                        "round_schedule rounds must be contiguous and start at 1"
+                    )
+                configured_max = scenario.get("max_rounds")
+                if configured_max is not None and int(configured_max) != len(raw_schedule):
+                    errors.append(
+                        "scenario.max_rounds must match round_schedule length"
+                    )
 
         locations = world.get("locations") or []
         location_ids = {location.get("id") for location in locations}

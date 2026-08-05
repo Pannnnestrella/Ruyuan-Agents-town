@@ -48,6 +48,7 @@ class Belief:
     information_type: str = "fact"
     source_type: str = "authored"
     speaker_id: str | None = None
+    perspective_owner_id: str | None = None
     learned_location: str | None = None
     witnesses: list[str] = field(default_factory=list)
     confidence_score: int = 3
@@ -383,6 +384,11 @@ class GameState:
     objects: dict[str, ObjectState]
     action_step: int = 0
     actions_per_round: int = 3
+    round_schedule: list[dict[str, int]] = field(default_factory=list)
+    round_actor_progress: dict[str, dict[str, dict[str, Any]]] = field(
+        default_factory=dict
+    )
+    round_runtime: dict[str, Any] = field(default_factory=dict)
     player_agent_id: str | None = None
     secrets: dict[str, SecretState] = field(default_factory=dict)
     notices: list[Notice] = field(default_factory=list)
@@ -401,6 +407,58 @@ class GameState:
     model_usage: list[dict[str, Any]] = field(default_factory=list)
     flags: dict[str, Any] = field(default_factory=dict)
 
+    def rule_for_round(self, round_number: int) -> dict[str, int]:
+        """Return the configured timing and action budget for one round.
+
+        ``actions_per_round`` remains as a legacy fallback for older saves and
+        third-party scenarios. New scenarios use ``round_schedule`` so later
+        rounds may have different durations and action limits.
+        """
+
+        for rule in self.round_schedule:
+            if int(rule.get("round", 0)) == round_number:
+                return {
+                    "round": round_number,
+                    "duration_seconds": max(
+                        0, int(rule.get("duration_seconds", 0))
+                    ),
+                    "major_action_limit": max(
+                        1,
+                        int(rule.get(
+                            "major_action_limit", self.actions_per_round
+                        )),
+                    ),
+                }
+        return {
+            "round": round_number,
+            "duration_seconds": 0,
+            "major_action_limit": max(1, int(self.actions_per_round)),
+        }
+
+    def action_limit_for_round(self, round_number: int) -> int:
+        return int(self.rule_for_round(round_number)["major_action_limit"])
+
+    def duration_for_round(self, round_number: int) -> int:
+        return int(self.rule_for_round(round_number)["duration_seconds"])
+
+    def actor_progress(
+        self,
+        round_number: int,
+        agent_id: str,
+    ) -> dict[str, Any]:
+        """Return the persistent per-character progress bucket for a round."""
+
+        round_bucket = self.round_actor_progress.setdefault(
+            str(round_number), {}
+        )
+        return round_bucket.setdefault(agent_id, {
+            "major_actions_used": 0,
+            "scheduled_opportunities": 0,
+            "last_action_at": None,
+            "next_action_at": 30,
+            "currently_resolving": False,
+        })
+
     def occupants(self, location_id: str, *, include_dead: bool = True) -> list[str]:
         return [
             agent_id
@@ -417,7 +475,14 @@ class GameState:
             "round_number": self.round_number,
             "max_rounds": self.max_rounds,
             "action_step": self.action_step,
-            "actions_per_round": self.actions_per_round,
+            "actions_per_round": self.action_limit_for_round(
+                min(self.max_rounds, self.round_number + 1)
+            ),
+            "round_schedule": [dict(rule) for rule in self.round_schedule],
+            "round_runtime": {
+                key: value for key, value in self.round_runtime.items()
+                if key not in {"pause_tokens", "last_clock_at"}
+            },
             "phase": self.phase.value,
             "locations": self.locations,
             "agents": {
@@ -446,7 +511,16 @@ class GameState:
             "round_number": self.round_number,
             "max_rounds": self.max_rounds,
             "action_step": self.action_step,
-            "actions_per_round": self.actions_per_round,
+            "actions_per_round": self.action_limit_for_round(
+                min(self.max_rounds, self.round_number + 1)
+            ),
+            "round_schedule": [dict(rule) for rule in self.round_schedule],
+            "round_actor_progress": (
+                self.round_actor_progress if include_private else {}
+            ),
+            "round_runtime": (
+                dict(self.round_runtime) if include_private else {}
+            ),
             "player_agent_id": self.player_agent_id if include_private else None,
             "phase": self.phase.value,
             "locations": self.locations,

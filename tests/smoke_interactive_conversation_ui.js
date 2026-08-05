@@ -31,13 +31,7 @@ const { chromium } = require('playwright');
         await live.locator('#story-overlay:not(.hidden)').waitFor();
         await live.locator('#story-overlay').click({position: {x: 5, y: 5}});
         await live.locator('#story-overlay').waitFor({state: 'hidden'});
-
-        const director = await context.newPage();
-        watch(director);
-        await director.goto(`${baseUrl}/interactive/director`, {waitUntil: 'networkidle'});
-        await director.locator('#game:not(.hidden)').waitFor();
-        await director.locator('.event-card').first().click();
-        await live.waitForFunction(() => !document.querySelector('[data-intent-type="move"]')?.disabled);
+        await live.waitForFunction(() => document.querySelector('#live-round-timer-state')?.textContent === '本轮探索');
 
         const gameId = (await live.locator('#live-game-id').textContent()).replace('局号 ', '').trim();
         const publicState = await live.evaluate(async ({baseUrl, gameId}) => {
@@ -64,73 +58,68 @@ const { chromium } = require('playwright');
             }
         }
         for (const destination of route.slice(1)) {
-            await live.locator('[data-intent-type="move"]').click();
-            await live.locator('#action-destination').selectOption(destination);
-            await live.locator('#submit-action').click();
-            await live.locator('#player-event-feedback.shown').waitFor({timeout: 30000});
-            await live.locator('#player-event-close').click();
-            await live.locator('#player-event-feedback').waitFor({state: 'hidden'});
+            await live.locator(`[data-location-id="${destination}"].reachable-room`).click();
+            await live.locator('#map-move-confirm:not(.hidden)').waitFor();
+            await live.locator('#confirm-map-move').click();
+            await live.locator(`[data-location-id="${destination}"].current-room`).waitFor({timeout: 30000});
         }
 
-        await live.locator('[data-intent-type="talk"]').click();
-        await live.locator('#action-target').selectOption(target.agent_id);
-        await live.locator('#action-memory').selectOption({index: 1});
-        const explicitExchangeText = await live.locator('#action-content').inputValue();
-        await live.locator('#submit-action').click();
-        await live.locator('#player-event-feedback.shown').waitFor({timeout: 120000});
-        const firstKicker = await live.locator('#player-event-kicker').textContent();
-        const firstReply = await live.locator('#player-event-summary').textContent();
-        await live.locator('#player-event-close').click();
-        await live.locator('#player-event-feedback').waitFor({state: 'hidden'});
+        await live.locator(`.agent-token[data-agent-id="${target.agent_id}"].talkable-agent`).click();
+        await live.locator('#conversation-composer:not(.hidden)').waitFor();
+        await live.locator('#conversation-memory').selectOption({index: 1});
+        await live.locator('#conversation-content').fill('这条线索与你记得的时辰一致吗？');
+        await live.locator('#send-conversation').click();
+        await live.waitForFunction(() => document.querySelectorAll('#conversation-thread .dialogue-entry').length >= 2, null, {timeout: 120000});
+        const firstThread = await live.locator('#conversation-thread').textContent();
 
-        const talkStillSelected = await live.locator('[data-intent-type="talk"]').evaluate(
-            element => element.classList.contains('selected')
-        );
-        const secondSubmitEnabled = await live.locator('#submit-action').isEnabled();
-        await live.locator('#action-content').fill('你愿意拿什么线索证明这句话？');
-        await live.locator('#submit-action').click();
-        await live.locator('#player-event-feedback.shown').waitFor({timeout: 120000});
-        const secondKicker = await live.locator('#player-event-kicker').textContent();
-        const secondReply = await live.locator('#player-event-summary').textContent();
-        await live.locator('#player-event-close').click();
-        await live.locator('#player-event-feedback').waitFor({state: 'hidden'});
+        await live.locator('#conversation-content').fill('你愿意拿什么亲历来证明这句话？');
+        await live.locator('#send-conversation').click();
+        await live.waitForFunction(() => document.querySelectorAll('#conversation-thread .dialogue-entry').length >= 4, null, {timeout: 120000});
+        const secondThread = await live.locator('#conversation-thread').textContent();
 
-        await live.locator('[data-intent-type="move"]').click();
-        await live.locator('#submit-action').click();
-        await live.locator('#player-event-feedback.shown').waitFor({timeout: 30000});
-        await live.locator('#player-event-close').click();
-        await live.locator('#player-event-feedback').waitFor({state: 'hidden'});
-        const moveStillSelected = await live.locator('[data-intent-type="move"]').evaluate(
-            element => element.classList.contains('selected')
+        const nextRoom = await live.locator('.reachable-room').first().getAttribute('data-location-id');
+        await live.locator(`[data-location-id="${nextRoom}"].reachable-room`).click();
+        await live.locator('#confirm-map-move').click();
+        await live.locator(`[data-location-id="${nextRoom}"].current-room`).waitFor({timeout: 30000});
+        const movePopupHidden = await live.locator('#player-event-feedback').evaluate(
+            element => element.classList.contains('hidden')
         );
-        const consecutiveMoveEnabled = await live.locator('#submit-action').isEnabled();
-        const archivedExchange = await live.locator('#conversation-thread').textContent();
+
+        await live.locator('#end-player-round').click();
+        await live.locator('#continue-next-round:not(.hidden)').waitFor({timeout: 240000});
+        const discussionTabs = await live.locator('#conversation-tabs button').count();
+        const discussionLabel = await live.locator('#conversation-tabs').textContent();
+        const lobbyComposerEnabled = await live.locator('#send-conversation').isEnabled();
+        await live.locator('#continue-next-round').click();
+        await live.waitForFunction(() => (
+            document.querySelector('#live-round')?.textContent === '2'
+            && document.querySelector('#live-round-timer-state')?.textContent === '本轮探索'
+        ), null, {timeout: 30000});
 
         const result = {
             target: target.display_name,
-            firstKicker,
-            firstReply,
-            secondKicker,
-            secondReply,
-            talkStillSelected,
-            secondSubmitEnabled,
-            moveStillSelected,
-            consecutiveMoveEnabled,
-            explicitExchangeText,
-            archivedExchange,
+            timer: await live.locator('#live-round-timer-value').textContent(),
+            firstThread,
+            secondThread,
+            movePopupHidden,
+            genericMoveButtons: await live.locator('[data-intent-type="move"]').count(),
+            genericTalkButtons: await live.locator('[data-intent-type="talk"]').count(),
+            discussionTabs,
+            discussionLabel,
+            lobbyComposerEnabled,
+            continuedRound: await live.locator('#live-round').textContent(),
             errors,
         };
         if (
-            !firstKicker.includes('回应了你')
-            || !secondKicker.includes('回应了你')
-            || !firstReply
-            || !secondReply
-            || !talkStillSelected
-            || !secondSubmitEnabled
-            || !moveStillSelected
-            || !consecutiveMoveEnabled
-            || !explicitExchangeText.includes('我愿意把这条情报告诉你')
-            || !archivedExchange.includes('交换情报')
+            !firstThread.includes('交换情报')
+            || secondThread === firstThread
+            || !result.movePopupHidden
+            || result.genericMoveButtons
+            || result.genericTalkButtons
+            || result.discussionTabs !== 1
+            || !result.discussionLabel.includes('大堂讨论')
+            || !result.lobbyComposerEnabled
+            || result.continuedRound !== '2'
             || errors.length
         ) {
             throw new Error(`Unexpected conversation UI: ${JSON.stringify(result)}`);

@@ -73,7 +73,6 @@ const { chromium } = require('playwright');
         await director.goto(`${baseUrl}/interactive/director`, {waitUntil: 'networkidle'});
         await director.locator('#game:not(.hidden)').waitFor();
         const directorAdvanceDisabled = await director.locator('#advance-round').isDisabled();
-        await director.locator('.event-card').first().click();
         await live.waitForFunction(
             () => [...document.querySelectorAll('[data-intent-type]')].some(button => !button.disabled),
             null,
@@ -110,14 +109,7 @@ const { chromium } = require('playwright');
             );
         }
 
-        await director.waitForFunction(
-            () => [...document.querySelectorAll('#event-cards [data-card-id]')].some(button => !button.disabled),
-            null,
-            {timeout: 30000},
-        );
         const directorNextCardEnabled = await director.locator('#event-cards [data-card-id]').first().isEnabled();
-        await live.locator('#auto-host-next-round:not(.hidden)').waitFor({timeout: 30000});
-        await live.locator('#auto-host-next-round').click();
         await live.waitForFunction(
             () => [...document.querySelectorAll('[data-intent-type]')].some(button => !button.disabled),
             null,
@@ -159,7 +151,7 @@ const { chromium } = require('playwright');
             || !result.freeActionFeedback.includes('自由探索')
             || !result.freeActionStep.includes('主要行动 0/3')
             || !result.directorAdvanceDisabled
-            || !result.directorNextCardEnabled
+            || result.directorNextCardEnabled
             || result.privateLeak
             || errors.length
         ) {

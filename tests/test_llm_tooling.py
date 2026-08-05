@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from modules.interactive import LLMIntentPlanner, ScenarioLoader
+from modules.interactive import HeuristicIntentPlanner, LLMIntentPlanner, ScenarioLoader
 from modules.interactive.llm_planner import OpenAICompatibleChatModel
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,6 +27,17 @@ class ScriptedModel:
         if len(self.responses) > 1:
             return self.responses.pop(0)
         return self.responses[0]
+
+
+class FailingModel:
+    supports_json_mode = True
+
+    def __init__(self):
+        self.calls = 0
+
+    def completion(self, prompt: str, **kwargs: object) -> str:
+        self.calls += 1
+        raise ConnectionError("remote provider unavailable")
 
 
 class AdapterRetryTests(unittest.TestCase):
@@ -150,6 +161,68 @@ class PlannerRetryAndTraceTests(unittest.TestCase):
         planner = LLMIntentPlanner(model)
         planner.plan(self.state, self.scenario, actor_ids=[self.actor_id])
         self.assertTrue(all(call.get("json_mode") for call in model.calls))
+
+    def test_remote_failure_uses_local_model_before_heuristic(self):
+        remote = FailingModel()
+        local = ScriptedModel([json.dumps({
+            "action_type": "wait", "reason": "先观察片刻",
+        }, ensure_ascii=False)])
+        planner = LLMIntentPlanner(
+            remote,
+            provider_name="deepseek:test",
+            model_fallbacks=[("ollama:qwen2.5:7b-instruct", local)],
+        )
+
+        intents = planner.plan(
+            self.state, self.scenario, actor_ids=[self.actor_id],
+        )
+
+        self.assertEqual(remote.calls, 1)
+        self.assertEqual(len(local.calls), 1)
+        self.assertEqual(
+            intents[0].metadata.get("planner_source"), "llm_local_fallback",
+        )
+        self.assertEqual(
+            intents[0].metadata.get("planner_provider"),
+            "ollama:qwen2.5:7b-instruct",
+        )
+
+    def test_conversation_prompt_leaves_social_response_to_character(self):
+        speaker_id = next(
+            agent_id for agent_id in sorted(self.state.agents)
+            if agent_id != self.actor_id
+        )
+        model = ScriptedModel([json.dumps({
+            "content": "嗯，我在听。",
+            "share_belief_id": None,
+            "item_disposition": "none",
+            "display_object_id": None,
+        }, ensure_ascii=False)])
+        planner = LLMIntentPlanner(model)
+
+        response = planner.respond_to_player(
+            self.state, self.scenario, speaker_id, self.actor_id, "楼主！",
+        )
+
+        prompt = str(model.calls[0]["prompt"])
+        self.assertEqual(response["content"], "嗯，我在听。")
+        self.assertIn("自由回应", prompt)
+        self.assertIn("寒暄可以只作自然回应", prompt)
+        self.assertNotIn("你可以回避、反问、撒谎或交换情报", prompt)
+
+    def test_emergency_fallback_does_not_dump_intel_on_a_greeting(self):
+        speaker_id = next(
+            agent_id for agent_id in sorted(self.state.agents)
+            if agent_id not in {self.actor_id, self.state.flags.get("killer_id")}
+        )
+        planner = HeuristicIntentPlanner(seed=4)
+
+        response = planner.respond_to_player(
+            self.state, self.scenario, speaker_id, self.actor_id, "楼主！",
+        )
+
+        self.assertIsNone(response["share_belief_id"])
+        self.assertIn(self.state.agents[self.actor_id].display_name, response["content"])
 
     def test_valid_llm_vote_is_accepted_not_silently_discarded(self):
         candidates = [

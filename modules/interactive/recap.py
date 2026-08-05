@@ -132,6 +132,11 @@ class RecapBuilder:
             "premise": loaded.scenario["premise"],
             "rounds_completed": state.round_number,
             "actions_per_round": state.actions_per_round,
+            "round_schedule": [dict(rule) for rule in state.round_schedule],
+            "total_major_action_limit": sum(
+                state.action_limit_for_round(round_number)
+                for round_number in range(1, state.max_rounds + 1)
+            ),
             "objective_truths": objective_truths,
             "timeline": {str(round_number): events for round_number, events in sorted(timeline.items())},
             "key_events": key_events,

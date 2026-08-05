@@ -89,6 +89,19 @@ def game_state_from_dict(data: dict[str, Any]) -> GameState:
                 "testimony" if migrated.get("stance") in {"reported", "overheard"} else "fact",
             )
             migrated.setdefault("source_type", str(migrated.get("stance") or "legacy"))
+            if not migrated.get("perspective_owner_id") and "你" in str(
+                migrated.get("claim", "")
+            ) and (
+                str(migrated.get("source", "")).startswith("timeline:")
+                or migrated.get("source") in {
+                    "凶手记忆", "个人秘密", "个人经历", "往事回忆",
+                }
+                or migrated.get("source_type") in {
+                    "authored_memory", "memory", "private_secret",
+                    "private_killer_memory", "personal_experience",
+                }
+            ):
+                migrated["perspective_owner_id"] = agent_id
             beliefs.append(Belief(**migrated))
         raw_life_state = str(raw.get("life_state", ""))
         if not raw_life_state:
@@ -172,14 +185,44 @@ def game_state_from_dict(data: dict[str, Any]) -> GameState:
         secret_id: SecretState(**raw)
         for secret_id, raw in data.get("secrets", {}).items()
     }
+    legacy_max_rounds = int(data["max_rounds"])
+    legacy_action_limit = int(data.get("actions_per_round", 1))
+    round_schedule = [
+        {
+            "round": int(rule.get("round", index)),
+            "duration_seconds": int(rule.get("duration_seconds", 0)),
+            "major_action_limit": int(
+                rule.get("major_action_limit", legacy_action_limit)
+            ),
+        }
+        for index, rule in enumerate(data.get("round_schedule", []), start=1)
+    ] or [
+        {
+            "round": round_number,
+            "duration_seconds": 0,
+            "major_action_limit": legacy_action_limit,
+        }
+        for round_number in range(1, legacy_max_rounds + 1)
+    ]
     return GameState(
         game_id=data["game_id"],
         scenario_id=data["scenario_id"],
         world_id=data["world_id"],
         round_number=int(data["round_number"]),
-        max_rounds=int(data["max_rounds"]),
+        max_rounds=len(round_schedule),
         action_step=int(data.get("action_step", 0)),
-        actions_per_round=int(data.get("actions_per_round", 1)),
+        actions_per_round=int(round_schedule[0]["major_action_limit"]),
+        round_schedule=round_schedule,
+        round_actor_progress={
+            str(round_number): {
+                str(agent_id): dict(progress)
+                for agent_id, progress in dict(round_progress).items()
+            }
+            for round_number, round_progress in dict(
+                data.get("round_actor_progress", {})
+            ).items()
+        },
+        round_runtime=dict(data.get("round_runtime", {})),
         player_agent_id=data.get("player_agent_id"),
         phase=GamePhase(data["phase"]),
         locations=dict(data["locations"]),

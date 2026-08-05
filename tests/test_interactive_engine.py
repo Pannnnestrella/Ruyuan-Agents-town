@@ -30,10 +30,18 @@ class ScenarioTests(unittest.TestCase):
         self.loaded = ScenarioLoader(ROOT).load("stormbound_inn")
         self.state = self.loaded.create_game_state("test-game")
 
-    def test_scenario_loads_with_six_characters_and_three_actions_for_six_rounds(self):
+    def test_scenario_loads_four_timed_rounds_with_growing_action_budgets(self):
         self.assertEqual(len(self.state.agents), 6)
-        self.assertEqual(self.state.max_rounds, 6)
+        self.assertEqual(self.state.max_rounds, 4)
         self.assertEqual(self.state.actions_per_round, 3)
+        self.assertEqual(
+            [self.state.duration_for_round(number) for number in range(1, 5)],
+            [360, 480, 600, 900],
+        )
+        self.assertEqual(
+            [self.state.action_limit_for_round(number) for number in range(1, 5)],
+            [3, 4, 5, 6],
+        )
         self.assertIn("lobby", self.state.locations)
         self.assertEqual(
             set(self.loaded.scenario["llm_scope"]["participant_ids"]),
@@ -681,7 +689,11 @@ class GameSessionTests(unittest.TestCase):
             self.session.advance_round()
             agent = self.session.state.agents["广陵王"]
             self.assertEqual(agent.strategic_plan["updated_round"], expected_round)
-            self.assertEqual(len(agent.plan_history), expected_round * 3)
+            expected_actions = sum(
+                self.session.state.action_limit_for_round(round_number)
+                for round_number in range(1, expected_round + 1)
+            )
+            self.assertEqual(len(agent.plan_history), expected_actions)
             self.assertTrue(agent.plan_history[-1]["outcome"])
         self.assertEqual(
             self.session.state.agents["广陵王"].strategic_plan["objective"],
@@ -696,17 +708,17 @@ class GameSessionTests(unittest.TestCase):
         self.assertIn('"strategic_plan"', saved)
         self.assertIn('"plan_history"', saved)
 
-    def test_six_rounds_offer_eighteen_nonrepeating_cards_and_quiet_is_available(self):
+    def test_four_rounds_offer_twelve_nonrepeating_cards_and_quiet_is_available(self):
         offered = []
-        for _ in range(6):
+        for _ in range(4):
             cards = self.session.card_suggestions()
             offered.extend(card["card_id"] for card in cards)
             quiet = self.session.empty_event_option()
             self.assertEqual(quiet["category"], "quiet")
             self.session.select_event_card(quiet["card_id"])
             self.session.advance_round()
-        self.assertEqual(len(offered), 18)
-        self.assertEqual(len(set(offered)), 18)
+        self.assertEqual(len(offered), 12)
+        self.assertEqual(len(set(offered)), 12)
 
     def test_public_intel_reaches_every_character_immediately(self):
         intel = self.session.intel_suggestions()[0]
@@ -767,16 +779,17 @@ class GameSessionTests(unittest.TestCase):
         self.assertEqual(received.stance, "reported")
         self.assertIn("据广陵王所说", received.claim)
 
-    def test_six_round_game_writes_evidence_based_recap(self):
+    def test_four_round_game_writes_evidence_based_recap(self):
         self.session.post_notice("所有住客若发现密信，须先在大堂登记。")
-        for _ in range(6):
+        for _ in range(4):
             cards = self.session.card_suggestions()
             self.assertEqual(len(cards), 3)
             self.session.select_event_card(cards[0]["card_id"])
             self.session.advance_round()
         self.assertEqual(self.session.state.phase, GamePhase.FINISHED)
         recap = self.session.build_recap()
-        self.assertEqual(recap["rounds_completed"], 6)
+        self.assertEqual(recap["rounds_completed"], 4)
+        self.assertEqual(recap["total_major_action_limit"], 18)
         self.assertEqual(len(recap["characters"]), 6)
         self.assertEqual(len(recap["voting_result"]["votes"]), 6)
         self.assertTrue(recap["voting_result"]["killer_name"])
