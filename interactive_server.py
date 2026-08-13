@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import requests
 from flask import Flask, Response, jsonify, render_template, request
 from werkzeug.exceptions import HTTPException
 
@@ -111,6 +112,110 @@ def create_app(
         Path(results_root) if results_root else root / "results"
     ) if os.environ.get("GA_INTERACTIVE_LLM_TRACE", "1") != "0" else None
 
+    def planner_connection_config(provider: str, model: str = "") -> dict[str, str]:
+        provider = provider.lower().strip()
+        if provider == "ollama":
+            return {
+                "base_url": os.environ.get(
+                    "GA_INTERACTIVE_OLLAMA_BASE_URL", "http://127.0.0.1:11434/v1"
+                ).strip(),
+                "model": model.strip() or os.environ.get(
+                    "GA_INTERACTIVE_OLLAMA_MODEL", "qwen2.5:7b-instruct"
+                ).strip(),
+                "api_key": "",
+            }
+        if provider == "deepseek":
+            api_key = (
+                os.environ.get("DEEPSEEK_API_KEY")
+                or os.environ.get("DEEPSEEK_API", "")
+            ).strip()
+            if not api_key:
+                raise ValueError("DeepSeek API Key 未配置，请先设置 DEEPSEEK_API_KEY")
+            return {
+                "base_url": os.environ.get(
+                    "GA_INTERACTIVE_DEEPSEEK_BASE_URL", "https://api.deepseek.com"
+                ).strip(),
+                "model": model.strip() or os.environ.get(
+                    "GA_INTERACTIVE_DEEPSEEK_MODEL", "deepseek-v4-flash"
+                ).strip(),
+                "api_key": api_key,
+            }
+        if provider == "project":
+            return LLMIntentPlanner.project_connection_config(root, model_name=model)
+        if provider == "heuristic":
+            return {"base_url": "", "model": "", "api_key": ""}
+        raise ValueError("未知决策接口；请选择 heuristic、ollama、deepseek 或 project")
+
+    def planner_models_endpoint(base_url: str) -> str:
+        normalized = base_url.rstrip("/")
+        suffix = "/chat/completions"
+        if normalized.lower().endswith(suffix):
+            normalized = normalized[:-len(suffix)]
+        return f"{normalized}/models"
+
+    def test_planner_connection(provider: str, model: str = "") -> dict[str, Any]:
+        try:
+            config = planner_connection_config(provider, model)
+            if provider.lower().strip() == "heuristic":
+                return {
+                    "ok": True,
+                    "provider": "heuristic",
+                    "default_model": "",
+                    "models": [],
+                    "message": "本地规则模式无需连接模型服务",
+                }
+            headers = {"Accept": "application/json"}
+            if config["api_key"]:
+                headers["Authorization"] = f"Bearer {config['api_key']}"
+            response = requests.get(
+                planner_models_endpoint(config["base_url"]),
+                headers=headers,
+                timeout=12.0,
+            )
+            if response.status_code in {401, 403}:
+                return {
+                    "ok": False,
+                    "code": "AUTH",
+                    "message": "模型服务拒绝了 API Key，请检查服务配置",
+                }
+            if not response.ok:
+                return {
+                    "ok": False,
+                    "code": "HTTP",
+                    "message": f"模型服务返回 HTTP {response.status_code}",
+                }
+            try:
+                data = response.json()
+            except (requests.exceptions.JSONDecodeError, ValueError):
+                return {
+                    "ok": False,
+                    "code": "BAD_RESPONSE",
+                    "message": "模型服务返回的模型列表不是有效 JSON",
+                }
+            entries = data.get("data", []) if isinstance(data, dict) else []
+            models = list(dict.fromkeys(
+                str(entry.get("id", "")).strip()
+                for entry in entries
+                if isinstance(entry, dict) and str(entry.get("id", "")).strip()
+            ))
+            return {
+                "ok": True,
+                "provider": provider.lower().strip(),
+                "default_model": config["model"],
+                "models": models,
+                "message": f"连接成功，发现 {len(models)} 个模型",
+            }
+        except ValueError as error:
+            return {"ok": False, "code": "CONFIG", "message": str(error)}
+        except requests.RequestException:
+            return {
+                "ok": False,
+                "code": "CONNECTION",
+                "message": "无法连接模型服务，请检查服务地址、网络或本地服务状态",
+            }
+        except (TypeError, KeyError, OSError) as error:
+            return {"ok": False, "code": "BAD_RESPONSE", "message": str(error)}
+
     def ollama_route() -> tuple[str, OpenAICompatibleChatModel]:
         model_name = os.environ.get(
             "GA_INTERACTIVE_OLLAMA_MODEL", "qwen2.5:7b-instruct"
@@ -165,6 +270,7 @@ def create_app(
         if provider == "project":
             return LLMIntentPlanner.from_project_config(
                 root,
+                model_name=model,
                 fallback=fallback,
                 model_fallbacks=[ollama_route()],
                 error_callback=planner_error_callback,
@@ -556,6 +662,14 @@ def create_app(
             int(session.state.flags.get("seed", 0)), provider, model
         )
         return jsonify(session.set_planner(planner))
+
+    @app.post("/api/interactive/planner/test-connection")
+    def planner_connection_test():
+        data = payload()
+        return jsonify(test_planner_connection(
+            str(data.get("provider", "")),
+            str(data.get("model", "")),
+        ))
 
     @app.post("/api/interactive/games/<game_id>/player/notices")
     def post_player_notice(game_id: str):

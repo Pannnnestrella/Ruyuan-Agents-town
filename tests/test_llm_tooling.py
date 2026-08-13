@@ -89,6 +89,26 @@ class AdapterRetryTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             adapter.completion("hi", retry=2)
 
+    def test_project_connection_config_accepts_model_override(self):
+        with TemporaryDirectory() as temporary_root:
+            data_dir = Path(temporary_root) / "data"
+            data_dir.mkdir()
+            (data_dir / "config.json").write_text(json.dumps({
+                "agent_base": {"think": {"llm": {
+                    "base_url": "https://example.test/v1/chat/completions",
+                    "model": "old-model",
+                }}},
+                "api_keys": {"OPENAI_API_KEY": "test-key"},
+            }), encoding="utf-8")
+
+            config = LLMIntentPlanner.project_connection_config(
+                temporary_root,
+                model_name="new-model",
+            )
+
+        self.assertEqual(config["model"], "new-model")
+        self.assertEqual(config["base_url"], "https://example.test/v1/chat/completions")
+
 
 class UsageScriptedModel(ScriptedModel):
     def __init__(self, responses: list[str], usage: dict[str, int]):

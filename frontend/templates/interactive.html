@@ -135,15 +135,28 @@
                 </section>
 
                 <div class="planner-switcher">
-                    <div><p class="control-kicker">决策接口</p><h2>切换后续角色行动使用的模型</h2></div>
-                    <select id="planner-provider">
-                        <option value="ollama" selected>Ollama 本地（默认）</option>
-                        <option value="deepseek">DeepSeek API（失败时转本地）</option>
-                        <option value="project">项目配置 API</option>
-                        <option value="heuristic">本地规则（无 LLM）</option>
-                    </select>
-                    <input id="planner-model" type="text" placeholder="模型名；留空使用该接口默认值">
-                    <button id="switch-planner" class="secondary-button" type="button">应用切换</button>
+                    <div class="planner-heading"><p class="control-kicker">自动推理模型</p><h2>测试接口，从可用模型中选择后应用</h2></div>
+                    <label class="planner-field">服务商
+                        <select id="planner-provider">
+                            <option value="ollama" selected>Ollama 本地（默认）</option>
+                            <option value="deepseek">DeepSeek API（失败时转本地）</option>
+                            <option value="project">项目配置 API</option>
+                            <option value="heuristic">本地规则（无 LLM）</option>
+                        </select>
+                    </label>
+                    <label class="planner-field">可用模型
+                        <select id="planner-model-select">
+                            <option value="">请先测试连接获取模型</option>
+                        </select>
+                    </label>
+                    <label class="planner-field">模型名
+                        <input id="planner-model" type="text" placeholder="也可手动填写模型名" autocomplete="off">
+                    </label>
+                    <div class="planner-actions">
+                        <button id="test-planner" class="secondary-button" type="button">测试连接</button>
+                        <button id="switch-planner" class="secondary-button" type="button">应用切换</button>
+                    </div>
+                    <p id="planner-test-status" class="planner-test-status" role="status">选择服务商后先测试连接，模型列表会自动刷新。</p>
                 </div>
 
                 <div class="notice-composer">

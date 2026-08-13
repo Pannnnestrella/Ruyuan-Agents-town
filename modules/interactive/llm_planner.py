@@ -377,6 +377,7 @@ class LLMIntentPlanner:
         cls,
         project_root: str | Path,
         *,
+        model_name: str = "",
         fallback: HeuristicIntentPlanner | None = None,
         model_fallbacks: list[tuple[str, Any]] | None = None,
         error_callback: Callable[[Exception, dict[str, Any]], None] | None = None,
@@ -386,6 +387,8 @@ class LLMIntentPlanner:
         with config_path.open("r", encoding="utf-8") as handle:
             config = json.load(handle)
         llm_config = dict(config["agent_base"]["think"]["llm"])
+        if model_name.strip():
+            llm_config["model"] = model_name.strip()
         # Prefer the small adapter for interactive rounds. Some legacy wrappers
         # keep mutable response accounting and print full completions, which is
         # unsafe when six character requests run concurrently.
@@ -405,6 +408,30 @@ class LLMIntentPlanner:
             error_callback=error_callback,
             trace_root=trace_root,
         )
+
+    @classmethod
+    def project_connection_config(
+        cls,
+        project_root: str | Path,
+        *,
+        model_name: str = "",
+    ) -> dict[str, str]:
+        """Return the OpenAI-compatible project endpoint without exposing it to clients."""
+
+        config_path = Path(project_root) / "data" / "config.json"
+        with config_path.open("r", encoding="utf-8") as handle:
+            config = json.load(handle)
+        llm_config = dict(config["agent_base"]["think"]["llm"])
+        if model_name.strip():
+            llm_config["model"] = model_name.strip()
+        model = cls._openai_compatible_fallback(llm_config, config["api_keys"])
+        if model is None:
+            raise ValueError("项目模型未配置 OpenAI 兼容的服务地址、模型或 API Key")
+        return {
+            "base_url": model.base_url,
+            "model": model.model,
+            "api_key": model.api_key,
+        }
 
     @classmethod
     def from_ollama(

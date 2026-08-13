@@ -4,6 +4,7 @@ import unittest
 import time
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import Mock, patch
 
 from interactive_server import create_app
 
@@ -185,8 +186,61 @@ class InteractiveApiTests(unittest.TestCase):
         director_html = director.get_data(as_text=True)
         self.assertIn('option value="ollama" selected', director_html)
         self.assertIn('DeepSeek API（失败时转本地）', director_html)
+        self.assertIn('id="planner-model-select"', director_html)
+        self.assertIn('id="test-planner"', director_html)
         self.assertIn("interactive_map.js", director_html)
         self.assertIn("interactive_map.js", live.get_data(as_text=True))
+
+    @patch("interactive_server.requests.get")
+    def test_planner_connection_discovers_models(self, get):
+        response = Mock(status_code=200, ok=True)
+        response.json.return_value = {
+            "data": [
+                {"id": "qwen2.5:7b-instruct"},
+                {"id": "deepseek-r1:8b"},
+                {"id": "deepseek-r1:8b"},
+            ]
+        }
+        get.return_value = response
+
+        tested = self.client.post(
+            "/api/interactive/planner/test-connection",
+            json={"provider": "ollama"},
+        )
+
+        self.assertEqual(tested.status_code, 200)
+        body = tested.get_json()
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["default_model"], "qwen2.5:7b-instruct")
+        self.assertEqual(body["models"], ["qwen2.5:7b-instruct", "deepseek-r1:8b"])
+        called_url = get.call_args.args[0]
+        self.assertEqual(called_url, "http://127.0.0.1:11434/v1/models")
+        self.assertNotIn("Authorization", get.call_args.kwargs["headers"])
+
+    @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "", "DEEPSEEK_API": ""})
+    def test_planner_connection_reports_missing_deepseek_key(self):
+        tested = self.client.post(
+            "/api/interactive/planner/test-connection",
+            json={"provider": "deepseek"},
+        )
+
+        self.assertEqual(tested.status_code, 200)
+        self.assertEqual(tested.get_json()["code"], "CONFIG")
+        self.assertIn("DEEPSEEK_API_KEY", tested.get_json()["message"])
+
+    def test_switch_planner_uses_selected_ollama_model(self):
+        self.client.post(
+            "/api/interactive/games",
+            json={"scenario_id": "stormbound_inn", "game_id": "planner-model-test"},
+        )
+
+        switched = self.client.post(
+            "/api/interactive/games/planner-model-test/planner",
+            json={"provider": "ollama", "model": "deepseek-r1:8b"},
+        )
+
+        self.assertEqual(switched.status_code, 200)
+        self.assertEqual(switched.get_json()["planner_provider"], "ollama:deepseek-r1:8b")
 
     def test_host_notifications_include_rate_limits_and_request_errors(self):
         notify = self.client.application.config["INTERACTIVE_HOST_NOTIFY"]
