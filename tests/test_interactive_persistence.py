@@ -34,6 +34,33 @@ class AtomicPersistenceTests(unittest.TestCase):
                 {"round": 2, "phase": "player_turn"},
             )
 
+    def test_longer_transient_lock_is_retried_before_failing(self):
+        with TemporaryDirectory() as temporary:
+            destination = Path(temporary) / "state.json"
+            real_replace = os.replace
+            attempts = 0
+
+            def flaky_replace(source, target):
+                nonlocal attempts
+                attempts += 1
+                if attempts < 12:
+                    raise PermissionError(13, "temporarily locked", str(target))
+                return real_replace(source, target)
+
+            with (
+                mock.patch(
+                    "modules.interactive.persistence.os.replace",
+                    side_effect=flaky_replace,
+                ),
+                mock.patch("modules.interactive.persistence.time.sleep"),
+            ):
+                atomic_write_json(destination, {"round": 2})
+
+            self.assertEqual(attempts, 12)
+            self.assertEqual(
+                json.loads(destination.read_text(encoding="utf-8")), {"round": 2}
+            )
+
     def test_concurrent_saves_never_leave_partial_json(self):
         with TemporaryDirectory() as temporary:
             destination = Path(temporary) / "state.json"

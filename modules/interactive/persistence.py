@@ -40,9 +40,14 @@ def atomic_write_text(
     content: str,
     *,
     encoding: str = "utf-8",
-    retries: int = 10,
+    retries: int = 30,
 ) -> Path:
-    """Write via a unique sibling file and retry transient Windows file locks."""
+    """Write via a unique sibling file and tolerate transient Windows file locks.
+
+    Windows security scanners and file indexers can briefly hold ``state.json``
+    immediately after a save.  Keep retrying long enough for those external
+    locks to clear while retaining an atomic replacement once they do.
+    """
 
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
