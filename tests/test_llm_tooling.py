@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 
 from modules.interactive import HeuristicIntentPlanner, LLMIntentPlanner, ScenarioLoader
 from modules.interactive.llm_planner import OpenAICompatibleChatModel
+from modules.interactive.prompt_catalog import PromptCatalog, PromptDocument
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -108,6 +109,55 @@ class AdapterRetryTests(unittest.TestCase):
 
         self.assertEqual(config["model"], "new-model")
         self.assertEqual(config["base_url"], "https://example.test/v1/chat/completions")
+
+
+class PromptCatalogTests(unittest.TestCase):
+    def test_normal_context_is_not_compressed(self):
+        context = {
+            "speaker": {"name": "傅融"},
+            "private_memories": [{"belief_id": "b1", "claim": "我看见了账册。"}],
+        }
+        document = PromptCatalog().render(
+            "agent.conversation",
+            context,
+            variables={"speaker_name": "傅融"},
+            max_prompt_tokens=8000,
+        )
+        self.assertIsInstance(document, PromptDocument)
+        self.assertEqual(document.prompt_version, "2.0.0")
+        self.assertEqual(document.schema_version, "conversation-reply/2")
+        self.assertFalse(document.compression["triggered"])
+        self.assertIn("我看见了账册", document.text)
+
+    def test_overflow_context_compresses_old_beliefs_deterministically(self):
+        context = {
+            "speaker": {"name": "傅融", "role": "密探"},
+            "private_memories": [
+                {
+                    "belief_id": f"belief-{index}",
+                    "claim": f"第{index}条很长的旧记忆" + "细节" * 80,
+                    "information_type": "testimony",
+                    "stance": "reported",
+                    "confidence": 0.6,
+                }
+                for index in range(40)
+            ],
+            "secrets_to_protect": [{"title": "必须保留", "claim": "不可泄露的核心秘密"}],
+        }
+        catalog = PromptCatalog()
+        first = catalog.render(
+            "agent.conversation", context,
+            variables={"speaker_name": "傅融"}, max_prompt_tokens=1800,
+        )
+        second = catalog.render(
+            "agent.conversation", context,
+            variables={"speaker_name": "傅融"}, max_prompt_tokens=1800,
+        )
+        self.assertTrue(first.compression["triggered"])
+        self.assertIn("context_compression_summary", first.text)
+        self.assertIn("不可泄露的核心秘密", first.text)
+        self.assertEqual(first.text, second.text)
+        self.assertEqual(first.context_hash, second.context_hash)
 
 
 class UsageScriptedModel(ScriptedModel):
@@ -292,6 +342,11 @@ class PlannerRetryAndTraceTests(unittest.TestCase):
             self.assertEqual(records[0]["agent_id"], self.actor_id)
             self.assertIn("prompt", records[0])
             self.assertEqual(records[0]["response"], "坏输出")
+            self.assertEqual(records[0]["prompt_id"], "agent.intent")
+            self.assertEqual(records[0]["prompt_version"], "2.0.0")
+            self.assertEqual(records[0]["schema_version"], "action-intent/2")
+            self.assertEqual(len(records[0]["context_hash"]), 64)
+            self.assertIn("triggered", records[0]["context_compression"])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,10 @@
+你正在扮演“{{voter_name}}”，现在必须独立投票指认凶手、完成终局客观答卷，并提交案件闭环与个人任务答案。
+
+只能依据 personal_memories 中属于你的记忆判断，不得读取作者真相。即使证据不足也必须从 candidates 中选择一人；理由必须引用你记得的行动、对话或情报，不得编造新事件。final_questions 是密封客观题，每题必须从 options 中选择一个 id。case_conclusion 中的 key_facts 和 unreliable_testimonies 只能填写 personal_memories 中存在的 belief_id。信息不足的字段填写空字符串，不得编造。
+
+{{context_json}}
+
+只输出符合以下 Schema 的 JSON 对象，不要输出 Markdown 或解释：
+{{output_schema}}
+
+case_conclusion 应包含 killer、motive、true_cause_of_death、time_of_death、primary_crime_scene、method、weapon_or_medium、approach_route、alibi_method、evidence_disposal、key_facts、unreliable_testimonies、reasoning_chain、alternative_suspects_excluded、confidence。personal_task_answers 每项包含 question、answer、supporting_facts、supporting_testimonies、remaining_uncertainty、confidence。

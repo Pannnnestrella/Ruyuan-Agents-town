@@ -33,6 +33,8 @@ from .recap import RecapBuilder
 from .persistence import atomic_write_json, atomic_write_text, game_state_from_dict
 from .history import record_completed_game
 from .information import render_belief_claim
+from .cognition_service import CognitionService, PLAN_ACTION_KEYWORDS
+from .state_projection import StateProjectionService
 from .scenario_loader import LoadedScenario, ScenarioLoader
 from .trigger_resolver import TriggerResolver
 from .story_compiler import StoryCompiler
@@ -673,6 +675,8 @@ class GameSession:
         self.recap_builder = RecapBuilder()
         self.trigger_resolver = TriggerResolver(loaded.scenario.get("round_triggers", []))
         self.story_compiler = StoryCompiler()
+        self.cognition = CognitionService(self)
+        self.projections = StateProjectionService(self)
         self.random = random.Random(seed + 711)
         self._clock = clock or time.time
         self._notice_sequence = len(state.notices)
@@ -972,62 +976,10 @@ class GameSession:
         return text[:240]
 
     def public_state(self) -> dict[str, Any]:
-        data = self.state.public_view()
-        data["title"] = self.loaded.scenario["title"]
-        data["premise"] = self.loaded.scenario["premise"]
-        data["planner"] = self.planner.__class__.__name__
-        data["planner_provider"] = getattr(self.planner, "provider_name", "heuristic")
-        recent_model_calls = [
-            item for item in self.state.model_usage
-            if item.get("stage") in {"action", "round_discussion"}
-        ][-24:]
-        fallback_calls = [
-            item for item in recent_model_calls
-            if item.get("actual_source") == "heuristic_fallback"
-        ]
-        data["planner_runtime"] = {
-            "recent_calls": len(recent_model_calls),
-            "fallback_calls": len(fallback_calls),
-            "llm_calls": sum(
-                item.get("actual_source") == "llm"
-                for item in recent_model_calls
-            ),
-            "is_falling_back": bool(
-                recent_model_calls
-                and len(fallback_calls) == len(recent_model_calls)
-            ),
-        }
-        data["public_facts"] = self.loaded.scenario.get("public_facts", [])
-        data["ending_questions"] = self.loaded.scenario.get("ending_questions", [])
-        data["game_rules"] = self.loaded.scenario.get("game_rules", [])
-        data["controlled_agent_id"] = self.state.player_agent_id
-        if self.state.phase == GamePhase.FINISHED:
-            data["voting_result"] = dict(self.state.flags.get("voting_result", {}))
-            data["scoreboard"] = self.scoreboard()
-        return data
+        return self.projections.public_state()
 
     def observer_state(self) -> dict[str, Any]:
-        """Return the live-map view without exposing the director's casebook.
-
-        The live observer needs local movement, investigation, and conversation
-        events to animate the map and build character tracks.  Those events are
-        intentionally absent from ``public_state`` because players outside the
-        scene must not learn them.  Secret poisoning attempts remain hidden here;
-        only their later, observable effect may enter the live event stream.
-        """
-
-        data = self.public_state()
-        data["events"] = [
-            event.to_dict()
-            for event in self.state.events
-            if event.event_type != "poison_queued"
-            and not (
-                event.event_type == "action_failed"
-                and event.payload.get("action") == "下毒"
-            )
-        ]
-        return data
-
+        return self.projections.observer_state()
     def set_planner(self, planner: IntentPlanner) -> dict[str, str]:
         if self.state.phase == GamePhase.RESOLVING:
             raise ValueError("角色正在决策，需等待当前行动完成后再切换模型")
@@ -1067,6 +1019,7 @@ class GameSession:
         actual_source: str,
         provider_name: str | None = None,
         succeeded: bool = True,
+        prompt_audit: dict[str, Any] | None = None,
     ) -> None:
         self.state.model_usage.append({
             "usage_id": f"usage-{self.state.game_id}-{len(self.state.model_usage) + 1:05d}",
@@ -1079,6 +1032,7 @@ class GameSession:
             ),
             "actual_source": actual_source,
             "succeeded": bool(succeeded),
+            "prompt_audit": dict(prompt_audit or {}),
         })
 
     def final_questions_for(self, agent_id: str) -> list[dict[str, Any]]:
@@ -1241,263 +1195,7 @@ class GameSession:
         return cleaned_case, cleaned_tasks
 
     def director_state(self) -> dict[str, Any]:
-        """Return the omniscient casebook used only by the local host console.
-
-        The ordinary state and player endpoints deliberately omit this material.
-        Keeping the casebook behind a distinct endpoint makes it much harder for
-        the role view to reveal the seeded killer or another character's memory by
-        accident.
-        """
-
-        data = self.public_state()
-        participants = {
-            item["id"]: item for item in self.loaded.scenario.get("participants", [])
-        }
-        killer_id = str(self.state.flags.get("killer_id", ""))
-        killer = self.state.agents.get(killer_id)
-        profile = dict(self.state.flags.get("killer_profile", {}))
-        manifest = dict(self.state.flags.get("case_manifest", {}))
-
-        weapon_id = str(
-            (self.loaded.scenario.get("killer_setup") or {}).get("weapon_object_id", "")
-        )
-        weapon = self.state.objects.get(weapon_id)
-        stolen_id = str(manifest.get("stolen_item_id") or "")
-        stolen = self.state.objects.get(stolen_id)
-        evidence = [
-            self.state.objects[object_id].to_dict(reveal_hidden=True, reveal_metadata=True)
-            for object_id in manifest.get("evidence_object_ids", [])
-            if object_id in self.state.objects
-        ]
-
-        murder_chain = [
-            {
-                "stage": "诱因",
-                "title": "死者带着足以改变局势的真信进入客栈",
-                "detail": str(profile.get("motive", "")),
-            },
-            {
-                "stage": "行凶",
-                "title": f"{killer.display_name if killer else killer_id}趁近身机会下手",
-                "detail": str(profile.get("method", "")),
-            },
-            {
-                "stage": "取走",
-                "title": f"关键物“{stolen.name}”失踪" if stolen else "死者携带的关键物失踪",
-                "detail": str((stolen.metadata if stolen else {}).get("description", "")),
-            },
-            {
-                "stage": "遗痕",
-                "title": "凶手留下了可被交叉验证的专属痕迹",
-                "detail": "；".join(
-                    f"{item['name']}：{item.get('metadata', {}).get('description', '')}"
-                    for item in evidence
-                ),
-            },
-            {
-                "stage": "掩护预案",
-                "title": "凶手试图在终局投票中摆脱正确指认",
-                "detail": str(profile.get("cover_plan", "")),
-            },
-        ]
-
-        character_files: list[dict[str, Any]] = []
-        for agent_id, agent in self.state.agents.items():
-            participant = participants.get(agent_id, {})
-            owned_secrets = [
-                secret.to_dict()
-                for secret in self.state.secrets.values()
-                if secret.owner_id == agent_id
-            ]
-            inventory = [
-                self.state.objects[object_id].to_dict(
-                    reveal_hidden=True, reveal_metadata=True
-                )
-                for object_id in agent.inventory
-                if object_id in self.state.objects
-            ]
-            actions = [
-                event.to_dict()
-                for event in self.state.events
-                if agent_id in event.actors
-            ]
-            witnessed = [
-                event.to_dict()
-                for event in self.state.events
-                if agent_id in event.witnesses and agent_id not in event.actors
-            ]
-            character_files.append({
-                "agent_id": agent_id,
-                "display_name": agent.display_name,
-                "is_killer": agent_id == killer_id,
-                "public_role": agent.public_role,
-                "background_story": list(participant.get("background_story", [])),
-                "opening_hook": str(participant.get("opening_hook", "")),
-                "background_memories": list(participant.get("background_memories", [])),
-                "pregame_timeline": list(
-                    self.state.flags.get("character_timelines", {}).get(agent_id, [])
-                ),
-                "goals": list(participant.get("goals", [])),
-                "decision_rules": list(participant.get("decision_rules", [])),
-                "private_facts": list(participant.get("private_facts", [])),
-                "current_state": agent.to_dict(include_private=True),
-                "inventory_objects": inventory,
-                "secrets": owned_secrets,
-                "actions": actions,
-                "witnessed_events": witnessed,
-            })
-
-        authored_objects = {
-            item["id"]: item for item in self.loaded.scenario.get("objects", [])
-        }
-        for item in [profile.get("stolen_item"), *profile.get("evidence_objects", [])]:
-            if item:
-                authored_objects[item["id"]] = item
-        clue_map: list[dict[str, Any]] = []
-        truth_claims = {
-            item["id"]: item.get("claim", "")
-            for item in self.loaded.scenario.get("truths", [])
-        }
-        for object_id, item in self.state.objects.items():
-            authored = authored_objects.get(object_id, {})
-            metadata = dict(item.metadata)
-            tags = list(item.tags)
-            kind = str(metadata.get("clue_kind", ""))
-            if not kind:
-                kind = (
-                    "decoy" if "misdirection" in tags
-                    else "secret" if "secret" in tags
-                    else "evidence" if "evidence" in tags
-                    else "personal"
-                )
-            if item.holder_id in self.state.agents:
-                current_where = f"{self.state.agents[item.holder_id].display_name}随身持有"
-                current_group = f"holder:{item.holder_id}"
-            elif item.location_id in self.state.locations:
-                current_where = self.state.locations[item.location_id]["name"]
-                current_group = f"location:{item.location_id}"
-            else:
-                current_where = "当前不在任何房间或人物手中"
-                current_group = "unplaced"
-            authored_holder = str(authored.get("holder_id") or "")
-            authored_location = str(authored.get("location_id") or "")
-            initial_where = (
-                f"{killer.display_name}随身" if authored_holder == "$killer" and killer
-                else
-                f"{self.state.agents[authored_holder].display_name}随身"
-                if authored_holder in self.state.agents
-                else self.state.locations[authored_location]["name"]
-                if authored_location in self.state.locations
-                else "本局变体生成"
-            )
-            truth_id = str(metadata.get("truth_id") or "")
-            claim = str(
-                metadata.get("clue_claim")
-                or metadata.get("description")
-                or (
-                    "这是角色的随身物或身份物证，需要结合持有者的口供、秘密与行动判断。"
-                    if item.holder_id else "该物件需要与其他线索交叉验证，不能单独定罪。"
-                )
-            )
-            clue_map.append({
-                "object_id": object_id,
-                "name": item.name,
-                "kind": kind,
-                "tags": tags,
-                "is_case_variant": "case_variant" in tags,
-                "hidden": item.hidden,
-                "searchable": item.location_id is not None,
-                "current_where": current_where,
-                "current_group": current_group,
-                "initial_where": initial_where,
-                "claim": claim,
-                "truth_id": truth_id or None,
-                "truth_claim": truth_claims.get(truth_id, ""),
-                "reveals_secret_id": metadata.get("reveals_secret_id"),
-                "implicates": metadata.get("implicates"),
-                "discovered_by": [
-                    self.state.agents[agent_id].display_name
-                    for agent_id in item.discovered_by
-                    if agent_id in self.state.agents
-                ],
-            })
-
-        reference_index: dict[str, dict[str, str]] = {}
-        for clue in clue_map:
-            reference_index[clue["object_id"]] = {
-                "label": clue["name"],
-                "where": clue["current_where"],
-                "kind": clue["kind"],
-            }
-        for candidate in (self.loaded.scenario.get("killer_setup") or {}).get("candidates", []):
-            candidate_name = self.state.agents[candidate["agent_id"]].display_name
-            dormant_items = [candidate.get("stolen_item"), *candidate.get("evidence_objects", [])]
-            for dormant in dormant_items:
-                if not dormant or dormant["id"] in reference_index:
-                    continue
-                dormant_location = str(dormant.get("location_id") or "")
-                holder = str(dormant.get("holder_id") or "")
-                reference_index[dormant["id"]] = {
-                    "label": str(dormant.get("name", dormant["id"])),
-                    "where": (
-                        f"{candidate_name}随身持有"
-                        if holder == "$killer" or holder == candidate["agent_id"]
-                        else self.state.locations.get(dormant_location, {}).get("name", "本变体生成")
-                    ),
-                    "kind": "variant",
-                }
-        for intel in self.loaded.scenario.get("public_intel", []):
-            reference_index[intel["id"]] = {
-                "label": str(intel.get("title", intel["id"])),
-                "where": "主持台公开情报",
-                "kind": "intel",
-            }
-        for card in self.loaded.scenario.get("event_cards", []):
-            reference_index[card["id"]] = {
-                "label": str(card.get("title", card["id"])),
-                "where": "主持事件卡",
-                "kind": "event_card",
-            }
-
-        deduction = dict(self.loaded.scenario.get("director_deduction", {}))
-        guides = []
-        for guide in deduction.get("variant_guides", []):
-            guides.append({
-                **guide,
-                "active": guide.get("case_id") == manifest.get("case_id"),
-            })
-
-        data["events"] = [event.to_dict() for event in self.state.events]
-        data["objects"] = {
-            object_id: item.to_dict(reveal_hidden=True, reveal_metadata=True)
-            for object_id, item in self.state.objects.items()
-        }
-        data["director_casebook"] = {
-            "killer_id": killer_id,
-            "killer_name": killer.display_name if killer else killer_id,
-            "motive": str(profile.get("motive", "")),
-            "method": str(profile.get("method", "")),
-            "cover_plan": str(profile.get("cover_plan", "")),
-            "weapon": weapon.to_dict(reveal_hidden=True, reveal_metadata=True)
-            if weapon else None,
-            "stolen_item": stolen.to_dict(reveal_hidden=True, reveal_metadata=True)
-            if stolen else None,
-            "evidence": evidence,
-            "murder_chain": murder_chain,
-            "timeline_title": str(
-                (self.loaded.scenario.get("timeline") or {}).get("title", "案发前时间线")
-            ),
-            "objective_timeline": list(self.state.flags.get("objective_timeline", [])),
-            "objective_truths": list(self.loaded.scenario.get("truths", [])),
-            "characters": character_files,
-            "all_secrets": [secret.to_dict() for secret in self.state.secrets.values()],
-            "clue_map": clue_map,
-            "shared_deduction_foundation": list(deduction.get("shared_foundation", [])),
-            "variant_guides": guides,
-            "reference_index": reference_index,
-        }
-        return data
-
+        return self.projections.director_state()
     def verify_player_token(self, token: str) -> str:
         player_id = self.state.player_agent_id
         expected = str(self.state.flags.get("player_token_hash", ""))
@@ -2184,7 +1882,7 @@ class GameSession:
                 entry["status"] = "lapsed"
         if generated:
             self.state.events.extend(generated)
-            self._update_beliefs_from_round_events(generated)
+            self.cognition.update_beliefs_from_events(generated)
 
     def _signal_bulletin_update(self, notice: Notice, readers: list[str]) -> None:
         """Tell everyone a post exists without leaking its text outside the lobby."""
@@ -2402,6 +2100,7 @@ class GameSession:
                         actual_source=response_source,
                         provider_name=response_provider,
                         succeeded=response_source != "heuristic_fallback",
+                        prompt_audit=dict(response.get("_prompt_audit") or {}),
                     )
                     reply_intent = ActionIntent(
                         actor_id=player_intent.target_id or "",
@@ -2446,7 +2145,7 @@ class GameSession:
                             "total": 1,
                         })
             self._process_commitments(result.events)
-            self._update_beliefs_from_round_events(result.events)
+            self.cognition.update_beliefs_from_events(result.events)
             self._apply_scoring_from_events(result.events)
             self._deliver_unseen_notices()
         elif self._timed_round_enabled():
@@ -2469,8 +2168,8 @@ class GameSession:
     ) -> None:
         self._materialize_agent_notices(result.events)
         self._process_commitments(result.events)
-        self._commit_strategic_plans(intents, result.events)
-        self._update_beliefs_from_round_events(result.events)
+        self.cognition.commit_strategic_plans(intents, result.events)
+        self.cognition.update_beliefs_from_events(result.events)
         self._apply_scoring_from_events(result.events)
         self._deliver_unseen_notices()
 
@@ -2809,7 +2508,7 @@ class GameSession:
                     free_rejections.extend(free_result.rejected_intents)
                     if free_result.events:
                         self._process_commitments(free_result.events)
-                        self._update_beliefs_from_round_events(free_result.events)
+                        self.cognition.update_beliefs_from_events(free_result.events)
                         self._apply_scoring_from_events(free_result.events)
                         self._deliver_unseen_notices()
                     free_actor_ids.append(intent.actor_id)
@@ -2866,8 +2565,8 @@ class GameSession:
         result.events[0:0] = [*trigger_events, *free_events]
         self._materialize_agent_notices(result.events)
         self._process_commitments(result.events)
-        self._commit_strategic_plans(intents, major_events)
-        self._update_beliefs_from_round_events(major_events)
+        self.cognition.commit_strategic_plans(intents, major_events)
+        self.cognition.update_beliefs_from_events(major_events)
         self._apply_scoring_from_events(major_events)
         self._deliver_unseen_notices()
         if self.state.action_step == 0:
@@ -3068,7 +2767,7 @@ class GameSession:
                     "planner_provider": reply.get("_model_provider"),
                     "model_error": reply.get("_model_error"),
                 })
-                self._update_beliefs_from_round_events([event])
+                self.cognition.update_beliefs_from_events([event])
                 self._apply_scoring_from_events([event])
                 events.append(event)
                 previous_wave[speaker_id] = (speaker_id, content)
@@ -3081,6 +2780,7 @@ class GameSession:
                         reply.get("_model_provider")
                         or getattr(self.planner, "provider_name", "heuristic")
                     ),
+                    prompt_audit=dict(reply.get("_prompt_audit") or {}),
                 )
                 if progress_callback:
                     progress_callback({
@@ -3221,6 +2921,7 @@ class GameSession:
                 actual_source=source,
                 provider_name=str(intent.metadata.get("planner_provider") or "") or None,
                 succeeded=source not in {"heuristic_fallback", "ability_guard"},
+                prompt_audit=dict(intent.metadata.get("prompt_audit") or {}),
             )
         return intents
 
@@ -3371,304 +3072,28 @@ class GameSession:
                 notice.seen_by.extend(unseen)
                 self._add_notice_beliefs(notice, list(notice.seen_by))
 
-    _PLAN_ACTION_KEYWORDS = {
-        "move": ("前往", "移动", "赶到", "转移", "去往", "去"),
-        "investigate": ("调查", "搜查", "搜索", "查看", "勘查", "检查", "搜"),
-        "talk": ("交谈", "询问", "试探", "质问", "对话", "打听", "沟通", "求证", "核对"),
-        "post_notice": ("公告", "张贴", "布告", "公开"),
-        "transfer": ("交给", "交付", "递给", "移交"),
-        "poison": ("下毒", "毒"),
-        "treat": ("治疗", "救治", "诊治", "包扎"),
-        "wait": ("观察", "等待", "静观", "按兵"),
-    }
+    _PLAN_ACTION_KEYWORDS = PLAN_ACTION_KEYWORDS
 
     @classmethod
     def _plan_adherence(cls, planned_step: str, action_type: ActionType) -> str:
-        """Advisory check: did the executed action match the planned next step?"""
-
-        step = str(planned_step or "").strip()
-        if not step:
-            return "unknown"
-        keywords = cls._PLAN_ACTION_KEYWORDS.get(action_type.value, ())
-        if any(keyword in step for keyword in keywords):
-            return "followed"
-        return "possibly_deviated"
+        """Compatibility delegate for callers that still use GameSession."""
+        return CognitionService.plan_adherence(planned_step, action_type)
 
     def _commit_strategic_plans(
         self,
         intents: list[ActionIntent],
         events: list[EventRecord],
     ) -> None:
-        """Persist private plans together with the world outcome they produced."""
-
-        for intent in intents:
-            agent = self.state.agents.get(intent.actor_id)
-            plan = intent.metadata.get("strategic_plan")
-            if agent is None or not isinstance(plan, dict) or not plan:
-                continue
-            outcome_event = next(
-                (
-                    event for event in reversed(events)
-                    if event.actors and event.actors[0] == intent.actor_id
-                ),
-                None,
-            )
-            outcome = (
-                outcome_event.summary
-                if outcome_event
-                else "本轮意图没有形成可识别的世界事件。"
-            )
-            previous_steps = [
-                str(step) for step in (agent.strategic_plan.get("steps") or [])
-            ]
-            previous_step = previous_steps[0] if previous_steps else ""
-            if outcome_event is None:
-                execution_status = "no_effect"
-            elif outcome_event.event_type == "action_failed":
-                execution_status = "failed"
-            else:
-                execution_status = "executed"
-            active_round = outcome_event.round_number if outcome_event else self.state.round_number + 1
-            action_step = outcome_event.action_step if outcome_event else self.state.action_step
-            committed = dict(plan)
-            committed.update({
-                "updated_round": active_round,
-                "updated_action_step": action_step,
-                "last_action": intent.action_type.value,
-                "last_outcome": outcome,
-                "source": intent.metadata.get(
-                    "planner_source", committed.get("source", "unknown")
-                ),
-            })
-            agent.strategic_plan = committed
-            agent.plan_history.append({
-                "round_number": active_round,
-                "action_step": action_step,
-                "objective": committed.get("objective", ""),
-                "intended_action": intent.action_type.value,
-                "outcome": outcome,
-                "execution_status": execution_status,
-                "planned_step": previous_step,
-                "plan_adherence": self._plan_adherence(
-                    previous_step, intent.action_type,
-                ),
-                "revision_reason": committed.get("revision_reason", ""),
-                "source": committed.get("source", "unknown"),
-            })
-            agent.plan_history = agent.plan_history[-24:]
+        """Compatibility delegate; implementation lives in CognitionService."""
+        self.cognition.commit_strategic_plans(intents, events)
 
     def _update_beliefs_from_round_events(self, events: list[EventRecord]) -> None:
-        for event in events:
-            recipients: list[tuple[str, str, float]] = []
-            if event.event_type == "discovery" and event.actors:
-                recipients.append((event.actors[0], "observed", 1.0))
-            elif event.event_type == "conversation":
-                speaker = event.payload.get("speaker_id")
-                listener = event.payload.get("listener_id")
-                content = event.payload.get("content", "")
-                if content:
-                    recipients.extend((
-                        witness,
-                        "reported",
-                        float(event.payload.get("shared_confidence") or 0.65),
-                    ) for witness in event.witnesses if witness != speaker)
-                shared_belief_id = event.payload.get("shared_belief_id")
-                if speaker and shared_belief_id:
-                    speaker_state = self.state.agents.get(speaker)
-                    shared = next(
-                        (
-                            belief for belief in speaker_state.beliefs
-                            if belief.belief_id == shared_belief_id
-                        ),
-                        None,
-                    ) if speaker_state else None
-                    if shared:
-                        shared.shared_with = list(dict.fromkeys([
-                            *shared.shared_with,
-                            *(
-                                witness for witness in event.witnesses
-                                if witness != speaker
-                            ),
-                        ]))
-                speaker_state = self.state.agents.get(str(speaker or ""))
-                if speaker_state and content:
-                    speaker_state.public_story.setdefault(
-                        "witnesses_of_each_statement", []
-                    ).append({
-                        "event_id": event.event_id,
-                        "content": content,
-                        "location_id": event.location_id,
-                        "witnesses": list(event.witnesses),
-                    })
-            elif event.event_type == "final_discussion":
-                speaker = event.payload.get("speaker_id")
-                if speaker:
-                    recipients.append((speaker, "spoken", 1.0))
-                recipients.extend(
-                    (witness, "reported", 0.7)
-                    for witness in event.witnesses if witness != speaker
-                )
-            elif event.event_type in {
-                "poison_effect", "object_transfer",
-                "treatment", "investigation_empty", "wait",
-                "object_dropped", "health_changed",
-                "life_state_changed",
-                "commitment_fulfilled", "commitment_broken",
-            }:
-                recipients.extend((witness, "observed", 0.95) for witness in event.witnesses)
-            elif event.event_type == "action_failed" and event.actors:
-                recipients.append((event.actors[0], "observed", 1.0))
-
-            for agent_id, stance, confidence in recipients:
-                agent = self.state.agents.get(agent_id)
-                if agent is None:
-                    continue
-                if any(belief.source == event.event_id for belief in agent.beliefs):
-                    continue
-                if event.event_type in {"conversation", "final_discussion"}:
-                    speaker_id = event.payload.get("speaker_id")
-                    speaker = self.state.agents.get(speaker_id)
-                    listener_id = event.payload.get("listener_id")
-                    listener = self.state.agents.get(listener_id)
-                    shared_claim = event.payload.get("shared_claim")
-                    claim = (
-                        f"我曾在终局公议中说：{event.payload.get('content', '')}"
-                        if event.event_type == "final_discussion" and agent_id == speaker_id
-                        else f"{speaker.display_name if speaker else speaker_id}在终局公议中说：{event.payload.get('content', '')}"
-                        if event.event_type == "final_discussion"
-                        else
-                        str(shared_claim)
-                        if shared_claim and agent_id != speaker_id
-                        else (
-                            f"据{speaker.display_name if speaker else speaker_id}所说："
-                            f"{event.payload.get('content', '')}"
-                        )
-                    )
-                    truth_id = (
-                        event.payload.get("shared_truth_id")
-                        if shared_claim and agent_id != speaker_id
-                        else None
-                    )
-                elif event.event_type == "discovery":
-                    claim = str(event.payload.get("clue_claim") or event.summary)
-                    revealed_secret = event.payload.get("reveals_secret_id")
-                    truth_id = (
-                        f"secret:{revealed_secret}"
-                        if revealed_secret
-                        else event.payload.get("truth_id")
-                    )
-                else:
-                    claim = event.summary
-                    truth_id = None
-                already_shared_with: list[str] = []
-                if event.event_type == "conversation":
-                    speaker_id = str(event.payload.get("speaker_id") or "")
-                    already_shared_with = [
-                        witness for witness in event.witnesses
-                        if witness != agent_id
-                    ]
-                normalized_claim = self._normalize_dialogue_text(claim)
-                duplicate = next(
-                    (
-                        existing for existing in agent.beliefs[-60:]
-                        if self._normalize_dialogue_text(existing.claim)
-                        == normalized_claim
-                    ),
-                    None,
-                ) if normalized_claim else None
-                if duplicate is not None:
-                    # Direct observation upgrades earlier hearsay of the same
-                    # claim instead of stacking a redundant belief.
-                    if confidence > duplicate.confidence:
-                        duplicate.confidence = confidence
-                        duplicate.stance = stance
-                        duplicate.confidence_score = max(
-                            duplicate.confidence_score,
-                            max(0, min(5, round(confidence * 5))),
-                        )
-                        if truth_id and not duplicate.truth_id:
-                            duplicate.truth_id = truth_id
-                    continue
-                information_type = (
-                    "testimony"
-                    if event.event_type in {"conversation", "final_discussion"}
-                    else "fact"
-                )
-                belief = Belief(
-                    belief_id=f"belief-{agent_id}-{event.event_id}",
-                    claim=claim,
-                    source=event.event_id,
-                    confidence=confidence,
-                    stance=stance,
-                    learned_round=event.round_number,
-                    truth_id=truth_id,
-                    shared_with=already_shared_with,
-                    information_type=information_type,
-                    source_type=(
-                        "direct_statement"
-                        if information_type == "testimony"
-                        else "observation"
-                    ),
-                    speaker_id=str(event.payload.get("speaker_id") or "") or None,
-                    learned_location=event.location_id,
-                    witnesses=list(event.witnesses),
-                    confidence_score=max(0, min(5, round(confidence * 5))),
-                )
-                agent.beliefs.append(belief)
-                bucket = {
-                    "fact": "facts",
-                    "testimony": "testimonies",
-                    "hypothesis": "hypotheses",
-                }[information_type]
-                agent.information_state.setdefault(bucket, []).append(
-                    belief.belief_id
-                )
-        for agent in self.state.agents.values():
-            self._consolidate_agent_beliefs(agent)
+        """Compatibility delegate; implementation lives in CognitionService."""
+        self.cognition.update_beliefs_from_events(events)
 
     def _consolidate_agent_beliefs(self, agent: AgentState) -> None:
-        """Deterministic corroboration pass over one agent's beliefs.
-
-        Beliefs pointing at the same authored truth, or carrying the same
-        normalized claim from different source events, corroborate each other
-        (``supporting_ids``). Testimony that stays uncorroborated gets one
-        standing verification question so the planner can act on it.
-        Semantic contradictions (``opposing_ids``) are intentionally left to
-        the character's own reasoning; rules only link what is decidable.
-        """
-
-        groups: dict[str, list[Belief]] = {}
-        for belief in agent.beliefs:
-            if belief.truth_id:
-                groups.setdefault(f"truth:{belief.truth_id}", []).append(belief)
-            normalized = self._normalize_dialogue_text(belief.claim)
-            if normalized:
-                groups.setdefault(f"claim:{normalized[:120]}", []).append(belief)
-        for members in groups.values():
-            distinct_sources = {member.source for member in members}
-            if len(members) < 2 or len(distinct_sources) < 2:
-                continue
-            member_ids = [member.belief_id for member in members]
-            for member in members:
-                merged = [
-                    belief_id for belief_id in member.supporting_ids
-                    if belief_id != member.belief_id
-                ]
-                for belief_id in member_ids:
-                    if belief_id != member.belief_id and belief_id not in merged:
-                        merged.append(belief_id)
-                member.supporting_ids = merged[:6]
-        for belief in agent.beliefs:
-            if (
-                belief.information_type == "testimony"
-                and not belief.supporting_ids
-                and not belief.verification_questions
-            ):
-                belief.verification_questions = [
-                    "该说法尚无独立旁证；可通过物证或第三方口供核对后再采信。"
-                ]
-            elif belief.supporting_ids and belief.verification_questions:
-                belief.verification_questions = []
+        """Compatibility delegate; implementation lives in CognitionService."""
+        self.cognition.consolidate_agent_beliefs(agent)
 
     def _award_score(
         self,
@@ -3797,6 +3222,7 @@ class GameSession:
                 actual_source=model_source,
                 provider_name=str(decision.get("_model_provider") or "") or None,
                 succeeded=model_source != "heuristic_fallback",
+                prompt_audit=dict(decision.get("_prompt_audit") or {}),
             )
             vote = {
                 "voter_id": voter.agent_id,
@@ -3975,7 +3401,7 @@ class GameSession:
             ))
             events[-1].actors = [agent_id]
         self.state.events.extend(events)
-        self._update_beliefs_from_round_events(events)
+        self.cognition.update_beliefs_from_events(events)
         self._deliver_unseen_notices()
         self.state.flags["final_discussion_done"] = True
         return events

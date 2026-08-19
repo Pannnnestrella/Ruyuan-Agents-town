@@ -54,6 +54,8 @@ class PlanClosureTests(unittest.TestCase):
         self.assertEqual(entry["execution_status"], "executed")
         self.assertEqual(entry["plan_adherence"], "followed")
         self.assertEqual(entry["planned_step"], "先调查大堂的可疑物品")
+        self.assertEqual(self.agent.strategy_state["current_goal"], "查明死者身份")
+        self.assertEqual(self.agent.strategy_state["next_action"], "下一步继续追查")
 
     def test_failed_action_is_marked_failed(self):
         self.agent.strategic_plan = {"steps": ["先调查大堂的可疑物品"]}
