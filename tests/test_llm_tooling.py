@@ -7,8 +7,9 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from modules.interactive import LLMIntentPlanner, ScenarioLoader
+from modules.interactive import HeuristicIntentPlanner, LLMIntentPlanner, ScenarioLoader
 from modules.interactive.llm_planner import OpenAICompatibleChatModel
+from agents_town.interactive.planning.prompt_catalog import PromptCatalog, PromptDocument
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -27,6 +28,17 @@ class ScriptedModel:
         if len(self.responses) > 1:
             return self.responses.pop(0)
         return self.responses[0]
+
+
+class FailingModel:
+    supports_json_mode = True
+
+    def __init__(self):
+        self.calls = 0
+
+    def completion(self, prompt: str, **kwargs: object) -> str:
+        self.calls += 1
+        raise ConnectionError("remote provider unavailable")
 
 
 class AdapterRetryTests(unittest.TestCase):
@@ -77,6 +89,67 @@ class AdapterRetryTests(unittest.TestCase):
         adapter._request_once = always_fail
         with self.assertRaises(RuntimeError):
             adapter.completion("hi", retry=2)
+
+    def test_project_connection_config_accepts_model_override(self):
+        with TemporaryDirectory() as temporary_root:
+            data_dir = Path(temporary_root) / "data"
+            data_dir.mkdir()
+            (data_dir / "config.json").write_text(json.dumps({
+                "agent_base": {"think": {"llm": {
+                    "base_url": "https://example.test/v1/chat/completions",
+                    "model": "old-model",
+                }}},
+                "api_keys": {"OPENAI_API_KEY": "test-key"},
+            }), encoding="utf-8")
+            config = LLMIntentPlanner.project_connection_config(
+                temporary_root,
+                model_name="new-model",
+            )
+
+        self.assertEqual(config["model"], "new-model")
+        self.assertEqual(config["base_url"], "https://example.test/v1/chat/completions")
+
+
+class PromptCatalogTests(unittest.TestCase):
+    def test_normal_context_is_not_compressed(self):
+        context = {
+            "speaker": {"name": "傅融"},
+            "private_memories": [{"belief_id": "b1", "claim": "我看见了账册。"}],
+        }
+        document = PromptCatalog().render(
+            "agent.conversation", context,
+            variables={"speaker_name": "傅融"}, max_prompt_tokens=8000,
+        )
+        self.assertIsInstance(document, PromptDocument)
+        self.assertEqual(document.prompt_version, "2.0.0")
+        self.assertEqual(document.schema_version, "conversation-reply/2")
+        self.assertFalse(document.compression["triggered"])
+        self.assertIn("我看见了账册", document.text)
+
+    def test_overflow_context_compresses_old_beliefs_deterministically(self):
+        context = {
+            "speaker": {"name": "傅融", "role": "密探"},
+            "private_memories": [{
+                "belief_id": f"belief-{index}",
+                "claim": f"第{index}条很长的旧记忆" + "细节" * 80,
+                "information_type": "testimony", "stance": "reported", "confidence": 0.6,
+            } for index in range(40)],
+            "secrets_to_protect": [{"title": "必须保留", "claim": "不可泄露的核心秘密"}],
+        }
+        catalog = PromptCatalog()
+        first = catalog.render(
+            "agent.conversation", context,
+            variables={"speaker_name": "傅融"}, max_prompt_tokens=1800,
+        )
+        second = catalog.render(
+            "agent.conversation", context,
+            variables={"speaker_name": "傅融"}, max_prompt_tokens=1800,
+        )
+        self.assertTrue(first.compression["triggered"])
+        self.assertIn("context_compression_summary", first.text)
+        self.assertIn("不可泄露的核心秘密", first.text)
+        self.assertEqual(first.text, second.text)
+        self.assertEqual(first.context_hash, second.context_hash)
 
 
 class UsageScriptedModel(ScriptedModel):
@@ -151,6 +224,70 @@ class PlannerRetryAndTraceTests(unittest.TestCase):
         planner.plan(self.state, self.scenario, actor_ids=[self.actor_id])
         self.assertTrue(all(call.get("json_mode") for call in model.calls))
 
+    def test_remote_failure_uses_local_model_before_heuristic(self):
+        remote = FailingModel()
+        local = ScriptedModel([json.dumps({
+            "action_type": "wait", "reason": "先观察片刻",
+        }, ensure_ascii=False)])
+        planner = LLMIntentPlanner(
+            remote,
+            provider_name="deepseek:test",
+            model_fallbacks=[("ollama:qwen2.5:7b-instruct", local)],
+        )
+
+        intents = planner.plan(
+            self.state, self.scenario, actor_ids=[self.actor_id],
+        )
+
+        self.assertEqual(remote.calls, 1)
+        self.assertEqual(len(local.calls), 1)
+        self.assertEqual(
+            intents[0].metadata.get("planner_source"), "llm_local_fallback",
+        )
+        self.assertEqual(
+            intents[0].metadata.get("planner_provider"),
+            "ollama:qwen2.5:7b-instruct",
+        )
+
+    def test_conversation_prompt_leaves_social_response_to_character(self):
+        speaker_id = next(
+            agent_id for agent_id in sorted(self.state.agents)
+            if agent_id != self.actor_id
+        )
+        model = ScriptedModel([json.dumps({
+            "content": "嗯，我在听。",
+            "share_belief_id": None,
+            "item_disposition": "none",
+            "display_object_id": None,
+        }, ensure_ascii=False)])
+        planner = LLMIntentPlanner(model)
+
+        response = planner.respond_to_player(
+            self.state, self.scenario, speaker_id, self.actor_id, "楼主！",
+        )
+
+        prompt = str(model.calls[0]["prompt"])
+        self.assertEqual(response["content"], "嗯，我在听。")
+        self.assertIn("自由回应", prompt)
+        self.assertIn("寒暄可以只作自然回应", prompt)
+        self.assertNotIn("你可以回避、反问、撒谎或交换情报", prompt)
+
+    def test_emergency_fallback_does_not_dump_intel_on_a_greeting(self):
+        speaker_id = next(
+            agent_id for agent_id in sorted(self.state.agents)
+            if agent_id not in {self.actor_id, self.state.flags.get("killer_id")}
+        )
+        planner = HeuristicIntentPlanner(seed=4)
+
+        response = planner.respond_to_player(
+            self.state, self.scenario, speaker_id, self.actor_id, "楼主！",
+        )
+
+        self.assertIsNone(response["share_belief_id"])
+        self.assertIn(
+            self.state.agents[self.actor_id].display_name, response["content"]
+        )
+
     def test_valid_llm_vote_is_accepted_not_silently_discarded(self):
         candidates = [
             agent_id for agent_id in sorted(self.state.agents)
@@ -199,6 +336,11 @@ class PlannerRetryAndTraceTests(unittest.TestCase):
             self.assertEqual(records[0]["agent_id"], self.actor_id)
             self.assertIn("prompt", records[0])
             self.assertEqual(records[0]["response"], "坏输出")
+            self.assertEqual(records[0]["prompt_id"], "agent.intent")
+            self.assertEqual(records[0]["prompt_version"], "2.0.0")
+            self.assertEqual(records[0]["schema_version"], "action-intent/2")
+            self.assertEqual(len(records[0]["context_hash"]), 64)
+            self.assertIn("triggered", records[0]["context_compression"])
 
 
 if __name__ == "__main__":

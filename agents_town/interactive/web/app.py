@@ -12,10 +12,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import requests
 from flask import Flask, Response, jsonify, render_template, request, send_from_directory
 from werkzeug.exceptions import HTTPException
 
 from agents_town.interactive import GamePhase, GameService, HeuristicIntentPlanner, LLMIntentPlanner
+from agents_town.interactive.planning.llm_planner import OpenAICompatibleChatModel
 from agents_town.common.paths import discover_runtime_paths
 
 
@@ -33,6 +35,7 @@ def create_app(
     resources = root / "agents_town" / "interactive" / "resources"
     frontend = resources / "frontend"
     common_characters = root / "agents_town" / "common" / "resources" / "characters"
+    compatibility_characters = root / "frontend" / "static" / "assets" / "village" / "agents"
     app = Flask(
         __name__,
         template_folder=str(frontend / "templates"),
@@ -45,7 +48,7 @@ def create_app(
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
     planner_mode = (planner_mode or os.environ.get("GA_INTERACTIVE_PLANNER", "auto")).lower()
-    llm_provider = os.environ.get("GA_INTERACTIVE_LLM_PROVIDER", "deepseek").lower()
+    llm_provider = os.environ.get("GA_INTERACTIVE_LLM_PROVIDER", "ollama").lower()
     host_notifications: deque[dict[str, Any]] = deque(maxlen=200)
     notification_lock = threading.Lock()
     notification_sequence = 0
@@ -116,6 +119,111 @@ def create_app(
         effective_results_root
     ) if os.environ.get("GA_INTERACTIVE_LLM_TRACE", "1") != "0" else None
 
+    def planner_connection_config(provider: str, model: str = "") -> dict[str, str]:
+        provider = provider.lower().strip()
+        if provider == "ollama":
+            return {
+                "base_url": os.environ.get(
+                    "GA_INTERACTIVE_OLLAMA_BASE_URL", "http://127.0.0.1:11434/v1"
+                ).strip(),
+                "model": model.strip() or os.environ.get(
+                    "GA_INTERACTIVE_OLLAMA_MODEL", "qwen2.5:7b-instruct"
+                ).strip(),
+                "api_key": "",
+            }
+        if provider == "deepseek":
+            api_key = (
+                os.environ.get("DEEPSEEK_API_KEY")
+                or os.environ.get("DEEPSEEK_API", "")
+            ).strip()
+            if not api_key:
+                raise ValueError("DeepSeek API Key 未配置，请先设置 DEEPSEEK_API_KEY")
+            return {
+                "base_url": os.environ.get(
+                    "GA_INTERACTIVE_DEEPSEEK_BASE_URL", "https://api.deepseek.com"
+                ).strip(),
+                "model": model.strip() or os.environ.get(
+                    "GA_INTERACTIVE_DEEPSEEK_MODEL", "deepseek-v4-flash"
+                ).strip(),
+                "api_key": api_key,
+            }
+        if provider == "project":
+            return LLMIntentPlanner.project_connection_config(root, model_name=model)
+        if provider == "heuristic":
+            return {"base_url": "", "model": "", "api_key": ""}
+        raise ValueError("未知决策接口；请选择 heuristic、ollama、deepseek 或 project")
+
+    def planner_models_endpoint(base_url: str) -> str:
+        normalized = base_url.rstrip("/")
+        suffix = "/chat/completions"
+        if normalized.lower().endswith(suffix):
+            normalized = normalized[:-len(suffix)]
+        return f"{normalized}/models"
+
+    def test_planner_connection(provider: str, model: str = "") -> dict[str, Any]:
+        try:
+            config = planner_connection_config(provider, model)
+            normalized_provider = provider.lower().strip()
+            if normalized_provider == "heuristic":
+                return {
+                    "ok": True,
+                    "provider": "heuristic",
+                    "default_model": "",
+                    "models": [],
+                    "message": "本地规则模式无需连接模型服务",
+                }
+            headers = {"Accept": "application/json"}
+            if config["api_key"]:
+                headers["Authorization"] = f"Bearer {config['api_key']}"
+            response = requests.get(
+                planner_models_endpoint(config["base_url"]),
+                headers=headers,
+                timeout=12.0,
+            )
+            if response.status_code in {401, 403}:
+                return {"ok": False, "code": "AUTH", "message": "模型服务拒绝了 API Key，请检查服务配置"}
+            if not response.ok:
+                return {"ok": False, "code": "HTTP", "message": f"模型服务返回 HTTP {response.status_code}"}
+            try:
+                data = response.json()
+            except (requests.exceptions.JSONDecodeError, ValueError):
+                return {"ok": False, "code": "BAD_RESPONSE", "message": "模型服务返回的模型列表不是有效 JSON"}
+            entries = data.get("data", []) if isinstance(data, dict) else []
+            models = list(dict.fromkeys(
+                str(entry.get("id", "")).strip()
+                for entry in entries
+                if isinstance(entry, dict) and str(entry.get("id", "")).strip()
+            ))
+            return {
+                "ok": True,
+                "provider": normalized_provider,
+                "default_model": config["model"],
+                "models": models,
+                "message": f"连接成功，发现 {len(models)} 个模型",
+            }
+        except ValueError as error:
+            return {"ok": False, "code": "CONFIG", "message": str(error)}
+        except requests.RequestException:
+            return {"ok": False, "code": "CONNECTION", "message": "无法连接模型服务，请检查服务地址、网络或本地服务状态"}
+        except (TypeError, KeyError, OSError) as error:
+            return {"ok": False, "code": "BAD_RESPONSE", "message": str(error)}
+
+    def ollama_route(model: str = "") -> tuple[str, OpenAICompatibleChatModel]:
+        model_name = model.strip() or os.environ.get(
+            "GA_INTERACTIVE_OLLAMA_MODEL", "qwen2.5:7b-instruct"
+        )
+        return (
+            f"ollama:{model_name}",
+            OpenAICompatibleChatModel(
+                base_url=os.environ.get(
+                    "GA_INTERACTIVE_OLLAMA_BASE_URL", "http://127.0.0.1:11434/v1"
+                ),
+                model=model_name,
+                api_key="ollama-local",
+                timeout_seconds=90.0,
+            ),
+        )
+
     def build_planner(seed: int, provider: str, model: str = ""):
         fallback = HeuristicIntentPlanner(seed=seed)
         provider = provider.lower().strip()
@@ -125,6 +233,9 @@ def create_app(
             return LLMIntentPlanner.from_ollama(
                 model.strip() or os.environ.get(
                     "GA_INTERACTIVE_OLLAMA_MODEL", "qwen2.5:7b-instruct"
+                ),
+                base_url=os.environ.get(
+                    "GA_INTERACTIVE_OLLAMA_BASE_URL", "http://127.0.0.1:11434/v1"
                 ),
                 fallback=fallback,
                 error_callback=planner_error_callback,
@@ -144,13 +255,16 @@ def create_app(
                     "GA_INTERACTIVE_DEEPSEEK_BASE_URL", "https://api.deepseek.com"
                 ),
                 fallback=fallback,
+                model_fallbacks=[ollama_route()],
                 error_callback=planner_error_callback,
                 trace_root=llm_trace_root,
             )
         if provider == "project":
             return LLMIntentPlanner.from_project_config(
                 root,
+                model_name=model,
                 fallback=fallback,
+                model_fallbacks=[ollama_route()],
                 error_callback=planner_error_callback,
                 trace_root=llm_trace_root,
             )
@@ -197,6 +311,7 @@ def create_app(
         initial_message: str,
         total: int,
         operation: Any,
+        pause_clock_reason: str | None = None,
     ):
         with task_lock:
             if game_id in active_game_tasks:
@@ -217,6 +332,9 @@ def create_app(
                 "error": None,
             }
             active_game_tasks[game_id] = task_id
+        session_for_clock = game_service().get(game_id)
+        if pause_clock_reason:
+            session_for_clock.pause_timed_round(task_id, pause_clock_reason)
 
         def run_operation():
             with task_lock:
@@ -242,28 +360,122 @@ def create_app(
                     tasks[task_id]["message"] = (
                         f"{stage}：{progress['completed']}/{progress['total']} 已完成"
                     )
+            result = None
+            operation_error: Exception | None = None
             try:
                 result = operation(report_progress)
-                with task_lock:
-                    tasks[task_id]["status"] = "succeeded"
-                    tasks[task_id]["message"] = "角色行动已经写入世界"
-                    tasks[task_id]["result"] = result
             except Exception as error:
+                operation_error = error
                 record_host_notification(
                     error,
                     source="background_game_operation",
                     game_id=game_id,
                 )
+            finally:
+                if pause_clock_reason:
+                    session_for_clock.resume_timed_round(task_id)
+                with task_lock:
+                    active_game_tasks.pop(game_id, None)
+                    if operation_error is None:
+                        tasks[task_id]["status"] = "succeeded"
+                        tasks[task_id]["message"] = "角色行动已经写入世界"
+                        tasks[task_id]["result"] = result
+                    else:
+                        tasks[task_id]["status"] = "failed"
+                        tasks[task_id]["message"] = "角色行动结算失败"
+                        tasks[task_id]["error"] = str(operation_error)
+
+        executor.submit(run_operation)
+        return jsonify({"task_id": task_id, "status": "queued"}), 202
+
+    def schedule_due_timed_work(
+        game_id: str,
+        session: Any,
+        player_token: str,
+    ) -> None:
+        """Use the player heartbeat to enqueue one non-overlapping tick."""
+
+        with task_lock:
+            if game_id in active_game_tasks:
+                return
+            work = session.claim_due_timed_work()
+            if not work:
+                return
+            task_id = f"timed-task-{uuid.uuid4().hex[:12]}"
+            tasks[task_id] = {
+                "task_id": task_id,
+                "game_id": game_id,
+                "status": "queued",
+                "message": (
+                    "探索时间结束，正在收束本轮"
+                    if work["type"] == "close"
+                    else "密探正在按自己的节奏行动"
+                ),
+                "progress": {
+                    "stage": work["type"],
+                    "completed": 0,
+                    "total": len(work.get("actor_ids", [])),
+                    "agents": {},
+                },
+                "result": None,
+                "error": None,
+            }
+            active_game_tasks[game_id] = task_id
+
+        def run_timed_work():
+            with task_lock:
+                tasks[task_id]["status"] = "running"
+
+            def report_progress(update: dict[str, Any]):
+                with task_lock:
+                    progress = tasks[task_id]["progress"]
+                    progress["completed"] = int(update.get("completed", 0))
+                    progress["total"] = int(
+                        update.get("total", progress.get("total", 0))
+                    )
+                    agent_id = str(update.get("agent_id", ""))
+                    if agent_id:
+                        progress["agents"][agent_id] = {
+                            "display_name": update.get(
+                                "display_name", agent_id
+                            ),
+                            "status": update.get("status", "completed"),
+                            "source": update.get("source", "unknown"),
+                        }
+
+            try:
+                if work["type"] == "close":
+                    result = session.end_player_round(
+                        player_token,
+                        progress_callback=report_progress,
+                    )
+                else:
+                    result = session.advance_agent_tick(
+                        list(work.get("actor_ids", [])),
+                        progress_callback=report_progress,
+                    )
+                with task_lock:
+                    tasks[task_id]["status"] = "succeeded"
+                    tasks[task_id]["message"] = "限时世界行动已经结算"
+                    tasks[task_id]["result"] = {
+                        "round_number": result.round_number,
+                        "action_step": result.action_step,
+                    }
+            except Exception as error:
+                record_host_notification(
+                    error,
+                    source="timed_round_scheduler",
+                    game_id=game_id,
+                )
                 with task_lock:
                     tasks[task_id]["status"] = "failed"
-                    tasks[task_id]["message"] = "角色行动结算失败"
+                    tasks[task_id]["message"] = "限时世界行动结算失败"
                     tasks[task_id]["error"] = str(error)
             finally:
                 with task_lock:
                     active_game_tasks.pop(game_id, None)
 
-        executor.submit(run_operation)
-        return jsonify({"task_id": task_id, "status": "queued"}), 202
+        executor.submit(run_timed_work)
 
     @app.get("/")
     @app.get("/interactive")
@@ -276,9 +488,11 @@ def create_app(
 
     @app.get("/static/common/characters/<path:filename>")
     def common_character_asset(filename: str):
-        """Serve shared character art without exposing legacy resources."""
+        """Serve shared character art, with the local compatibility pack as fallback."""
 
-        return send_from_directory(common_characters, filename)
+        if (common_characters / filename).is_file():
+            return send_from_directory(common_characters, filename)
+        return send_from_directory(compatibility_characters, filename)
 
     @app.get("/api/interactive/scenarios")
     def list_scenarios():
@@ -361,8 +575,27 @@ def create_app(
     @app.get("/api/interactive/games/<game_id>/player")
     def get_player_game(game_id: str):
         session = game_service().get(game_id)
+        token = request.headers.get("X-Player-Token", "")
+        session.verify_player_token(token)
+        session.heartbeat_timed_round()
+        schedule_due_timed_work(game_id, session, token)
         return jsonify({
-            "player": session.player_state(request.headers.get("X-Player-Token", "")),
+            "player": session.player_state(token),
+        })
+
+    @app.post("/api/interactive/games/<game_id>/player/round/start")
+    def start_player_timed_round(game_id: str):
+        session = game_service().get(game_id)
+        token = request.headers.get("X-Player-Token", "")
+        session.start_timed_round(token)
+        return jsonify({"player": session.player_state(token)})
+
+    @app.post("/api/interactive/games/<game_id>/player/round/continue")
+    def continue_player_timed_round(game_id: str):
+        session = game_service().get(game_id)
+        token = request.headers.get("X-Player-Token", "")
+        return jsonify({
+            "player": session.continue_after_round_discussion(token),
         })
 
     @app.get("/api/interactive/games/<game_id>")
@@ -431,6 +664,14 @@ def create_app(
             int(session.state.flags.get("seed", 0)), provider, model
         )
         return jsonify(session.set_planner(planner))
+
+    @app.post("/api/interactive/planner/test-connection")
+    def planner_connection_test():
+        data = payload()
+        return jsonify(test_planner_connection(
+            str(data.get("provider", "")),
+            str(data.get("model", "")),
+        ))
 
     @app.post("/api/interactive/games/<game_id>/player/notices")
     def post_player_notice(game_id: str):
@@ -558,6 +799,7 @@ def create_app(
         session = game_service().get(game_id)
         token = request.headers.get("X-Player-Token", "")
         action_data = payload()
+        session.start_timed_round(token)
         # Validate synchronously so a malformed choice is returned immediately
         # instead of consuming a long-running LLM task slot.
         session.build_player_intent(token, action_data)
@@ -591,6 +833,13 @@ def create_app(
             ),
             total=total,
             operation=resolve_player_action,
+            pause_clock_reason=(
+                "等待密探回复"
+                if is_conversation
+                else "等待行动结算"
+                if not is_free_action
+                else None
+            ),
         )
 
     @app.post("/api/interactive/games/<game_id>/player/end-round")
@@ -598,7 +847,18 @@ def create_app(
         session = game_service().get(game_id)
         token = request.headers.get("X-Player-Token", "")
         session.verify_player_token(token)
-        remaining = max(1, session.state.actions_per_round - session.state.action_step)
+        active_round = min(
+            session.state.max_rounds, session.state.round_number + 1
+        )
+        remaining = max(
+            1,
+            session.state.action_limit_for_round(active_round)
+            - int(
+                session.state.actor_progress(
+                    active_round, session.state.player_agent_id or ""
+                ).get("major_actions_used", 0)
+            ),
+        )
         ai_count = sum(
             1 for agent_id, agent in session.state.agents.items()
             if agent.can_act and agent_id != session.state.player_agent_id

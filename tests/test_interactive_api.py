@@ -4,6 +4,7 @@ import unittest
 import time
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import Mock, patch
 
 from agents_town.interactive.web.app import create_app
 
@@ -183,9 +184,60 @@ class InteractiveApiTests(unittest.TestCase):
         self.assertIn("实时地图", live.get_data(as_text=True))
         self.assertIn("导演台", director.get_data(as_text=True))
         director_html = director.get_data(as_text=True)
-        self.assertIn('option value="deepseek" selected', director_html)
+        self.assertIn('option value="ollama" selected', director_html)
+        self.assertIn('id="planner-model-select"', director_html)
+        self.assertIn('id="test-planner"', director_html)
         self.assertIn("interactive_map.js", director_html)
         self.assertIn("interactive_map.js", live.get_data(as_text=True))
+
+    @patch("agents_town.interactive.web.app.requests.get")
+    def test_planner_connection_discovers_models(self, get):
+        response = Mock(status_code=200, ok=True)
+        response.json.return_value = {
+            "data": [
+                {"id": "qwen2.5:7b-instruct"},
+                {"id": "deepseek-r1:8b"},
+                {"id": "deepseek-r1:8b"},
+            ]
+        }
+        get.return_value = response
+
+        tested = self.client.post(
+            "/api/interactive/planner/test-connection",
+            json={"provider": "ollama"},
+        )
+
+        self.assertEqual(tested.status_code, 200)
+        body = tested.get_json()
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["default_model"], "qwen2.5:7b-instruct")
+        self.assertEqual(body["models"], ["qwen2.5:7b-instruct", "deepseek-r1:8b"])
+        called_url = get.call_args.args[0]
+        self.assertEqual(called_url, "http://127.0.0.1:11434/v1/models")
+        self.assertNotIn("Authorization", get.call_args.kwargs["headers"])
+
+    @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "", "DEEPSEEK_API": ""})
+    def test_planner_connection_reports_missing_deepseek_key(self):
+        tested = self.client.post(
+            "/api/interactive/planner/test-connection",
+            json={"provider": "deepseek"},
+        )
+
+        self.assertEqual(tested.status_code, 200)
+        self.assertEqual(tested.get_json()["code"], "CONFIG")
+        self.assertIn("DEEPSEEK_API_KEY", tested.get_json()["message"])
+
+    def test_switch_planner_uses_selected_ollama_model(self):
+        self.client.post(
+            "/api/interactive/games",
+            json={"scenario_id": "stormbound_inn", "game_id": "planner-model-test"},
+        )
+        switched = self.client.post(
+            "/api/interactive/games/planner-model-test/planner",
+            json={"provider": "ollama", "model": "deepseek-r1:8b"},
+        )
+        self.assertEqual(switched.status_code, 200)
+        self.assertEqual(switched.get_json()["planner_provider"], "ollama:deepseek-r1:8b")
 
     def test_host_notifications_include_rate_limits_and_request_errors(self):
         notify = self.client.application.config["INTERACTIVE_HOST_NOTIFY"]
@@ -244,7 +296,11 @@ class InteractiveApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
         timeline = response.get_json()["timeline"]
-        self.assertEqual(timeline["title"], "6轮18次主要行动事件线")
+        self.assertEqual(timeline["title"], "4轮18次主要行动事件线")
+        self.assertEqual(
+            [rule["major_action_limit"] for rule in timeline["round_schedule"]],
+            [3, 4, 5, 6],
+        )
         self.assertEqual(timeline["rounds_completed"], 1)
         self.assertEqual(timeline["discussion_limit"], 100)
         self.assertTrue(any(
@@ -266,7 +322,7 @@ class InteractiveApiTests(unittest.TestCase):
             download.headers["Content-Disposition"],
         )
         text = download.get_data(as_text=True)
-        self.assertIn("6轮18次主要行动事件线", text)
+        self.assertIn("4轮18次主要行动事件线", text)
         self.assertIn("[轮末讨论", text)
 
     def test_game_restores_after_service_restart(self):
@@ -287,7 +343,7 @@ class InteractiveApiTests(unittest.TestCase):
         self.assertEqual(restored.status_code, 200)
         self.assertEqual(restored.get_json()["state"]["round_number"], 1)
 
-    def test_player_free_action_manual_host_choice_and_end_round_endpoints(self):
+    def test_player_free_action_quiet_round_and_end_round_endpoints(self):
         created = self.client.post(
             "/api/interactive/games",
             json={
@@ -301,17 +357,10 @@ class InteractiveApiTests(unittest.TestCase):
         headers = {"X-Player-Token": token}
 
         player = created["player"]
-        self.assertIsNone(player["active_event_card"])
-        card_id = player["host_options"]["cards"][0]["card_id"]
-        hosted = self.client.post(
-            "/api/interactive/games/player-api-test/player/host-choice",
-            headers=headers,
-            json={"card_id": card_id, "intel_id": None},
-        )
-        self.assertEqual(hosted.status_code, 200)
-        self.assertEqual(hosted.get_json()["player"]["phase"], "ready")
-
-        player = hosted.get_json()["player"]
+        self.assertTrue(player["active_event_card"])
+        self.assertEqual(player["phase"], "ready")
+        self.assertIsNone(player["host_options"])
+        self.assertFalse(player["public_intel_history"])
         destination = player["available_actions"]["moves"][0]["id"]
         free = self.client.post(
             "/api/interactive/games/player-api-test/player/actions",
@@ -339,7 +388,16 @@ class InteractiveApiTests(unittest.TestCase):
         ended_task = self.wait_for_task(ended.get_json()["task_id"])
         self.assertEqual(ended_task["status"], "succeeded")
         self.assertEqual(ended_task["result"]["player"]["round_number"], 1)
-        self.assertEqual(ended_task["result"]["player"]["phase"], "intervention")
+        self.assertEqual(ended_task["result"]["player"]["phase"], "round_complete")
+        continued = self.client.post(
+            "/api/interactive/games/player-api-test/player/round/continue",
+            headers={"X-Player-Token": token},
+            json={},
+        )
+        self.assertEqual(continued.status_code, 200)
+        self.assertEqual(continued.get_json()["player"]["phase"], "ready")
+        self.assertIsNone(ended_task["result"]["player"]["host_options"])
+        self.assertFalse(ended_task["result"]["player"]["public_intel_history"])
 
 
 if __name__ == "__main__":

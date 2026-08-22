@@ -7,6 +7,7 @@ import re
 from typing import Any, Callable, Protocol
 
 from ..domain.abilities import apply_ability
+from ..domain.information import render_belief_claim
 from ..domain.models import ActionIntent, ActionType, GameState, LifeState
 from ..domain.round_engine import bulletin_location
 
@@ -559,17 +560,62 @@ class HeuristicIntentPlanner:
                 for known in listener.beliefs
             )
         ]
-        shared = shareable[-1] if shareable else None
-        if speaker_id == state.flags.get("killer_id"):
+        message = str(player_message).strip()
+        item_request = any(
+            word in message
+            for word in ("出示", "展示", "随身", "物品", "搜身", "给我看")
+        )
+        information_request = (
+            "?" in message
+            or "？" in message
+            or any(
+                word in message
+                for word in (
+                    "线索",
+                    "情报",
+                    "知道",
+                    "看见",
+                    "听见",
+                    "记得",
+                    "昨晚",
+                    "时辰",
+                    "何时",
+                    "哪里",
+                    "谁",
+                    "为何",
+                    "为什么",
+                    "怎么",
+                )
+            )
+        )
+        social_opening = (
+            not information_request
+            and not item_request
+            and len(self._normalize_dialogue_text(message)) <= 8
+        )
+        shared = None
+        if social_opening:
+            text = self.random.choice(
+                [
+                    f"{listener.display_name}，我在。你想说什么？",
+                    f"嗯，我听着呢，{listener.display_name}。",
+                    f"{listener.display_name}？怎么了？",
+                ]
+            )
+        elif speaker_id == state.flags.get("killer_id"):
             evasions = [
                 f"{listener.display_name}，你现在追问的是推测，还是已经有了能落到时辰和地点上的证据？",
                 f"先说清楚你依据的是谁的口供。没有来源的怀疑，我不会顺着它替任何人定罪。",
                 f"你把问题问得太快了。若真要查我，就先解释这句话与你掌握的物证如何相连。",
             ]
             text = self.random.choice(evasions)
-            shared = None
-        elif shared:
-            fact = shared.claim.strip().rstrip("。！？")
+        elif information_request and shareable:
+            shared = shareable[-1]
+            fact = render_belief_claim(
+                shared,
+                speaker_id=speaker_id,
+                owner_name=speaker.display_name,
+            ).strip().rstrip("。！？")
             replies = [
                 f"{fact}。这与刚才的说法究竟相合还是冲突，得把时辰重新排一遍。",
                 f"等等，{listener.display_name}。{fact}。你刚才的判断漏掉了这一处。",
@@ -577,20 +623,19 @@ class HeuristicIntentPlanner:
                 f"我想到另一件事：{fact}。你愿意用自己的行踪来验证它吗？",
             ]
             text = self.random.choice(replies)
-        elif "?" in player_message or "？" in player_message:
+        elif information_request:
             text = self.random.choice([
                 f"这个问题我现在答不死。{listener.display_name}，先把你引用的那条证词来源说清楚。",
                 "我没有能直接支持这个结论的记忆。与其逼我选边，不如先找出两段口供冲突的时辰。",
                 "若只凭现有这些话，我只能说两种解释都成立。你手里有没有能排除其中一种的物证？",
             ])
         else:
-            excerpt = str(player_message).strip()[:45]
+            excerpt = message[:45]
             text = self.random.choice([
                 f"你刚才说“{excerpt}”。这句话里最需要核对的是时间，而不是态度。",
                 f"我听见了，但这还只是你的陈述。谁在场、何时发生、有什么实物能留下来？",
                 f"这条说法可以先记下。下一步应当找一个不依赖你我立场的证据来验证。",
             ])
-        item_request = any(word in player_message for word in ("出示", "展示", "随身", "物品", "搜身", "给我看"))
         display_object_id = None
         item_disposition = "none"
         if item_request:

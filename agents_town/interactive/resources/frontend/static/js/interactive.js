@@ -33,8 +33,11 @@ const ui = {
     hostPressure: document.getElementById('host-pressure'),
     hostInterventions: document.getElementById('host-interventions'),
     plannerProvider: document.getElementById('planner-provider'),
+    plannerModelSelect: document.getElementById('planner-model-select'),
     plannerModel: document.getElementById('planner-model'),
+    testPlanner: document.getElementById('test-planner'),
     switchPlanner: document.getElementById('switch-planner'),
+    plannerTestStatus: document.getElementById('planner-test-status'),
     casebook: document.getElementById('director-casebook'),
     casebookKiller: document.getElementById('casebook-killer'),
     murderChain: document.getElementById('murder-chain'),
@@ -78,6 +81,10 @@ let directorMapVisualLocations = {};
 let directorMapInitialized = false;
 let directorMapAnimating = false;
 let directorMapPlayback = Promise.resolve();
+let activePlannerProvider = ui.plannerProvider?.value || 'ollama';
+const plannerModelsByProvider = {};
+const plannerDefaultsByProvider = {};
+const plannerModelByProvider = {};
 
 const categoryLabels = {
     pressure: '压力事件',
@@ -588,6 +595,51 @@ function plannerLabel(value = '') {
     return value || '在线模型';
 }
 
+function setPlannerStatus(message, kind = '') {
+    ui.plannerTestStatus.textContent = message;
+    ui.plannerTestStatus.classList.toggle('success', kind === 'success');
+    ui.plannerTestStatus.classList.toggle('error', kind === 'error');
+}
+
+function renderPlannerModels(models = [], defaultModel = '') {
+    const unique = [...new Set(models.filter(model => typeof model === 'string' && model.trim()))];
+    const choices = defaultModel && !unique.includes(defaultModel) ? [defaultModel, ...unique] : unique;
+    ui.plannerModelSelect.replaceChildren();
+    const prompt = document.createElement('option');
+    prompt.value = '';
+    prompt.textContent = choices.length ? '从连接返回的列表中选择' : '暂无已发现模型，可手动填写';
+    ui.plannerModelSelect.append(prompt);
+    choices.forEach(model => {
+        const option = document.createElement('option');
+        option.value = model;
+        option.textContent = model === defaultModel && !unique.includes(defaultModel)
+            ? `${model}（当前默认）` : model;
+        ui.plannerModelSelect.append(option);
+    });
+    const current = ui.plannerModel.value.trim();
+    ui.plannerModelSelect.value = choices.includes(current) ? current : '';
+}
+
+function updatePlannerProviderControls() {
+    const provider = ui.plannerProvider.value;
+    plannerModelByProvider[activePlannerProvider] = ui.plannerModel.value.trim();
+    activePlannerProvider = provider;
+    ui.plannerModel.value = plannerModelByProvider[provider] || '';
+    renderPlannerModels(
+        plannerModelsByProvider[provider] || [],
+        plannerDefaultsByProvider[provider] || '',
+    );
+    const isHeuristic = provider === 'heuristic';
+    ui.plannerModelSelect.disabled = isHeuristic;
+    ui.plannerModel.disabled = isHeuristic;
+    ui.testPlanner.disabled = isHeuristic;
+    setPlannerStatus(
+        isHeuristic
+            ? '本地规则模式无需连接模型服务，可直接应用。'
+            : '请先测试连接，成功后可从列表选择模型。',
+    );
+}
+
 function renderCards(cards, emptyEvent = null, activeCardId = null) {
     availableCards = [...cards, ...(emptyEvent ? [emptyEvent] : [])];
     selectedCardId = activeCardId;
@@ -747,6 +799,59 @@ ui.postNotice.addEventListener('click', async () => {
     }
 });
 
+ui.plannerProvider?.addEventListener('change', updatePlannerProviderControls);
+
+ui.plannerModelSelect?.addEventListener('change', () => {
+    if (!ui.plannerModelSelect.value) return;
+    ui.plannerModel.value = ui.plannerModelSelect.value;
+    plannerModelByProvider[ui.plannerProvider.value] = ui.plannerModel.value;
+});
+
+ui.plannerModel?.addEventListener('input', () => {
+    const model = ui.plannerModel.value.trim();
+    plannerModelByProvider[ui.plannerProvider.value] = model;
+    ui.plannerModelSelect.value = [...ui.plannerModelSelect.options]
+        .some(option => option.value === model) ? model : '';
+});
+
+ui.testPlanner?.addEventListener('click', async () => {
+    ui.testPlanner.disabled = true;
+    ui.switchPlanner.disabled = true;
+    setPlannerStatus('正在测试模型服务连接…');
+    try {
+        const provider = ui.plannerProvider.value;
+        const data = await api('/api/interactive/planner/test-connection', {
+            method: 'POST',
+            body: JSON.stringify({
+                provider,
+                model: ui.plannerModel.value.trim(),
+            }),
+        });
+        if (!data.ok) {
+            setPlannerStatus(`连接失败（${data.code || 'UNKNOWN'}）：${data.message}`, 'error');
+            return;
+        }
+        plannerModelsByProvider[provider] = data.models || [];
+        plannerDefaultsByProvider[provider] = data.default_model || '';
+        if (!ui.plannerModel.value.trim() && data.default_model) {
+            ui.plannerModel.value = data.default_model;
+            plannerModelByProvider[provider] = data.default_model;
+        }
+        renderPlannerModels(data.models || [], data.default_model || '');
+        setPlannerStatus(
+            data.models?.length
+                ? `连接成功，发现 ${data.models.length} 个模型；请选择后应用。`
+                : '连接成功，但接口未返回模型列表；可使用当前默认模型或手动填写。',
+            'success',
+        );
+    } catch (error) {
+        setPlannerStatus(`连接失败：${error.message}`, 'error');
+    } finally {
+        ui.testPlanner.disabled = ui.plannerProvider.value === 'heuristic';
+        ui.switchPlanner.disabled = false;
+    }
+});
+
 ui.switchPlanner?.addEventListener('click', async () => {
     if (!gameId) return showToast('请先创建或载入一局游戏。');
     ui.switchPlanner.disabled = true;
@@ -759,8 +864,11 @@ ui.switchPlanner?.addEventListener('click', async () => {
             }),
         });
         ui.planner.textContent = `已切换 · ${data.planner_provider}`;
+        plannerModelByProvider[ui.plannerProvider.value] = ui.plannerModel.value.trim();
+        setPlannerStatus(`已应用 ${plannerLabel(data.planner_provider)}。`, 'success');
         showToast(`后续行动将使用 ${data.planner_provider}`);
     } catch (error) {
+        setPlannerStatus(`应用失败：${error.message}`, 'error');
         showToast(error.message);
     } finally {
         ui.switchPlanner.disabled = false;
@@ -867,6 +975,7 @@ function renderRecap(recap, storyOutline) {
 }
 
 loadScenarios();
+updatePlannerProviderControls();
 window.setInterval(pollDirectorState, 1000);
 pollHostNotifications();
 window.setInterval(pollHostNotifications, 1000);

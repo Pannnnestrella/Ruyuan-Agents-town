@@ -67,6 +67,7 @@ class GameService:
             planner=self.planner_factory(seed) if self.planner_factory else None,
         )
         session.issued_player_token = issued_player_token
+        session.start_quiet_player_round()
         self.sessions[game_id] = session
         return session
 
@@ -95,5 +96,6 @@ class GameService:
             seed=0,
             planner=self.planner_factory(0) if self.planner_factory else None,
         )
+        session.start_quiet_player_round()
         self.sessions[game_id] = session
         return session

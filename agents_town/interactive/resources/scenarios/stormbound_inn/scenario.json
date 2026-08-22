@@ -10,8 +10,15 @@
   "behavior_guidelines_file": "../../rules/agent_behavior_v2.md",
   "final_assessment_file": "final_assessment.json",
   "timeline_file": "timeline.json",
-  "max_rounds": 6,
+  "max_rounds": 4,
   "actions_per_round": 3,
+  "round_schedule": [
+    {"round": 1, "duration_seconds": 360, "major_action_limit": 3},
+    {"round": 2, "duration_seconds": 480, "major_action_limit": 4},
+    {"round": 3, "duration_seconds": 600, "major_action_limit": 5},
+    {"round": 4, "duration_seconds": 900, "major_action_limit": 6}
+  ],
+  "agent_action_interval_seconds": 30,
   "round_minutes": 30,
   "premise": "暴雨冲毁驿道，六名身份各异的住客被困停云客栈。携带伪造绣衣楼腰牌的驿卒陆成倒毙大堂，死前只留下半句“鸢报有假”。验伤确认他在进入客栈后遭人暗算：凶手就在六名住客之中，正隐藏身份并试图避开终局指认。天明前，所有人都必须追查、交涉并投出自己认定的凶手。",
   "opening_dispatch": {
