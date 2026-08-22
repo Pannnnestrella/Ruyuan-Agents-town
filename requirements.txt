@@ -3,6 +3,7 @@ qianfan
 zhipuai
 spark-ai-python
 llama-index
+llama-index-embeddings-ollama
 flask
 llama-index-embeddings-zhipuai
 Pillow

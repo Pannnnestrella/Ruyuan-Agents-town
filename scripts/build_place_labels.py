@@ -2,15 +2,16 @@
 """从 maze.json 计算各 sector/arena 的中心点，生成前端地名匾额标签数据 labels.json。
 
 用法: python scripts/build_place_labels.py
-输出: frontend/static/assets/village/labels.json
+输出: agents_town/legacy/resources/frontend/static/assets/village/labels.json
 """
 import json
 from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-MAZE = ROOT / "frontend/static/assets/village/maze.json"
-OUT = ROOT / "frontend/static/assets/village/labels.json"
+VILLAGE = ROOT / "agents_town/legacy/resources/frontend/static/assets/village"
+MAZE = VILLAGE / "maze.json"
+OUT = VILLAGE / "labels.json"
 
 
 def center_of(tiles, tile_size):

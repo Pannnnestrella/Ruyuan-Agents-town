@@ -117,6 +117,7 @@ Thumbs.db
 
 # Secrets (placeholder is committed; real keys stay local via skip-worktree)
 data/config.json
+agents_town/common/resources/config.json
 
 # Others
 *.tmp
@@ -125,11 +126,9 @@ results/
 
 build_new/
 
-frontend/static/generated_html_sims/
-frontend/static/assets/village/tilemap/
-
-frontend/static/generated_images/
-frontend/static/generated_music/
+agents_town/legacy/resources/frontend/static/generated_html_sims/
+agents_town/legacy/resources/frontend/static/generated_images/
+agents_town/legacy/resources/frontend/static/generated_music/
 
 !frontend/static/assets/
 !frontend/static/assets/**
@@ -137,8 +136,10 @@ frontend/static/generated_music/
 !results/**
 
 # 如鸢角色美术资源不入库（约 360MB，由 scripts/fetch_ruyuan_art.py 等脚本重建）
-frontend/static/assets/village/agents/
-data/lore/形象素材/
+agents_town/legacy/resources/frontend/static/assets/village/agents/
+agents_town/common/resources/characters/*
+!agents_town/common/resources/characters/.gitkeep
+agents_town/common/resources/lore/形象素材/
 
 # 含 API 密钥，不入库
 data/config-gemini.json
@@ -154,3 +155,4 @@ results/interactive/server.stderr.log
 
 # 批量自博弈评估产物（scripts/selfplay_eval.py）
 results/selfplay_eval/
+results/legacy/

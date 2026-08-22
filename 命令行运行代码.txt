@@ -2,29 +2,29 @@
 虚拟环境
 
 
-conda activate AItown
+conda activate ruyuan-agents-town
 
 
-python start.py --name wxr31 --start "20240213-09:30" --step 150 --stride 10
+python -m agents_town start --name wxr31 --start "20240213-09:30" --step 150 --stride 10
 
 
 继续生成版代码
 
 
-python start.py --name wxr31 --start "20240213-09:30" --step 150 --stride 10 --resume
+python -m agents_town start --name wxr31 --start "20240213-09:30" --step 150 --stride 10 --resume
 
 
 新开始代码
 
 
-python start.py --name wxr17 --start "20240213-09:30" --step 60 --stride 30
+python -m agents_town start --name wxr17 --start "20240213-09:30" --step 60 --stride 30
 
 
 
 压缩
-python compress.py --name sim_20250615_053621
+python -m agents_town.legacy.replay.report --name sim_20250615_053621
 查看回放
-python replay.py
+python -m agents_town replay
 
 
 

@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """生成如鸢主题的五位默认 NPC（广陵王、孙策、傅融、左慈、刘辩）。
 
-- 在 frontend/static/assets/village/agents/<名字>/ 下生成 agent.json；
+- 在 legacy/resources/frontend/static/assets/village/agents/<名字>/ 下生成 agent.json；
 - 素材暂借 角色选择文件夹 的像素小人，按角色做色调区分（后续可手动替换为如鸢立绘）；
 - spatial.tree 由 maze.json 实时推导（已是广陵城地名）；
 - 出生坐标取各自居所内不可碰撞的地砖；
-- 同时生成 角色模板/agents/如鸢密探 模板（供启动器创建用户角色使用）。
+- 同时生成 legacy/resources/character_templates/agents/如鸢密探 模板。
 
-幂等：重复运行会覆盖生成物。人设完整版见 data/lore/角色设定/。
+幂等：重复运行会覆盖生成物。人设完整版见 common/resources/lore/角色设定/。
 """
 import colorsys
 import json
@@ -19,10 +19,12 @@ import numpy as np
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MAZE = os.path.join(ROOT, "frontend", "static", "assets", "village", "maze.json")
-AGENTS_DIR = os.path.join(ROOT, "frontend", "static", "assets", "village", "agents")
+LEGACY_RESOURCES = os.path.join(ROOT, "agents_town", "legacy", "resources")
+MAZE = os.path.join(LEGACY_RESOURCES, "frontend", "static", "assets", "village", "maze.json")
+AGENTS_DIR = os.path.join(LEGACY_RESOURCES, "frontend", "static", "assets", "village", "agents")
+CHARACTERS_DIR = os.path.join(ROOT, "agents_town", "common", "resources", "characters")
 VISUAL_DIR = os.path.join(ROOT, "角色选择文件夹")
-TEMPLATE_DIR = os.path.join(ROOT, "角色模板", "agents")
+TEMPLATE_DIR = os.path.join(LEGACY_RESOURCES, "character_templates", "agents")
 
 NPCS = {
     "广陵王": {
@@ -142,7 +144,7 @@ def tint_image(src, dst, hue=None, desat=None, bright=None):
     Image.fromarray((out * 255).astype(np.uint8), "RGBA").save(dst)
 
 
-def make_agent(name, cfg, tree, coord, out_base):
+def make_agent(name, cfg, tree, coord, out_base, visual_base=None):
     agent_dir = os.path.join(out_base, name)
     os.makedirs(agent_dir, exist_ok=True)
     agent = {
@@ -167,9 +169,11 @@ def make_agent(name, cfg, tree, coord, out_base):
     # 占位素材来自已弃用的 角色选择文件夹；正式立绘由 fetch_ruyuan_art.py 生成。
     # 目标素材已存在或占位素材目录已删除时，跳过复制。
     src_dir = os.path.join(VISUAL_DIR, cfg["visual"])
+    visual_dir = os.path.join(visual_base or out_base, name)
+    os.makedirs(visual_dir, exist_ok=True)
     for fname in ("portrait.png", "texture.png"):
         src = os.path.join(src_dir, fname)
-        dst = os.path.join(agent_dir, fname)
+        dst = os.path.join(visual_dir, fname)
         if os.path.exists(src) and not os.path.exists(dst):
             tint_image(src, dst,
                        hue=cfg.get("hue"), desat=cfg.get("desat"), bright=cfg.get("bright"))
@@ -183,7 +187,7 @@ def main():
 
     for name, cfg in NPCS.items():
         coord = find_spawns(maze, cfg["living"])[0]
-        d = make_agent(name, cfg, tree, coord, AGENTS_DIR)
+        d = make_agent(name, cfg, tree, coord, AGENTS_DIR, CHARACTERS_DIR)
         print(f"生成 NPC: {name} @ {cfg['living']} coord={coord} -> {d}")
 
     # 用户角色模板（启动器 DEFAULT_TEMPLATE_AGENT 使用）

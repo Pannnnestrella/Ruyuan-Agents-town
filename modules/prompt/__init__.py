@@ -1,3 +1,3 @@
-"""generative_agents.prompt"""
+"""Compatibility exports for legacy prompt construction."""
 
-from .scratch import *
+from agents_town.legacy.simulation.prompt import *  # noqa: F401,F403

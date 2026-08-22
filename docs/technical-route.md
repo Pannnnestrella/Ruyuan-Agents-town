@@ -36,7 +36,7 @@
 
 ### 2.1 第一代：开放世界 Generative Agents
 
-第一代系统以 `modules/agent.py` 为中心，模拟角色在连续时间和二维地图中的日常生活。它的典型循环是：
+第一代系统以 `agents_town/legacy/simulation/agent.py` 为中心，模拟角色在连续时间和二维地图中的日常生活。它的典型循环是：
 
 ```mermaid
 flowchart LR
@@ -69,7 +69,7 @@ flowchart LR
 
 ### 2.2 第二代：互动推理剧场
 
-第二代系统以 `modules/interactive/` 为中心，把开放世界中的“自主性”保留下来，同时增加：
+第二代系统以 `agents_town/interactive/` 为中心，把开放世界中的“自主性”保留下来，同时增加：
 
 - 独立角色视角；
 - 冻结上下文后的并发决策；
@@ -132,18 +132,18 @@ flowchart TB
 
 | 模块 | 主要职责 |
 | --- | --- |
-| `interactive_server.py` | Web 入口、API、模型选择、耗时操作异步化、决策进度查询 |
-| `modules/interactive/models.py` | 所有可序列化领域对象、阶段枚举、行动枚举、视图裁剪 |
-| `modules/interactive/scenario_loader.py` | 装载世界和情景、验证引用、按种子物化完整案件 |
-| `modules/interactive/service.py` | 会话总编排、玩家模式、角色模式、记忆回写、计分、投票、保存 |
-| `modules/interactive/llm_planner.py` | 私有上下文构造、并发 LLM 决策、JSON 解析、语义落地检查、回退 |
-| `modules/interactive/round_engine.py` | 行动合法性验证、语义排序、状态变更、事件生成 |
-| `modules/interactive/abilities.py` | 角色专属能力和行动授权 |
-| `modules/interactive/event_director.py` | 事件卡候选、前置条件、世界效果 |
-| `modules/interactive/trigger_resolver.py` | 跨回合延迟条件和一次性世界后果 |
-| `modules/interactive/persistence.py` | 状态反序列化、兼容迁移、原子写入 |
-| `modules/interactive/recap.py` | 根据客观状态和事件日志生成事实复盘 |
-| `modules/interactive/story_compiler.py` | 将真实事件重组为三幕故事提纲 |
+| `agents_town/interactive/web/app.py` | Web 入口、API、模型选择、耗时操作异步化、决策进度查询 |
+| `agents_town/interactive/domain/models.py` | 所有可序列化领域对象、阶段枚举、行动枚举、视图裁剪 |
+| `agents_town/interactive/infrastructure/scenario_loader.py` | 装载世界和情景、验证引用、按种子物化完整案件 |
+| `agents_town/interactive/application/service.py` | 会话总编排、玩家模式、角色模式、记忆回写、计分、投票、保存 |
+| `agents_town/interactive/planning/llm_planner.py` | 私有上下文构造、并发 LLM 决策、JSON 解析、语义落地检查、回退 |
+| `agents_town/interactive/domain/round_engine.py` | 行动合法性验证、语义排序、状态变更、事件生成 |
+| `agents_town/interactive/domain/abilities.py` | 角色专属能力和行动授权 |
+| `agents_town/interactive/application/event_director.py` | 事件卡候选、前置条件、世界效果 |
+| `agents_town/interactive/application/trigger_resolver.py` | 跨回合延迟条件和一次性世界后果 |
+| `agents_town/interactive/infrastructure/persistence.py` | 状态反序列化、兼容迁移、原子写入 |
+| `agents_town/interactive/application/recap.py` | 根据客观状态和事件日志生成事实复盘 |
+| `agents_town/interactive/application/story_compiler.py` | 将真实事件重组为三幕故事提纲 |
 
 ---
 
@@ -1243,7 +1243,7 @@ AI 可以先移动或交谈，再重新观察，但自由行动前奏最多循�
 
 ### 14.1 Flask 服务
 
-`interactive_server.py` 提供：
+`agents_town/interactive/web/app.py` 提供：
 
 - 情景列表；
 - 创建游戏；
@@ -1656,7 +1656,7 @@ AI 可以先移动或交谈，再重新观察，但自由行动前奏最多循�
 
 ## 21. 终局评测、计分与模型历史
 
-每名角色的客观题定义在 `data/scenarios/stormbound_inn/final_assessment.json`。客户端与模型只接收题目和选项；服务器保留答案键，并通过受限解析器读取字面答案、本局凶手或案件清单字段，避免让模型自行判分。
+每名角色的客观题定义在 `agents_town/interactive/resources/scenarios/stormbound_inn/final_assessment.json`。客户端与模型只接收题目和选项；服务器保留答案键，并通过受限解析器读取字面答案、本局凶手或案件清单字段，避免让模型自行判分。
 
 AI 与真人使用同一份提交结构：
 
@@ -1678,11 +1678,11 @@ AI 与真人使用同一份提交结构：
 
 ### 22.1 互动推理主线
 
-- `interactive_server.py`
+- `agents_town/interactive/web/app.py`
   - `create_app`
   - `queue_game_operation`
   - 模型后端切换与异步进度
-- `modules/interactive/models.py`
+- `agents_town/interactive/domain/models.py`
   - `GamePhase`
   - `ActionType`
   - `Belief`
@@ -1690,11 +1690,11 @@ AI 与真人使用同一份提交结构：
   - `ActionIntent`
   - `EventRecord`
   - `GameState`
-- `modules/interactive/scenario_loader.py`
+- `agents_town/interactive/infrastructure/scenario_loader.py`
   - `LoadedScenario.create_game_state`
   - `ScenarioLoader.load`
   - `ScenarioLoader.validate`
-- `modules/interactive/service.py`
+- `agents_town/interactive/application/service.py`
   - `HeuristicIntentPlanner`
   - `GameSession._advance_action_phase`
   - `GameSession._plan_actor_intents`
@@ -1703,7 +1703,7 @@ AI 与真人使用同一份提交结构：
   - `GameSession._run_final_vote`
   - `GameSession.player_state`
   - `GameSession.director_state`
-- `modules/interactive/llm_planner.py`
+- `agents_town/interactive/planning/llm_planner.py`
   - `LLMIntentPlanner.plan`
   - `LLMIntentPlanner._build_prompt`
   - `LLMIntentPlanner._intent_is_grounded`
@@ -1711,18 +1711,18 @@ AI 与真人使用同一份提交结构：
   - `LLMIntentPlanner._sanitize_plan`
   - `LLMIntentPlanner.respond_to_player`
   - `LLMIntentPlanner.vote`
-- `modules/interactive/round_engine.py`
+- `agents_town/interactive/domain/round_engine.py`
   - `resolve_action_phase`
   - `resolve_free_action`
   - `_validate_intent`
   - 各 `_resolve_*` handler
-- `modules/interactive/persistence.py`
+- `agents_town/interactive/infrastructure/persistence.py`
   - `atomic_write_text`
   - `game_state_from_dict`
 
 ### 22.2 开放世界主线
 
-- `modules/agent.py`
+- `agents_town/legacy/simulation/agent.py`
   - `Agent.think`
   - `Agent.percept`
   - `Agent.make_schedule`
@@ -1731,30 +1731,30 @@ AI 与真人使用同一份提交结构：
   - `Agent._determine_action`
   - `Agent._reaction`
   - `Agent._chat_with`
-- `modules/memory/associate.py`
+- `agents_town/legacy/simulation/memory/associate.py`
   - `Concept`
   - `AssociateRetriever`
   - `Associate`
-- `modules/memory/schedule.py`
+- `agents_town/legacy/simulation/memory/schedule.py`
   - `Schedule`
-- `modules/memory/spatial.py`
+- `agents_town/legacy/simulation/memory/spatial.py`
   - `Spatial`
 - `modules/storage/index.py`
   - `LlamaIndex`
 - `modules/prompt/scratch.py`
   - 人设、日程、行动、对话、反思、创作类提示模板入口
-- `modules/model/llm_model.py`
+- `agents_town/common/model/llm_model.py`
   - 多模型适配和统一创建接口
 
 ### 22.3 内容与输出
 
-- `data/scenarios/stormbound_inn/scenario.json`
-- `data/scenarios/stormbound_inn/event_cards.json`
-- `data/scenarios/stormbound_inn/public_intel.json`
-- `data/scenarios/stormbound_inn/timeline.json`
-- `data/worlds/guangling_inn/world.json`
-- `modules/interactive/recap.py`
-- `modules/interactive/story_compiler.py`
+- `agents_town/interactive/resources/scenarios/stormbound_inn/scenario.json`
+- `agents_town/interactive/resources/scenarios/stormbound_inn/event_cards.json`
+- `agents_town/interactive/resources/scenarios/stormbound_inn/public_intel.json`
+- `agents_town/interactive/resources/scenarios/stormbound_inn/timeline.json`
+- `agents_town/interactive/resources/worlds/guangling_inn/world.json`
+- `agents_town/interactive/application/recap.py`
+- `agents_town/interactive/application/story_compiler.py`
 
 ---
 

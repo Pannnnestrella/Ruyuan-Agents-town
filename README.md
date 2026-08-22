@@ -29,7 +29,7 @@
 
 > 同一份剧本，不是同一场戏。不同的相遇、试探与谎言，会让每局走向不同的真相。
 
-AI 行为的唯一规范来源是 [`data/rules/agent_behavior_v2.md`](data/rules/agent_behavior_v2.md)；场景包只补充本案资料和角色能力。
+AI 行为的唯一规范来源是 [`agents_town/interactive/resources/rules/agent_behavior_v2.md`](agents_town/interactive/resources/rules/agent_behavior_v2.md)；场景包只补充本案资料和角色能力。
 
 <p align="center">
   <img src="github页面图片/玩家入口.png" width="49%" alt="玩家入口">
@@ -132,8 +132,10 @@ https://github.com/user-attachments/assets/d210de6e-2ee4-41eb-b45f-b5977804043e
 
 ```bash
 pip install -r requirements.txt
-python __main__.py interactive
+python run.py
 ```
+
+等价的规范模块命令是 `python -m agents_town interactive`。
 
 启动后打开：
 
@@ -141,6 +143,8 @@ python __main__.py interactive
 - 导演台：<http://127.0.0.1:5001/interactive/director>
 
 导演台可在项目配置 API、系统变量 `DEEPSEEK_API`、本地 Ollama 与启发式规划器之间切换。运行旧版 AI 小镇、测试方式、项目结构及数据输出说明，请阅读 **[完整开发文档](docs/development.md)**。
+
+根目录现在只保留 `run.py` 作为停云客栈入口。旧版功能仍在 `agents_town/legacy/` 中，原根目录包装脚本归档于 `scripts/legacy_entrypoints/`；完整映射见 **[入口归档清单](docs/root-entrypoints.md)**。
 
 ## ✨ 从 Generative Agents 到自主推理剧场
 

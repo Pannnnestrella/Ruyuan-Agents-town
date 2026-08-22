@@ -128,8 +128,10 @@ pip install -r requirements.txt
 最简单的方式：
 
 ```bash
-python __main__.py interactive
+python run.py
 ```
+
+规范模块入口为 `python -m agents_town interactive`。
 
 然后访问：
 
@@ -144,42 +146,44 @@ python __main__.py interactive
 $env:GA_INTERACTIVE_PLANNER="llm"
 $env:GA_INTERACTIVE_LLM_PROVIDER="ollama"
 $env:GA_INTERACTIVE_OLLAMA_MODEL="qwen2.5:7b-instruct"
-python __main__.py interactive
+python -m agents_town interactive
 ```
 
 如果只想验证规则和界面，不调用模型：
 
 ```powershell
 $env:GA_INTERACTIVE_PLANNER="heuristic"
-python __main__.py interactive
+python -m agents_town interactive
 ```
 
 若使用项目原有在线模型配置：
 
 ```powershell
 $env:GA_INTERACTIVE_PLANNER="llm"
-python __main__.py interactive
+python -m agents_town interactive
 ```
 
-真实 API Key 不应提交到 Git。项目会读取本地 `data/config.json`，该文件已在忽略规则中。
+真实 API Key 不应提交到 Git。`data/config.json` 只推荐保存模型、端点等非敏感设置；API Key 应通过对应供应商的环境变量注入。旧 JSON 密钥仅保留一个发布周期的只读兼容，且新的 checkpoint 不会写入认证字段。
 
 ## 旧版 AI 小镇模拟与回放
 
-互动剧场没有删除原有的开放世界模拟。仍可使用图形启动器：
+互动剧场没有删除原有的开放世界模拟；旧版代码归档在 `agents_town/legacy/`，需要时可使用图形启动器：
 
 ```bash
-python AI小镇启动器.py
+python -m agents_town.legacy.launcher.app
 ```
 
 或通过命令行运行旧版批处理模拟：
 
 ```bash
-python start.py --name my_story --start "20240213-09:30" --step 60 --stride 10
-python compress.py --name my_story
-python replay.py
+python -m agents_town start --name my_story --start "20240213-09:30" --step 60 --stride 10
+python -m agents_town.legacy.replay.report --name my_story
+python -m agents_town replay
 ```
 
 回放页面默认位于：<http://127.0.0.1:5000/?name=my_story>
+
+原根目录包装脚本已归档到 `scripts/legacy_entrypoints/`，不再作为公开入口；映射见[入口归档清单](root-entrypoints.md)。
 
 旧版系统仍包含：
 
@@ -192,24 +196,25 @@ python replay.py
 ## 项目结构
 
 ```text
-interactive_server.py          互动推演 Web 服务
-modules/interactive/
-  scenario_loader.py           种子化案件与世界装载
-  llm_planner.py               LLM 行动、对话与投票规划
-  round_engine.py              行动合法性与统一结算
-  service.py                   角色视角、主持视角、记忆和流程编排
-  event_director.py            事件卡建议与应用
-  recap.py                     证据化终局复盘
-  story_compiler.py            三幕故事提纲
-data/scenarios/stormbound_inn/
+agents_town/interactive/web/app.py          互动推演 Web 服务
+agents_town/interactive/
+  domain/                      领域状态、行动能力与规则结算
+  planning/                    启发式和 LLM 规划器
+  application/                 会话、视图、记忆与终局编排
+  infrastructure/              场景装载、持久化与历史记录
+  resources/scenarios/stormbound_inn/
   scenario.json                真相、人物、物件与三套推理逻辑
   event_cards.json             压力、信息与关系事件卡
   public_intel.json            主持人可广播的公开情报
-data/worlds/guangling_inn/      两层客栈地点与连通关系
-frontend/templates/            角色席和主持台页面
-frontend/static/js/            实时交互与地图播放
+agents_town/interactive/resources/worlds/guangling_inn/      两层客栈地点与连通关系
+agents_town/interactive/resources/frontend/                  角色席、主持台与前端资源
+agents_town/legacy/                                         旧版模拟、启动器、回放和媒体集成
+agents_town/common/                                         两套应用共用的路径、模型与角色资源
+run.py                                                      停云客栈友好入口
+scripts/legacy_entrypoints/                                 旧根目录包装脚本归档
 tests/                         规则、API、角色视角和浏览器冒烟测试
 results/interactive/           局状态、逐轮事件、复盘与故事提纲
+results/legacy/                旧版存档、回放与生成式媒体产物
 ```
 
 ## 输出与故事整理

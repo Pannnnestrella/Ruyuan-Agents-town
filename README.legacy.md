@@ -20,10 +20,10 @@
 
 相关资料位于：
 
-- `data/lore/世界观设定.md`：时代背景、组织、地点与模拟守则。
-- `data/lore/角色设定/`：核心角色的完整人设与关系资料。
-- `data/lore/地名映射.json`：上游地图语义到广陵城语义的映射。
-- `data/prompts/base_desc.txt`：实际注入 LLM 上下文的世界观精简版。
+- `agents_town/common/resources/lore/世界观设定.md`：时代背景、组织、地点与模拟守则。
+- `agents_town/common/resources/lore/角色设定/`：核心角色的完整人设与关系资料。
+- `agents_town/common/resources/lore/地名映射.json`：上游地图语义到广陵城语义的映射。
+- `agents_town/legacy/resources/prompts/base_desc.txt`：实际注入 LLM 上下文的世界观精简版。
 
 ### 角色记忆与自主行动
 
@@ -128,25 +128,17 @@ flowchart LR
 ## 技术结构
 
 ```text
-AI小镇启动器.py              图形化角色选择、配置与模拟入口
-start.py                     模拟启动、继续运行与结果保存
-modules/
-  agent.py                   Agent 行动、对话、创作与记忆回写
-  memory/                    事件、对话、计划、空间与关联记忆
-  prompt/scratch.py          LLM 任务构造与输出解析
-  model/                     模型调用
-  interactive/               回合引擎、事件导演、LLM 意图、存档与复盘
-data/
-  lore/                      世界观、人物、关系与地名资料
-  prompts/                   规划、对话、反思与创作提示词
-  worlds/                    可复用空间世界包
-  scenarios/                 情景真相、角色秘密、物品、事件卡与触发器
-frontend/                    PixiJS 地图、实时界面与回放交互
-scripts/                     地图改名、角色构造与素材处理脚本
-results/                     模拟、回放、反思与 AIGC 创作记录
-compress.py                  将模拟记录压缩为回放数据
-replay.py                    启动回放 Web 服务
-interactive_server.py        启动实时回合推演服务
+run.py                              停云客栈友好入口
+agents_town/interactive/            停云客栈互动推演
+agents_town/legacy/simulation/      旧版模拟、Agent、记忆和日程
+agents_town/legacy/launcher/        旧版桌面启动器
+agents_town/legacy/replay/          旧版压缩与回放
+agents_town/legacy/integrations/    旧版生成式媒体集成
+agents_town/legacy/resources/       旧地图、提示词、回放和角色模板
+agents_town/common/                 两套应用共用的路径、模型和资源
+scripts/legacy_entrypoints/         原根目录包装脚本归档
+results/interactive/                停云客栈运行结果
+results/legacy/                     旧版运行结果
 ```
 
 核心运行链路：
@@ -180,14 +172,26 @@ pip install -r requirements.txt
 
 ### 配置模型
 
-在 `data/config.json` 中配置模型和 Embedding 服务。真实 API Key 不应提交到 Git。现有代码兼容的服务配置可参考本地配置文件结构。
+模型和 Embedding 的非敏感参数可放在 `data/config.json`。API Key 优先通过环境变量提供；旧版 JSON 密钥配置只作为一个发布周期内的只读兼容方式。可从 `agents_town/legacy/resources/config.example.json` 建立不含密钥的本地配置。
+
+PowerShell 示例：
+
+```powershell
+$env:ZHIPUAI_API_KEY="..."
+$env:LIBLIBAI_ACCESS_KEY="..."
+$env:LIBLIBAI_SECRET_KEY="..."
+$env:SUNO_API_KEY="..."
+$env:GEMINI_API_KEY="..."
+```
+
+密钥不会写入新的旧版模拟 checkpoint。历史存档可用 `python -m agents_town.legacy.validation secrets-scan` 进行只读检查；清理前应先轮换已暴露的真实密钥并明确确认修改范围。
 
 绘画、音乐服务是可选项；未配置时，对应创作能力可能不可用。不同服务的网络条件、费用和模型名称可能变化，请以各服务的当前文档为准。
 
 ### 使用图形启动器
 
 ```bash
-python AI小镇启动器.py
+python -m agents_town.legacy.launcher.app
 ```
 
 启动器可用于创建用户角色、选择参与模拟的角色、修改人物设定并启动模拟。
@@ -197,7 +201,7 @@ python AI小镇启动器.py
 启动“暴雨夜·停云客栈”互动推演：
 
 ```bash
-python __main__.py interactive
+python -m agents_town interactive
 ```
 
 然后访问实时地图：
@@ -218,14 +222,14 @@ http://127.0.0.1:5001/interactive/director
 
 ```powershell
 $env:GA_INTERACTIVE_PLANNER="heuristic"
-python __main__.py interactive
+python -m agents_town interactive
 ```
 
 若要强制要求 LLM 配置可用（初始化失败时直接报错，而不是自动回退）：
 
 ```powershell
 $env:GA_INTERACTIVE_PLANNER="llm"
-python __main__.py interactive
+python -m agents_town interactive
 ```
 
 使用本机 Ollama（默认模型可自行替换）：
@@ -234,7 +238,7 @@ python __main__.py interactive
 $env:GA_INTERACTIVE_PLANNER="llm"
 $env:GA_INTERACTIVE_LLM_PROVIDER="ollama"
 $env:GA_INTERACTIVE_OLLAMA_MODEL="qwen2.5:7b-instruct"
-python __main__.py interactive
+python -m agents_town interactive
 ```
 
 以下命令用于旧版批处理模拟与回放。
@@ -242,25 +246,25 @@ python __main__.py interactive
 运行一次新模拟：
 
 ```bash
-python start.py --name my_story --start "20240213-09:30" --step 60 --stride 10
+python -m agents_town start --name my_story --start "20240213-09:30" --step 60 --stride 10
 ```
 
 继续已有模拟：
 
 ```bash
-python start.py --name my_story --start "20240213-09:30" --step 60 --stride 10 --resume
+python -m agents_town start --name my_story --start "20240213-09:30" --step 60 --stride 10 --resume
 ```
 
 压缩模拟结果：
 
 ```bash
-python compress.py --name my_story
+python -m agents_town.legacy.replay.report --name my_story
 ```
 
 启动回放服务：
 
 ```bash
-python replay.py
+python -m agents_town replay
 ```
 
 然后访问：
@@ -269,15 +273,15 @@ python replay.py
 http://127.0.0.1:5000/?name=my_story
 ```
 
-也可以使用统一脚本入口：
+推荐使用统一模块入口：
 
 ```bash
-python __main__.py start --name my_story --step 60
-python __main__.py replay
-python __main__.py interactive
+python -m agents_town start --name my_story --step 60
+python -m agents_town replay
+python -m agents_town interactive
 ```
 
-> 统一入口仍处于实验状态；直接运行启动器或脚本是当前更常用的方式。
+> 原根目录旧脚本已归档到 `scripts/legacy_entrypoints/`，旧版业务实现仍保留在 `agents_town/legacy/`。详见 [`docs/root-entrypoints.md`](docs/root-entrypoints.md)。
 
 ## 角色与素材重建
 
@@ -295,12 +299,12 @@ python __main__.py interactive
 
 ## 已有实验产物
 
-- `results/compressed/`：多次模拟的压缩回放与可阅读日志；
+- `results/legacy/compressed/`：多次模拟的压缩回放与可阅读日志；
 - `results/literary_records.json`：角色在兰台书案前生成的文学作品；
 - `results/reflection-records/`：角色反思记录；
-- `results/music-records/`：音乐创作记录；
-- `frontend/static/generated_images/`：生成图像；
-- `frontend/static/generated_music/`：生成音乐。
+- `results/legacy/music-records/`：音乐创作记录；
+- `results/legacy/generated/images/`：生成图像；
+- `results/legacy/generated/music/`：生成音乐。
 - `results/interactive/<game_id>/state.json`：互动局当前完整状态；
 - `results/interactive/<game_id>/round-XX.json`：逐轮结构化事件；
 - `results/interactive/<game_id>/recap.json` 与 `recap.md`：终局真相、投票和人物复盘；

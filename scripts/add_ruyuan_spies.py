@@ -8,9 +8,10 @@
   - 立绘：如鸢 biligame wiki（传唤.png=透明全身立绘 -> 地图贴图；突破前.png -> 头像）
 
 产物：
-  - frontend/static/assets/village/agents/<名字>/{agent.json, texture.png, portrait.png}
-  - data/lore/形象素材/密探/<名字>-*.png（下载原图缓存，600px 缩略）
-  - data/lore/密探名单.json（成功生成的角色列表，供更新启动器默认名单）
+  - legacy/resources/frontend/static/assets/village/agents/<名字>/agent.json
+  - common/resources/characters/<名字>/{texture.png, portrait.png}
+  - common/resources/lore/形象素材/密探/<名字>-*.png
+  - common/resources/lore/密探名单.json
 
 跳过已存在的五位默认 NPC。无立绘的角色回退用突破前做"纸牌"贴图；两者皆无则跳过该角色并记录。
 """
@@ -27,9 +28,12 @@ from PIL import Image, ImageDraw
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DHY = r"D:\Desktop\Pan_files\秋招\dhyUniverse"
 PROMPTS = os.path.join(DHY, "prompts")
-AGENTS_DIR = os.path.join(ROOT, "frontend", "static", "assets", "village", "agents")
-ART_DIR = os.path.join(ROOT, "data", "lore", "形象素材", "密探")
-MAZE = os.path.join(ROOT, "frontend", "static", "assets", "village", "maze.json")
+LEGACY_RESOURCES = os.path.join(ROOT, "agents_town", "legacy", "resources")
+AGENTS_DIR = os.path.join(LEGACY_RESOURCES, "frontend", "static", "assets", "village", "agents")
+CHARACTERS_DIR = os.path.join(ROOT, "agents_town", "common", "resources", "characters")
+LORE_DIR = os.path.join(ROOT, "agents_town", "common", "resources", "lore")
+ART_DIR = os.path.join(LORE_DIR, "形象素材", "密探")
+MAZE = os.path.join(LEGACY_RESOURCES, "frontend", "static", "assets", "village", "maze.json")
 
 SKIP = {"广陵王", "孙策", "傅融", "左慈", "刘辩"}
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", "Referer": "https://wiki.biligame.com/"}
@@ -249,11 +253,13 @@ def main():
 
         agent_dir = os.path.join(AGENTS_DIR, n)
         os.makedirs(agent_dir, exist_ok=True)
+        character_dir = os.path.join(CHARACTERS_DIR, n)
+        os.makedirs(character_dir, exist_ok=True)
         if tex_kind == "传唤":
-            build_texture_standee(paths[tex_kind], os.path.join(agent_dir, "texture.png"))
+            build_texture_standee(paths[tex_kind], os.path.join(character_dir, "texture.png"))
         else:
-            build_texture_card(paths[tex_kind], os.path.join(agent_dir, "texture.png"))
-        crop_content(Image.open(paths[por_kind])).save(os.path.join(agent_dir, "portrait.png"))
+            build_texture_card(paths[tex_kind], os.path.join(character_dir, "texture.png"))
+        crop_content(Image.open(paths[por_kind])).save(os.path.join(character_dir, "portrait.png"))
 
         agent = {
             "name": n,
@@ -270,7 +276,7 @@ def main():
         ok.append(n)
         print(f"√ {n} ({role} @ {living[0]}/{living[1]}, 贴图={tex_kind})")
 
-    with open(os.path.join(ROOT, "data", "lore", "密探名单.json"), "w", encoding="utf-8") as f:
+    with open(os.path.join(LORE_DIR, "密探名单.json"), "w", encoding="utf-8") as f:
         json.dump({"added": ok, "no_art": no_art}, f, ensure_ascii=False, indent=2)
     print(f"\n完成：成功 {len(ok)} 位；无立绘跳过 {len(no_art)} 位：{no_art}")
 

@@ -1,0 +1,46 @@
+{
+  "agent_base": {
+    "percept": {
+      "mode": "box",
+      "vision_r": 8,
+      "att_bandwidth": 8
+    },
+    "schedule": {
+      "max_try": 5,
+      "diversity": 5
+    },
+    "think": {
+      "mode": "llm",
+      "llm": {
+        "provider": "ollama",
+        "base_url": "http://127.0.0.1:11434/v1",
+        "model": "qwen2.5:7b-instruct",
+        "embedding_model": "embeddinggemma"
+      },
+      "interval": 1000,
+      "poignancy_max": 150
+    },
+    "chat_iter": 2,
+    "associate": {
+      "embedding": {
+        "type": "ollama",
+        "model": "embeddinggemma",
+        "base_url": "http://127.0.0.1:11434"
+      },
+      "retention": 8
+    }
+  },
+  "services": {
+    "gemini": {
+      "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+      "model": "gemini-2.5-flash"
+    },
+    "liblibai": {
+      "base_url": "https://openapi.liblibai.cloud"
+    },
+    "suno": {
+      "base_url": "https://apibox.erweima.ai",
+      "callback_url": "http://localhost/suno_callback_placeholder"
+    }
+  }
+}

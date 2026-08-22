@@ -1,3 +1,3 @@
-"""generative_agents.model"""
+"""Compatibility exports for :mod:`agents_town.common.model`."""
 
-from .llm_model import *
+from agents_town.common.model import *  # noqa: F401,F403

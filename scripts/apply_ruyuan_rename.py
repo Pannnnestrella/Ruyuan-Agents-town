@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """把地图与角色配置中的飞船主题地名替换为如鸢广陵城主题。
 
-映射表：data/lore/地名映射.json（sector/arena/object 三级各自 1:1 映射）。
+映射表：agents_town/common/resources/lore/地名映射.json。
 处理对象：
-  1. frontend/static/assets/village/maze.json  —— tiles[*].address
-  2. frontend/static/assets/village/agents/*/agent.json —— spatial.address / spatial.tree
-  3. 角色模板/agents/*/agent.json —— 同上
+  1. legacy/resources/frontend/static/assets/village/maze.json
+  2. legacy/resources/frontend/static/assets/village/agents/*/agent.json
+  3. legacy/resources/character_templates/agents/*/agent.json
 世界名 "the Ville" 保留（compress.py 与启动器中硬编码）。
 脚本幂等：已是新名的条目不受影响。
 """
@@ -14,7 +14,7 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MAPPING_PATH = os.path.join(ROOT, "data", "lore", "地名映射.json")
+MAPPING_PATH = os.path.join(ROOT, "agents_town", "common", "resources", "lore", "地名映射.json")
 
 
 def load_mapping():
@@ -81,12 +81,13 @@ def process_agent(path, table):
 
 def main():
     table = load_mapping()
-    maze_path = os.path.join(ROOT, "frontend", "static", "assets", "village", "maze.json")
+    legacy_resources = os.path.join(ROOT, "agents_town", "legacy", "resources")
+    maze_path = os.path.join(legacy_resources, "frontend", "static", "assets", "village", "maze.json")
     process_maze(maze_path, table)
 
     agent_dirs = [
-        os.path.join(ROOT, "frontend", "static", "assets", "village", "agents"),
-        os.path.join(ROOT, "角色模板", "agents"),
+        os.path.join(legacy_resources, "frontend", "static", "assets", "village", "agents"),
+        os.path.join(legacy_resources, "character_templates", "agents"),
     ]
     for base in agent_dirs:
         if not os.path.isdir(base):

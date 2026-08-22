@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """从如鸢 biligame wiki 下载角色形象，替换五位 NPC 与建角模板的立绘。
 
-- 原图存档到 data/lore/形象素材/<角色>/<表情>.png
+- 原图存档到 agents_town/common/resources/lore/形象素材/<角色>/<表情>.png
 - 每个角色生成：
     portrait.png —— 直接用指定形象
     texture.png  —— 3200x3200 的 5x5 雪碧图（心纸君缩放到高约560、底部居中对齐，
                     与旧素材的角色包围盒一致；静态形象填满全部 25 帧）
-- 目标目录：frontend/static/assets/village/agents/<NPC>/ 与 角色模板/agents/<模板>/
+- 目标目录：common 角色资源与 legacy 角色模板资源
 """
 import os
 import urllib.request
@@ -14,9 +14,9 @@ import urllib.request
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ART_DIR = os.path.join(ROOT, "data", "lore", "形象素材")
-AGENTS_DIR = os.path.join(ROOT, "frontend", "static", "assets", "village", "agents")
-TEMPLATE_DIR = os.path.join(ROOT, "角色模板", "agents")
+ART_DIR = os.path.join(ROOT, "agents_town", "common", "resources", "lore", "形象素材")
+AGENTS_DIR = os.path.join(ROOT, "agents_town", "common", "resources", "characters")
+TEMPLATE_DIR = os.path.join(ROOT, "agents_town", "legacy", "resources", "character_templates", "agents")
 
 BASE = "https://patchwiki.biligame.com/images/yuan/"
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -78,7 +78,7 @@ TARGETS = {
     "刘辩": ("正常", "正常", AGENTS_DIR),
     "广陵王": ("心纸君", "立绘", AGENTS_DIR),
 }
-# 建角模板（角色模板/agents 下）
+# 建角模板（legacy/resources/character_templates/agents 下）
 TEMPLATE_TARGETS = {
     "如鸢密探": ("王子乔", "正常"),
     "如鸢密探·袁基": ("袁基", "正常"),

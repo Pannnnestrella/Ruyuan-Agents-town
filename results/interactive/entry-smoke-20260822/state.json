@@ -1,0 +1,6707 @@
+{
+  "game_id": "entry-smoke-20260822",
+  "scenario_id": "stormbound_inn",
+  "world_id": "guangling_inn",
+  "round_number": 0,
+  "max_rounds": 6,
+  "action_step": 0,
+  "actions_per_round": 3,
+  "player_agent_id": null,
+  "phase": "intervention",
+  "locations": {
+    "front_gate": {
+      "id": "front_gate",
+      "name": "客栈正门",
+      "description": "厚重木门已经落闩，门外是被暴雨吞没的驿道。",
+      "connections": [
+        "lobby",
+        "stable"
+      ],
+      "public": true,
+      "searchable": true,
+      "capacity": 4,
+      "tags": [
+        "exit",
+        "rain_exposed"
+      ],
+      "layout": {
+        "floor": 1,
+        "x": 2,
+        "y": 4,
+        "w": 2,
+        "h": 1
+      },
+      "search_observations": [
+        "门闩上的浮灰被擦出两道新痕，像有人反复确认它是否松动；其中一处指印的高度接近{previous_name}。",
+        "门槛积水里有一枚被踩散的泥印，它不通向门外，只在门内来回折返。",
+        "门缝夹着的新鲜木屑被拨到一旁，说明此前的搜查者检查过锁舌，却没有撬门。"
+      ]
+    },
+    "lobby": {
+      "id": "lobby",
+      "name": "客栈大堂",
+      "description": "大堂中央燃着炭盆，柜台旁悬着供住客阅看的公告板。",
+      "connections": [
+        "front_gate",
+        "kitchen",
+        "courtyard",
+        "stairs"
+      ],
+      "public": true,
+      "searchable": true,
+      "capacity": 10,
+      "tags": [
+        "meeting",
+        "notice_board"
+      ],
+      "layout": {
+        "floor": 1,
+        "x": 2,
+        "y": 2,
+        "w": 2,
+        "h": 2
+      },
+      "search_observations": [
+        "柜台下的灰线断成数截，炭盆旁也有翻动过的细灰；{previous_name}来过之后，这些痕迹尤其明显。",
+        "死者附近的桌脚被挪回原位，却与地面旧压痕错开半寸。",
+        "公告栏下方落着一枚新鲜纸屑，像有人查看过张贴处又匆忙揉掉了什么。"
+      ]
+    },
+    "kitchen": {
+      "id": "kitchen",
+      "name": "后厨",
+      "description": "灶火未熄，药材、酒坛和食材混放在高低不同的木架上。",
+      "connections": [
+        "lobby",
+        "courtyard",
+        "cellar"
+      ],
+      "public": false,
+      "searchable": true,
+      "capacity": 4,
+      "tags": [
+        "food",
+        "medicine",
+        "fire"
+      ],
+      "layout": {
+        "floor": 1,
+        "x": 4,
+        "y": 2,
+        "w": 2,
+        "h": 1
+      },
+      "search_observations": [
+        "药材架的标签朝向不一，有一格被人抽出后放反了；灶灰上还能看见{previous_name}衣摆扫过的弧痕。",
+        "酒坛封泥都在，却有一只坛盖的湿痕比周围更新，显然刚被揭开检查过。",
+        "案板下的铜盆被推入过深，边缘留有新擦痕，但盆内没有遗落物。"
+      ]
+    },
+    "cellar": {
+      "id": "cellar",
+      "name": "地窖",
+      "description": "通往地窖的石阶狭窄湿滑，酒瓮后方似乎还有被遮住的空间。",
+      "connections": [
+        "kitchen"
+      ],
+      "public": false,
+      "searchable": true,
+      "capacity": 3,
+      "tags": [
+        "dark",
+        "concealment"
+      ],
+      "layout": {
+        "floor": 1,
+        "x": 5,
+        "y": 3,
+        "w": 1,
+        "h": 1
+      },
+      "search_observations": [
+        "酒瓮后的蛛网断得很整齐，地上还留着先前搜查者膝盖压出的浅印。",
+        "潮湿石阶上的一串脚印在空墙前停住，{previous_name}似乎曾在那里俯身摸索。",
+        "两只木箱的铜扣温度不同，其中一只刚被开合过，却已经重新扣好。"
+      ]
+    },
+    "courtyard": {
+      "id": "courtyard",
+      "name": "后院",
+      "description": "雨水沿屋檐汇入青石院落，水井、柴堆和马厩门都在视线之内。",
+      "connections": [
+        "lobby",
+        "kitchen",
+        "stable"
+      ],
+      "public": true,
+      "searchable": true,
+      "capacity": 8,
+      "tags": [
+        "rain_exposed",
+        "well"
+      ],
+      "layout": {
+        "floor": 1,
+        "x": 1,
+        "y": 1,
+        "w": 3,
+        "h": 1
+      },
+      "search_observations": [
+        "雨水冲淡了大部分脚印，唯有柴堆背风处留下一道被拨开的泥痕，像有人伸手探过缝隙。",
+        "井沿青苔缺了一小块，旁边有{previous_name}可能留下的湿袖印，但井绳仍在原位。",
+        "靠墙的碎瓦被排得过于整齐，明显是搜查后匆忙复原的。"
+      ]
+    },
+    "stable": {
+      "id": "stable",
+      "name": "马厩",
+      "description": "几匹坐骑因雷声不安地刨着地面，草料间留有新旧不一的脚印。",
+      "connections": [
+        "front_gate",
+        "courtyard"
+      ],
+      "public": false,
+      "searchable": true,
+      "capacity": 5,
+      "tags": [
+        "animals",
+        "exit_route"
+      ],
+      "layout": {
+        "floor": 1,
+        "x": 4,
+        "y": 1,
+        "w": 2,
+        "h": 1
+      },
+      "search_observations": [
+        "草料被分开又盖回，压痕的方向与马蹄无关；{previous_name}的靴底纹在旁边若隐若现。",
+        "一处马鞍扣被解开过，却没有物件藏在鞍毯下，只留下新鲜皮革折痕。",
+        "后墙泥缝被手指刮过，墙根积草也被踩平，像有人反复核对过墙边旧痕。"
+      ]
+    },
+    "stairs": {
+      "id": "stairs",
+      "name": "木梯",
+      "description": "木梯连接大堂与二层回廊，每一步都会发出难以掩饰的吱呀声。",
+      "connections": [
+        "lobby",
+        "upper_hall"
+      ],
+      "public": true,
+      "searchable": true,
+      "capacity": 2,
+      "tags": [
+        "chokepoint"
+      ],
+      "layout": {
+        "floor": 1,
+        "x": 1,
+        "y": 2,
+        "w": 1,
+        "h": 2
+      },
+      "search_observations": [
+        "第三阶木板边缘有新指印，像此前有人逐级摸过缝隙；{previous_name}经过后尘土更乱。",
+        "扶手下侧的积灰少了一段，却没有发现夹藏之物。",
+        "楼梯转角的油灯被挪动过，底座压痕和现在的位置并不重合。"
+      ]
+    },
+    "upper_hall": {
+      "id": "upper_hall",
+      "name": "二层回廊",
+      "description": "回廊可以看到大堂的一角，四间客房分列两侧。",
+      "connections": [
+        "stairs",
+        "room_east",
+        "room_west",
+        "room_north",
+        "study"
+      ],
+      "public": true,
+      "searchable": true,
+      "capacity": 6,
+      "tags": [
+        "overlook"
+      ],
+      "layout": {
+        "floor": 2,
+        "x": 1,
+        "y": 2,
+        "w": 6,
+        "h": 1
+      },
+      "search_observations": [
+        "栏杆内侧的灰尘被袖口擦亮一小段，视角正好能俯看大堂。",
+        "地毯边缘被掀起又压回，{previous_name}可能留下的一根发丝卡在木缝外侧。",
+        "四间房门前的尘迹深浅不一，说明有人曾逐一停步查看门缝。"
+      ]
+    },
+    "room_east": {
+      "id": "room_east",
+      "name": "东字客房",
+      "description": "靠近楼梯的客房，窗户朝向驿道，室内陈设简朴。",
+      "connections": [
+        "upper_hall"
+      ],
+      "public": false,
+      "searchable": true,
+      "lockable": true,
+      "capacity": 3,
+      "tags": [
+        "guest_room"
+      ],
+      "layout": {
+        "floor": 2,
+        "x": 1,
+        "y": 1,
+        "w": 2,
+        "h": 1
+      },
+      "search_observations": [
+        "床褥一角重新塞得过紧，像有人搜过夹层后刻意复原；窗下还留着{previous_name}的浅鞋印。",
+        "窗栓表面有新擦痕，但窗纸与外墙都没有破损。",
+        "茶盏被按大小排得过分整齐，柜面旧灰却暴露了它们原先的位置。"
+      ]
+    },
+    "room_west": {
+      "id": "room_west",
+      "name": "西字客房",
+      "description": "房内熏香尚未散尽，窗下能看见后院与马厩。",
+      "connections": [
+        "upper_hall"
+      ],
+      "public": false,
+      "searchable": true,
+      "lockable": true,
+      "capacity": 3,
+      "tags": [
+        "guest_room",
+        "courtyard_view"
+      ],
+      "layout": {
+        "floor": 2,
+        "x": 3,
+        "y": 1,
+        "w": 2,
+        "h": 1
+      },
+      "search_observations": [
+        "熏香盒底部被揭开过，盒盖边缘残留新鲜指印，却没有夹藏物。",
+        "窗帘褶皱里夹着后院带来的湿气，像{previous_name}曾在窗边停留观察。",
+        "箱笼锁孔周围有细小划痕，但锁芯并未受损。"
+      ]
+    },
+    "room_north": {
+      "id": "room_north",
+      "name": "北字客房",
+      "description": "最偏僻的一间客房，房门内侧有一道不明显的刮痕。",
+      "connections": [
+        "upper_hall"
+      ],
+      "public": false,
+      "searchable": true,
+      "lockable": true,
+      "capacity": 3,
+      "tags": [
+        "guest_room",
+        "quiet"
+      ],
+      "layout": {
+        "floor": 2,
+        "x": 5,
+        "y": 1,
+        "w": 2,
+        "h": 1
+      },
+      "search_observations": [
+        "门内旧刮痕旁多了一道浅痕，说明此前的搜查者检查过门后空间。",
+        "墙角灰尘被指尖划出半圆，{previous_name}似乎曾移动过那只矮凳。",
+        "枕下织物的纹路方向相反，显然被翻过，但没有新物品留下。"
+      ]
+    },
+    "study": {
+      "id": "study",
+      "name": "掌柜账房",
+      "description": "狭小房间里堆满账簿、住客名册和待送往广陵的货单。",
+      "connections": [
+        "upper_hall"
+      ],
+      "public": false,
+      "searchable": true,
+      "lockable": true,
+      "capacity": 3,
+      "tags": [
+        "records",
+        "restricted"
+      ],
+      "layout": {
+        "floor": 2,
+        "x": 1,
+        "y": 3,
+        "w": 2,
+        "h": 1
+      },
+      "search_observations": [
+        "账簿的齐边中有一册凸出半指，翻页留下的新折角可能出自{previous_name}之手。",
+        "住客名册旁的砚台被移开过，干涸墨圈暴露了原本的位置。",
+        "货单捆绳重新打过结，结法与掌柜惯用的活结不同，却没有缺页。"
+      ]
+    }
+  },
+  "agents": {
+    "广陵王": {
+      "agent_id": "广陵王",
+      "display_name": "广陵王",
+      "location_id": "lobby",
+      "life_state": "alive",
+      "conditions": [],
+      "inventory": [
+        "sealed_dispatch"
+      ],
+      "beliefs": [
+        {
+          "belief_id": "belief-广陵王-1",
+          "claim": "出发前曾故意向不同据点放出三种版本的行程，只有城东版本提到停云客栈。",
+          "source": "自己的安排",
+          "confidence": 1.0,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": "truth-report",
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored_memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-广陵王-background-1",
+          "claim": "陆成进门时先看向二层回廊，随后才试图把信囊交给你，说明他上楼见过或寻找过某个人。",
+          "source": "往事回忆",
+          "confidence": 0.9,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 4,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-广陵王-background-2",
+          "claim": "绝密鸢报使用的是绣衣楼半年前停用的封泥配方，真正的急报不该出现这种旧制。",
+          "source": "往事回忆",
+          "confidence": 0.9,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 4,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-广陵王-public-1",
+          "claim": "暴雨冲毁了通往广陵的驿道，天明前无人能够安全离开。",
+          "source": "public-fact-1",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-广陵王-public-2",
+          "claim": "陌生死者携带一枚做工粗糙的绣衣楼腰牌。",
+          "source": "public-fact-2",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-广陵王-public-3",
+          "claim": "死者临终前说出了“鸢报有假”四个字。",
+          "source": "public-fact-3",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-广陵王-public-4",
+          "claim": "客栈正门已经落闩，后院马匹仍在马厩中。",
+          "source": "public-fact-4",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-广陵王-public-5",
+          "claim": "凶手就在六名住客之中，并会隐藏作案信息、误导他人或秘密下毒。",
+          "source": "public-fact-5",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-广陵王-public-6",
+          "claim": "游戏期间无人离开客栈；天明前每名仍能表达意见的人都要独立投票指认凶手。",
+          "source": "public-fact-6",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-广陵王-secret-guangling-itinerary",
+          "claim": "广陵王出发前故意向三个据点放出不同版本的行程，用来排查绣衣楼内部泄密者；她不愿让同行者知道自己也在试探他们。",
+          "source": "个人秘密",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": "secret:secret-guangling-itinerary",
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "private_secret",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-广陵王-timeline-arrival-guangling-furong",
+          "claim": "巳正，广陵王与傅融冒雨一同抵达停云客栈；傅融登记两间客房并接过行程账册，广陵王当着他的面吩咐掌柜：任何急递先送到大堂。",
+          "source": "timeline:arrival-guangling-furong",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-广陵王-timeline-arrival-liubian",
+          "claim": "午初，刘辩以刘姓贵公子的身份来到客栈；广陵王亲自迎他入门，两人约定在人前只谈旅途，不提宫中旧事。",
+          "source": "timeline:arrival-liubian",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-广陵王-timeline-six-person-supper",
+          "claim": "酉初，六人在大堂同桌用过晚饭；左慈没有碰酒，傅融中途翻看过账册，孙策提到驿道封死，袁基询问过驿卒何时换班，刘辩用玩笑岔开了宫中旧闻。",
+          "source": "timeline:six-person-supper",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-广陵王-timeline-six-person-dispersal",
+          "claim": "酉初三刻，晚饭散席：广陵王留在大堂等急递，傅融去掌柜账房核账，刘辩回东字客房，孙策去马厩，左慈回后厨，袁基回西字客房。",
+          "source": "timeline:six-person-dispersal",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-广陵王-timeline-courier-arrival-signal",
+          "claim": "酉正，正门传来驿卒通用的三短一长叩门声；六人都听见掌柜开门，并听见来客自称西驿送信人陆成。",
+          "source": "timeline:courier-arrival-signal",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-广陵王-timeline-courier-meets-guangling",
+          "claim": "酉正一刻，广陵王在大堂接到浑身湿透的陆成；陆成没有叫出她的身份，只护住信囊、先看向二层回廊，说要核对一处收信记号后再交件。",
+          "source": "timeline:courier-meets-guangling",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-广陵王-timeline-courier-final-return",
+          "claim": "戌初一刻，陆成回到大堂，将那封绝密鸢报递给广陵王；他反复摸索明显变轻的信囊，却没有说明二层见过谁。",
+          "source": "timeline:courier-final-return",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-广陵王-timeline-characters-at-start-positions",
+          "claim": "亥初后，客栈重新安静下来：广陵王仍在大堂读鸢报，傅融留在账房，刘辩在东字客房，孙策在马厩，左慈在后厨，袁基在西字客房。",
+          "source": "timeline:characters-at-start-positions",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-广陵王-timeline-courier-collapse",
+          "claim": "亥正，大堂传来瓷碗碎裂和广陵王的呼喊；众人先后得知陆成倒在炭盆旁，临终只攥住广陵王的衣角说出“鸢报有假”。",
+          "source": "timeline:courier-collapse",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        }
+      ],
+      "public_role": "绣衣楼楼主，因巡视城外据点留宿客栈。",
+      "resources": {},
+      "strategic_plan": {
+        "objective": "判断鸢报真假",
+        "horizon_rounds": 3,
+        "steps": [
+          "判断鸢报真假",
+          "保护同行者",
+          "在天明前找出安全屋是否已经暴露"
+        ],
+        "contingencies": [],
+        "suspects": [],
+        "public_posture": "先观察，再根据可靠记忆调整行动。",
+        "revision_reason": "情景开始时形成的初步计划。",
+        "updated_round": 0,
+        "source": "scenario"
+      },
+      "plan_history": [],
+      "score": 0,
+      "score_breakdown": [],
+      "discovered_secret_ids": [],
+      "state_schema_version": 2,
+      "identity_state": {
+        "character_name": "广陵王",
+        "faction": "",
+        "is_killer": false,
+        "known_role_information": [
+          {
+            "claim": "出发前曾故意向不同据点放出三种版本的行程，只有城东版本提到停云客栈。",
+            "source": "自己的安排",
+            "confidence": 1.0,
+            "truth_id": "truth-report"
+          }
+        ],
+        "personal_secrets": [
+          "secret-guangling-itinerary"
+        ]
+      },
+      "location_state": {
+        "current_area": "lobby",
+        "previous_area": null,
+        "movement_history": []
+      },
+      "inventory_state": {
+        "held_items": [
+          "sealed_dispatch"
+        ],
+        "exchanged_items": [],
+        "publicly_revealed_items": []
+      },
+      "information_state": {
+        "facts": [
+          "belief-广陵王-1",
+          "belief-广陵王-background-1",
+          "belief-广陵王-background-2",
+          "belief-广陵王-public-1",
+          "belief-广陵王-public-2",
+          "belief-广陵王-public-3",
+          "belief-广陵王-public-4",
+          "belief-广陵王-public-5",
+          "belief-广陵王-public-6",
+          "belief-广陵王-secret-guangling-itinerary"
+        ],
+        "testimonies": [],
+        "hypotheses": [],
+        "contradictions": [],
+        "unanswered_questions": []
+      },
+      "case_model": {
+        "victim": "陆成",
+        "suspected_cause_of_death": null,
+        "estimated_time_of_death": null,
+        "body_discovery_time": null,
+        "primary_crime_scene": null,
+        "possible_weapons": [],
+        "possible_methods": [],
+        "suspect_profiles": {},
+        "timeline": {},
+        "current_best_explanation": null
+      },
+      "social_model": {
+        "characters": {}
+      },
+      "strategy_state": {
+        "current_goal": "判断鸢报真假",
+        "next_action": null,
+        "reason": "情景开始",
+        "risk": null,
+        "expected_information_gain": null
+      },
+      "personal_tasks": [
+        {
+          "question": "判断鸢报真假",
+          "known_information": [],
+          "missing_information": [],
+          "related_characters": [],
+          "related_items": [],
+          "related_areas": [],
+          "current_hypothesis": null,
+          "next_action": null,
+          "confidence": 0
+        },
+        {
+          "question": "保护同行者",
+          "known_information": [],
+          "missing_information": [],
+          "related_characters": [],
+          "related_items": [],
+          "related_areas": [],
+          "current_hypothesis": null,
+          "next_action": null,
+          "confidence": 0
+        },
+        {
+          "question": "在天明前找出安全屋是否已经暴露",
+          "known_information": [],
+          "missing_information": [],
+          "related_characters": [],
+          "related_items": [],
+          "related_areas": [],
+          "current_hypothesis": null,
+          "next_action": null,
+          "confidence": 0
+        }
+      ],
+      "public_story": {
+        "claimed_timeline": [],
+        "claimed_locations": [],
+        "claimed_contacts": [],
+        "admitted_items": [],
+        "admitted_secrets": [],
+        "denied_actions": [],
+        "witnesses_of_each_statement": []
+      }
+    },
+    "傅融": {
+      "agent_id": "傅融",
+      "display_name": "傅融",
+      "location_id": "study",
+      "life_state": "alive",
+      "conditions": [],
+      "inventory": [
+        "account_fragment"
+      ],
+      "beliefs": [
+        {
+          "belief_id": "belief-傅融-1",
+          "claim": "三笔异常军饷由自己秘密调拨，用于转移城东安全屋人员。",
+          "source": "亲手经办",
+          "confidence": 1.0,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": "truth-ledger",
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored_memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-傅融-2",
+          "claim": "账簿中缺失的一页足以让旁人误以为自己侵吞军饷。",
+          "source": "账目核对",
+          "confidence": 0.95,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored_memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-傅融-background-1",
+          "claim": "陆成倒下前的信囊比寻常急报袋轻，里面原本装着的厚纸或名册很可能已经被人取走。",
+          "source": "往事回忆",
+          "confidence": 0.9,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 4,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-傅融-background-2",
+          "claim": "客栈账房使用的深青装订线与你的外袍颜色相近，任何同色丝线证据都必须进一步核对来源。",
+          "source": "往事回忆",
+          "confidence": 0.9,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 4,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-傅融-public-1",
+          "claim": "暴雨冲毁了通往广陵的驿道，天明前无人能够安全离开。",
+          "source": "public-fact-1",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-傅融-public-2",
+          "claim": "陌生死者携带一枚做工粗糙的绣衣楼腰牌。",
+          "source": "public-fact-2",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-傅融-public-3",
+          "claim": "死者临终前说出了“鸢报有假”四个字。",
+          "source": "public-fact-3",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-傅融-public-4",
+          "claim": "客栈正门已经落闩，后院马匹仍在马厩中。",
+          "source": "public-fact-4",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-傅融-public-5",
+          "claim": "凶手就在六名住客之中，并会隐藏作案信息、误导他人或秘密下毒。",
+          "source": "public-fact-5",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-傅融-public-6",
+          "claim": "游戏期间无人离开客栈；天明前每名仍能表达意见的人都要独立投票指认凶手。",
+          "source": "public-fact-6",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-傅融-secret-fu-safehouse-funds",
+          "claim": "傅融私自改动三笔军饷去向，将钱用于转移城东安全屋人员；目的并非贪墨，但手续足以让他获罪。",
+          "source": "个人秘密",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": "secret:secret-fu-safehouse-funds",
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "private_secret",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-傅融-innocent-context",
+          "claim": "异常军饷确实由你调拨，但全部用于转移城东安全屋人员；你必须在不暴露地址的前提下解释账目。",
+          "source": "个人经历",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "personal_experience",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-傅融-timeline-arrival-guangling-furong",
+          "claim": "巳正，广陵王与傅融冒雨一同抵达停云客栈；傅融登记两间客房并接过行程账册，广陵王当着他的面吩咐掌柜：任何急递先送到大堂。",
+          "source": "timeline:arrival-guangling-furong",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-傅融-timeline-six-person-supper",
+          "claim": "酉初，六人在大堂同桌用过晚饭；左慈没有碰酒，傅融中途翻看过账册，孙策提到驿道封死，袁基询问过驿卒何时换班，刘辩用玩笑岔开了宫中旧闻。",
+          "source": "timeline:six-person-supper",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-傅融-timeline-six-person-dispersal",
+          "claim": "酉初三刻，晚饭散席：广陵王留在大堂等急递，傅融去掌柜账房核账，刘辩回东字客房，孙策去马厩，左慈回后厨，袁基回西字客房。",
+          "source": "timeline:six-person-dispersal",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-傅融-timeline-courier-arrival-signal",
+          "claim": "酉正，正门传来驿卒通用的三短一长叩门声；六人都听见掌柜开门，并听见来客自称西驿送信人陆成。",
+          "source": "timeline:courier-arrival-signal",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-傅融-timeline-courier-furong-contact",
+          "claim": "酉正四刻，陆成在掌柜账房门口向傅融核对城东旧账的页码；傅融替他扶正被雨水压皱的衣领，看见信囊比寻常急报袋轻，随后指引他返回大堂。",
+          "source": "timeline:courier-furong-contact",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-傅融-timeline-characters-at-start-positions",
+          "claim": "亥初后，客栈重新安静下来：广陵王仍在大堂读鸢报，傅融留在账房，刘辩在东字客房，孙策在马厩，左慈在后厨，袁基在西字客房。",
+          "source": "timeline:characters-at-start-positions",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-傅融-timeline-courier-collapse",
+          "claim": "亥正，大堂传来瓷碗碎裂和广陵王的呼喊；众人先后得知陆成倒在炭盆旁，临终只攥住广陵王的衣角说出“鸢报有假”。",
+          "source": "timeline:courier-collapse",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        }
+      ],
+      "public_role": "绣衣楼副官，负责此次行程账目。",
+      "resources": {},
+      "strategic_plan": {
+        "objective": "追回缺失账页",
+        "horizon_rounds": 3,
+        "steps": [
+          "追回缺失账页",
+          "避免安全屋位置泄露",
+          "确认死者腰牌来源"
+        ],
+        "contingencies": [],
+        "suspects": [],
+        "public_posture": "先观察，再根据可靠记忆调整行动。",
+        "revision_reason": "情景开始时形成的初步计划。",
+        "updated_round": 0,
+        "source": "scenario"
+      },
+      "plan_history": [],
+      "score": 0,
+      "score_breakdown": [],
+      "discovered_secret_ids": [],
+      "state_schema_version": 2,
+      "identity_state": {
+        "character_name": "傅融",
+        "faction": "",
+        "is_killer": false,
+        "known_role_information": [
+          {
+            "claim": "三笔异常军饷由自己秘密调拨，用于转移城东安全屋人员。",
+            "source": "亲手经办",
+            "confidence": 1.0,
+            "truth_id": "truth-ledger"
+          },
+          {
+            "claim": "账簿中缺失的一页足以让旁人误以为自己侵吞军饷。",
+            "source": "账目核对",
+            "confidence": 0.95
+          }
+        ],
+        "personal_secrets": [
+          "secret-fu-safehouse-funds"
+        ]
+      },
+      "location_state": {
+        "current_area": "study",
+        "previous_area": null,
+        "movement_history": []
+      },
+      "inventory_state": {
+        "held_items": [
+          "account_fragment"
+        ],
+        "exchanged_items": [],
+        "publicly_revealed_items": []
+      },
+      "information_state": {
+        "facts": [
+          "belief-傅融-1",
+          "belief-傅融-2",
+          "belief-傅融-background-1",
+          "belief-傅融-background-2",
+          "belief-傅融-public-1",
+          "belief-傅融-public-2",
+          "belief-傅融-public-3",
+          "belief-傅融-public-4",
+          "belief-傅融-public-5",
+          "belief-傅融-public-6",
+          "belief-傅融-secret-fu-safehouse-funds",
+          "belief-傅融-innocent-context"
+        ],
+        "testimonies": [],
+        "hypotheses": [],
+        "contradictions": [],
+        "unanswered_questions": []
+      },
+      "case_model": {
+        "victim": "陆成",
+        "suspected_cause_of_death": null,
+        "estimated_time_of_death": null,
+        "body_discovery_time": null,
+        "primary_crime_scene": null,
+        "possible_weapons": [],
+        "possible_methods": [],
+        "suspect_profiles": {},
+        "timeline": {},
+        "current_best_explanation": null
+      },
+      "social_model": {
+        "characters": {}
+      },
+      "strategy_state": {
+        "current_goal": "追回缺失账页",
+        "next_action": null,
+        "reason": "情景开始",
+        "risk": null,
+        "expected_information_gain": null
+      },
+      "personal_tasks": [
+        {
+          "question": "追回缺失账页",
+          "known_information": [],
+          "missing_information": [],
+          "related_characters": [],
+          "related_items": [],
+          "related_areas": [],
+          "current_hypothesis": null,
+          "next_action": null,
+          "confidence": 0
+        },
+        {
+          "question": "避免安全屋位置泄露",
+          "known_information": [],
+          "missing_information": [],
+          "related_characters": [],
+          "related_items": [],
+          "related_areas": [],
+          "current_hypothesis": null,
+          "next_action": null,
+          "confidence": 0
+        },
+        {
+          "question": "确认死者腰牌来源",
+          "known_information": [],
+          "missing_information": [],
+          "related_characters": [],
+          "related_items": [],
+          "related_areas": [],
+          "current_hypothesis": null,
+          "next_action": null,
+          "confidence": 0
+        }
+      ],
+      "public_story": {
+        "claimed_timeline": [],
+        "claimed_locations": [],
+        "claimed_contacts": [],
+        "admitted_items": [],
+        "admitted_secrets": [],
+        "denied_actions": [],
+        "witnesses_of_each_statement": []
+      }
+    },
+    "刘辩": {
+      "agent_id": "刘辩",
+      "display_name": "刘辩",
+      "location_id": "room_east",
+      "life_state": "alive",
+      "conditions": [],
+      "inventory": [
+        "palace_token"
+      ],
+      "beliefs": [
+        {
+          "belief_id": "belief-刘辩-1",
+          "claim": "死者袖口的针脚是宫中旧制，但至少两年前已经停用。",
+          "source": "幼时宫中记忆",
+          "confidence": 0.85,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored_memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 4,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-刘辩-2",
+          "claim": "“雁归北阙”是宫中传递紧急口信的旧暗语。",
+          "source": "宫中经历",
+          "confidence": 1.0,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored_memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-刘辩-background-1",
+          "claim": "死者袖口针脚虽像宫制，收针方向却错了一边，制作者只见过样本而未真正受过宫中训练。",
+          "source": "往事回忆",
+          "confidence": 0.9,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 4,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-刘辩-background-2",
+          "claim": "太一宫旧符牌一旦被熟悉宫制的人看见，足以证明你并非普通贵公子。",
+          "source": "往事回忆",
+          "confidence": 0.9,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 4,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-刘辩-public-1",
+          "claim": "暴雨冲毁了通往广陵的驿道，天明前无人能够安全离开。",
+          "source": "public-fact-1",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-刘辩-public-2",
+          "claim": "陌生死者携带一枚做工粗糙的绣衣楼腰牌。",
+          "source": "public-fact-2",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-刘辩-public-3",
+          "claim": "死者临终前说出了“鸢报有假”四个字。",
+          "source": "public-fact-3",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-刘辩-public-4",
+          "claim": "客栈正门已经落闩，后院马匹仍在马厩中。",
+          "source": "public-fact-4",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-刘辩-public-5",
+          "claim": "凶手就在六名住客之中，并会隐藏作案信息、误导他人或秘密下毒。",
+          "source": "public-fact-5",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-刘辩-public-6",
+          "claim": "游戏期间无人离开客栈；天明前每名仍能表达意见的人都要独立投票指认凶手。",
+          "source": "public-fact-6",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-刘辩-secret-liubian-identity",
+          "claim": "刘辩并非普通贵公子，他熟悉宫中暗语与旧制，随身旧符足以暴露真实身份。",
+          "source": "个人秘密",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": "secret:secret-liubian-identity",
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "private_secret",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-刘辩-timeline-arrival-liubian",
+          "claim": "午初，刘辩以刘姓贵公子的身份来到客栈；广陵王亲自迎他入门，两人约定在人前只谈旅途，不提宫中旧事。",
+          "source": "timeline:arrival-liubian",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-刘辩-timeline-liubian-zuoci-tea",
+          "claim": "申初，刘辩到后厨找热水，左慈当着他的面从普通茶罐取茶、另用清水烫杯；两人共同确认当时后厨没有陌生人进出。",
+          "source": "timeline:liubian-zuoci-tea",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-刘辩-timeline-six-person-supper",
+          "claim": "酉初，六人在大堂同桌用过晚饭；左慈没有碰酒，傅融中途翻看过账册，孙策提到驿道封死，袁基询问过驿卒何时换班，刘辩用玩笑岔开了宫中旧闻。",
+          "source": "timeline:six-person-supper",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-刘辩-timeline-six-person-dispersal",
+          "claim": "酉初三刻，晚饭散席：广陵王留在大堂等急递，傅融去掌柜账房核账，刘辩回东字客房，孙策去马厩，左慈回后厨，袁基回西字客房。",
+          "source": "timeline:six-person-dispersal",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-刘辩-timeline-courier-arrival-signal",
+          "claim": "酉正，正门传来驿卒通用的三短一长叩门声；六人都听见掌柜开门，并听见来客自称西驿送信人陆成。",
+          "source": "timeline:courier-arrival-signal",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-刘辩-timeline-courier-passes-liubian",
+          "claim": "酉正二刻，刘辩在东字客房门口看见陆成走上二层；陆成袖口用了过时的宫制针脚，收针方向却与真正宫制相反。",
+          "source": "timeline:courier-passes-liubian",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-刘辩-timeline-characters-at-start-positions",
+          "claim": "亥初后，客栈重新安静下来：广陵王仍在大堂读鸢报，傅融留在账房，刘辩在东字客房，孙策在马厩，左慈在后厨，袁基在西字客房。",
+          "source": "timeline:characters-at-start-positions",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-刘辩-timeline-courier-collapse",
+          "claim": "亥正，大堂传来瓷碗碎裂和广陵王的呼喊；众人先后得知陆成倒在炭盆旁，临终只攥住广陵王的衣角说出“鸢报有假”。",
+          "source": "timeline:courier-collapse",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        }
+      ],
+      "public_role": "微服出行的刘姓贵公子。",
+      "resources": {},
+      "strategic_plan": {
+        "objective": "查清死者暗语来源",
+        "horizon_rounds": 3,
+        "steps": [
+          "查清死者暗语来源",
+          "不暴露天子身份",
+          "避免宫中势力借机伤害广陵王"
+        ],
+        "contingencies": [],
+        "suspects": [],
+        "public_posture": "先观察，再根据可靠记忆调整行动。",
+        "revision_reason": "情景开始时形成的初步计划。",
+        "updated_round": 0,
+        "source": "scenario"
+      },
+      "plan_history": [],
+      "score": 0,
+      "score_breakdown": [],
+      "discovered_secret_ids": [],
+      "state_schema_version": 2,
+      "identity_state": {
+        "character_name": "刘辩",
+        "faction": "",
+        "is_killer": false,
+        "known_role_information": [
+          {
+            "claim": "死者袖口的针脚是宫中旧制，但至少两年前已经停用。",
+            "source": "幼时宫中记忆",
+            "confidence": 0.85
+          },
+          {
+            "claim": "“雁归北阙”是宫中传递紧急口信的旧暗语。",
+            "source": "宫中经历",
+            "confidence": 1.0
+          }
+        ],
+        "personal_secrets": [
+          "secret-liubian-identity"
+        ]
+      },
+      "location_state": {
+        "current_area": "room_east",
+        "previous_area": null,
+        "movement_history": []
+      },
+      "inventory_state": {
+        "held_items": [
+          "palace_token"
+        ],
+        "exchanged_items": [],
+        "publicly_revealed_items": []
+      },
+      "information_state": {
+        "facts": [
+          "belief-刘辩-1",
+          "belief-刘辩-2",
+          "belief-刘辩-background-1",
+          "belief-刘辩-background-2",
+          "belief-刘辩-public-1",
+          "belief-刘辩-public-2",
+          "belief-刘辩-public-3",
+          "belief-刘辩-public-4",
+          "belief-刘辩-public-5",
+          "belief-刘辩-public-6",
+          "belief-刘辩-secret-liubian-identity"
+        ],
+        "testimonies": [],
+        "hypotheses": [],
+        "contradictions": [],
+        "unanswered_questions": []
+      },
+      "case_model": {
+        "victim": "陆成",
+        "suspected_cause_of_death": null,
+        "estimated_time_of_death": null,
+        "body_discovery_time": null,
+        "primary_crime_scene": null,
+        "possible_weapons": [],
+        "possible_methods": [],
+        "suspect_profiles": {},
+        "timeline": {},
+        "current_best_explanation": null
+      },
+      "social_model": {
+        "characters": {}
+      },
+      "strategy_state": {
+        "current_goal": "查清死者暗语来源",
+        "next_action": null,
+        "reason": "情景开始",
+        "risk": null,
+        "expected_information_gain": null
+      },
+      "personal_tasks": [
+        {
+          "question": "查清死者暗语来源",
+          "known_information": [],
+          "missing_information": [],
+          "related_characters": [],
+          "related_items": [],
+          "related_areas": [],
+          "current_hypothesis": null,
+          "next_action": null,
+          "confidence": 0
+        },
+        {
+          "question": "不暴露天子身份",
+          "known_information": [],
+          "missing_information": [],
+          "related_characters": [],
+          "related_items": [],
+          "related_areas": [],
+          "current_hypothesis": null,
+          "next_action": null,
+          "confidence": 0
+        },
+        {
+          "question": "避免宫中势力借机伤害广陵王",
+          "known_information": [],
+          "missing_information": [],
+          "related_characters": [],
+          "related_items": [],
+          "related_areas": [],
+          "current_hypothesis": null,
+          "next_action": null,
+          "confidence": 0
+        }
+      ],
+      "public_story": {
+        "claimed_timeline": [],
+        "claimed_locations": [],
+        "claimed_contacts": [],
+        "admitted_items": [],
+        "admitted_secrets": [],
+        "denied_actions": [],
+        "witnesses_of_each_statement": []
+      }
+    },
+    "孙策": {
+      "agent_id": "孙策",
+      "display_name": "孙策",
+      "location_id": "stable",
+      "life_state": "alive",
+      "conditions": [],
+      "inventory": [
+        "broken_arrow",
+        "jiangdong_forged_order",
+        "poison_needle"
+      ],
+      "beliefs": [
+        {
+          "belief_id": "belief-孙策-1",
+          "claim": "昨夜曾独自到马厩查看坐骑，并看见一个披蓑衣的人翻过后墙。",
+          "source": "亲眼所见",
+          "confidence": 0.9,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored_memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 4,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-2",
+          "claim": "自己捡到的断箭使用江东箭羽，但箭杆并非江东军制。",
+          "source": "军旅经验",
+          "confidence": 0.95,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored_memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-background-1",
+          "claim": "昨夜翻墙者落地时没有惊动马匹，说明对方熟悉牲口，或提前在身上用了安抚马匹的草药。",
+          "source": "往事回忆",
+          "confidence": 0.9,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 4,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-background-2",
+          "claim": "断箭尾羽的绑法故意模仿江东军，却多绕了一圈，这是外行根据成品仿制时常见的错误。",
+          "source": "往事回忆",
+          "confidence": 0.9,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 4,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-public-1",
+          "claim": "暴雨冲毁了通往广陵的驿道，天明前无人能够安全离开。",
+          "source": "public-fact-1",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-public-2",
+          "claim": "陌生死者携带一枚做工粗糙的绣衣楼腰牌。",
+          "source": "public-fact-2",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-public-3",
+          "claim": "死者临终前说出了“鸢报有假”四个字。",
+          "source": "public-fact-3",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-public-4",
+          "claim": "客栈正门已经落闩，后院马匹仍在马厩中。",
+          "source": "public-fact-4",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-public-5",
+          "claim": "凶手就在六名住客之中，并会隐藏作案信息、误导他人或秘密下毒。",
+          "source": "public-fact-5",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-public-6",
+          "claim": "游戏期间无人离开客栈；天明前每名仍能表达意见的人都要独立投票指认凶手。",
+          "source": "public-fact-6",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-secret-sunce-stable",
+          "claim": "孙策昨夜没有告知任何人便去马厩检查坐骑，还看见披蓑衣的人翻墙；这段行踪让他很难证明自己与凶案无关。",
+          "source": "个人秘密",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": "secret:secret-sunce-stable",
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "private_secret",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-killer-role",
+          "claim": "你就是杀死陆成的凶手。其他五人不知道你的身份；你的唯一核心目标是避免在终局投票中被多数人正确指认。",
+          "source": "凶手记忆",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": "truth-killer",
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "private_killer_memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-killer-motive",
+          "claim": "陆成掌握一份足以引发广陵与江东误战的伪令。你判断公开它会害死更多士卒，于是选择灭口并独自追查幕后人。",
+          "source": "凶手记忆",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": "truth-killer",
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "private_killer_memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-killer-method",
+          "claim": "你以检查死者肩伤为掩护，用缴获的淬毒细针刺伤他，并取走了伪令正文。",
+          "source": "凶手记忆",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": "truth-killer",
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "private_killer_memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-killer-case-1",
+          "claim": "你取走的伪令正文能调动一支冒充江东军的队伍，现在被你折在护腕夹层中。",
+          "source": "凶手记忆",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": "truth-killer",
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "private_killer_memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-killer-case-2",
+          "claim": "你行凶后赶去马厩制造自己一直在照看坐骑的印象，途中马刺扣磕在石阶上缺了一角。",
+          "source": "凶手记忆",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": "truth-killer",
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "private_killer_memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-timeline-arrival-sunce",
+          "claim": "前一日酉初，孙策带着一匹青骢马投宿停云客栈，将马安置在马厩后住进北字客房。",
+          "source": "timeline:arrival-sunce",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-timeline-sunce-night-stable",
+          "claim": "前一日子初，孙策独自去马厩检查坐骑，看见披蓑衣的人翻过后墙；他在墙根捡到一支绑法刻意模仿江东军的断箭，没有惊动其他住客。",
+          "source": "timeline:sunce-night-stable",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-timeline-sunce-yuanji-road",
+          "claim": "申正，孙策从后院查看驿道回来，在袁基面前抖落蓑衣上的泥水；两人共同确认西驿道已经不能通车，但马厩后墙仍可能供一人翻越。",
+          "source": "timeline:sunce-yuanji-road",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-timeline-six-person-supper",
+          "claim": "酉初，六人在大堂同桌用过晚饭；左慈没有碰酒，傅融中途翻看过账册，孙策提到驿道封死，袁基询问过驿卒何时换班，刘辩用玩笑岔开了宫中旧闻。",
+          "source": "timeline:six-person-supper",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-timeline-six-person-dispersal",
+          "claim": "酉初三刻，晚饭散席：广陵王留在大堂等急递，傅融去掌柜账房核账，刘辩回东字客房，孙策去马厩，左慈回后厨，袁基回西字客房。",
+          "source": "timeline:six-person-dispersal",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-timeline-courier-arrival-signal",
+          "claim": "酉正，正门传来驿卒通用的三短一长叩门声；六人都听见掌柜开门，并听见来客自称西驿送信人陆成。",
+          "source": "timeline:courier-arrival-signal",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-timeline-courier-sunce-contact",
+          "claim": "酉末，孙策从马厩返回二层时遇见陆成；陆成谎称肩伤复发，孙策隔着湿衣检查他的肩背，没有发现刀伤，随后看着他走下木梯。",
+          "source": "timeline:courier-sunce-contact",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-timeline-crime-sunce",
+          "claim": "只有你知道：替陆成检查肩背时，你用缴获的淬毒细针刺入他的颈后，取走伪令正文折入护腕；事后赶去马厩制造自己一直照看坐骑的印象，马刺扣在石阶上磕掉一角。",
+          "source": "timeline:crime-sunce",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": "truth-killer",
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-timeline-characters-at-start-positions",
+          "claim": "亥初后，客栈重新安静下来：广陵王仍在大堂读鸢报，傅融留在账房，刘辩在东字客房，孙策在马厩，左慈在后厨，袁基在西字客房。",
+          "source": "timeline:characters-at-start-positions",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-孙策-timeline-courier-collapse",
+          "claim": "亥正，大堂传来瓷碗碎裂和广陵王的呼喊；众人先后得知陆成倒在炭盆旁，临终只攥住广陵王的衣角说出“鸢报有假”。",
+          "source": "timeline:courier-collapse",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        }
+      ],
+      "public_role": "来自江东、暂住广陵的年轻将领。",
+      "resources": {},
+      "strategic_plan": {
+        "objective": "确认是否有人借机调动江东军力",
+        "horizon_rounds": 3,
+        "steps": [
+          "确认是否有人借机调动江东军力",
+          "保护广陵王",
+          "找出昨夜从马厩逃走的人"
+        ],
+        "contingencies": [],
+        "suspects": [],
+        "public_posture": "先观察，再根据可靠记忆调整行动。",
+        "revision_reason": "情景开始时形成的初步计划。",
+        "updated_round": 0,
+        "source": "scenario"
+      },
+      "plan_history": [],
+      "score": 0,
+      "score_breakdown": [],
+      "discovered_secret_ids": [],
+      "state_schema_version": 2,
+      "identity_state": {
+        "character_name": "孙策",
+        "faction": "",
+        "is_killer": true,
+        "known_role_information": [
+          {
+            "claim": "昨夜曾独自到马厩查看坐骑，并看见一个披蓑衣的人翻过后墙。",
+            "source": "亲眼所见",
+            "confidence": 0.9
+          },
+          {
+            "claim": "自己捡到的断箭使用江东箭羽，但箭杆并非江东军制。",
+            "source": "军旅经验",
+            "confidence": 0.95
+          }
+        ],
+        "personal_secrets": [
+          "secret-sunce-stable"
+        ]
+      },
+      "location_state": {
+        "current_area": "stable",
+        "previous_area": null,
+        "movement_history": []
+      },
+      "inventory_state": {
+        "held_items": [
+          "broken_arrow",
+          "jiangdong_forged_order",
+          "poison_needle"
+        ],
+        "exchanged_items": [],
+        "publicly_revealed_items": []
+      },
+      "information_state": {
+        "facts": [
+          "belief-孙策-1",
+          "belief-孙策-2",
+          "belief-孙策-background-1",
+          "belief-孙策-background-2",
+          "belief-孙策-public-1",
+          "belief-孙策-public-2",
+          "belief-孙策-public-3",
+          "belief-孙策-public-4",
+          "belief-孙策-public-5",
+          "belief-孙策-public-6",
+          "belief-孙策-secret-sunce-stable",
+          "belief-孙策-killer-role",
+          "belief-孙策-killer-motive",
+          "belief-孙策-killer-method",
+          "belief-孙策-killer-case-1",
+          "belief-孙策-killer-case-2"
+        ],
+        "testimonies": [],
+        "hypotheses": [],
+        "contradictions": [],
+        "unanswered_questions": []
+      },
+      "case_model": {
+        "victim": "陆成",
+        "suspected_cause_of_death": null,
+        "estimated_time_of_death": null,
+        "body_discovery_time": null,
+        "primary_crime_scene": null,
+        "possible_weapons": [],
+        "possible_methods": [],
+        "suspect_profiles": {},
+        "timeline": {},
+        "current_best_explanation": null
+      },
+      "social_model": {
+        "characters": {}
+      },
+      "strategy_state": {
+        "current_goal": "确认是否有人借机调动江东军力",
+        "next_action": null,
+        "reason": "情景开始",
+        "risk": null,
+        "expected_information_gain": null
+      },
+      "personal_tasks": [
+        {
+          "question": "确认是否有人借机调动江东军力",
+          "known_information": [],
+          "missing_information": [],
+          "related_characters": [],
+          "related_items": [],
+          "related_areas": [],
+          "current_hypothesis": null,
+          "next_action": null,
+          "confidence": 0
+        },
+        {
+          "question": "保护广陵王",
+          "known_information": [],
+          "missing_information": [],
+          "related_characters": [],
+          "related_items": [],
+          "related_areas": [],
+          "current_hypothesis": null,
+          "next_action": null,
+          "confidence": 0
+        },
+        {
+          "question": "找出昨夜从马厩逃走的人",
+          "known_information": [],
+          "missing_information": [],
+          "related_characters": [],
+          "related_items": [],
+          "related_areas": [],
+          "current_hypothesis": null,
+          "next_action": null,
+          "confidence": 0
+        }
+      ],
+      "public_story": {
+        "claimed_timeline": [],
+        "claimed_locations": [],
+        "claimed_contacts": [],
+        "admitted_items": [],
+        "admitted_secrets": [],
+        "denied_actions": [],
+        "witnesses_of_each_statement": []
+      }
+    },
+    "左慈": {
+      "agent_id": "左慈",
+      "display_name": "左慈",
+      "location_id": "kitchen",
+      "life_state": "alive",
+      "conditions": [],
+      "inventory": [
+        "antidote_case"
+      ],
+      "beliefs": [
+        {
+          "belief_id": "belief-左慈-1",
+          "claim": "死者瞳色和指甲变化符合一种数个时辰后发作的针毒。",
+          "source": "验看尸体",
+          "confidence": 0.9,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": "truth-poison",
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored_memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 4,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-左慈-2",
+          "claim": "此毒并非饮食下毒，客栈后厨很可能只是被用来转移视线。",
+          "source": "医理判断",
+          "confidence": 0.85,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": "truth-poison",
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored_memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 4,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-左慈-background-1",
+          "claim": "迟发针毒需要油蜡封住针尖才能安全携带，凶针经过之处可能留下极细的蓝黑油点。",
+          "source": "往事回忆",
+          "confidence": 0.9,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 4,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-左慈-background-2",
+          "claim": "你的药匣夹层藏有少量同类毒样，分量不足以杀死陆成，但被发现后很难立刻证明用途。",
+          "source": "往事回忆",
+          "confidence": 0.9,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 4,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-左慈-public-1",
+          "claim": "暴雨冲毁了通往广陵的驿道，天明前无人能够安全离开。",
+          "source": "public-fact-1",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-左慈-public-2",
+          "claim": "陌生死者携带一枚做工粗糙的绣衣楼腰牌。",
+          "source": "public-fact-2",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-左慈-public-3",
+          "claim": "死者临终前说出了“鸢报有假”四个字。",
+          "source": "public-fact-3",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-左慈-public-4",
+          "claim": "客栈正门已经落闩，后院马匹仍在马厩中。",
+          "source": "public-fact-4",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-左慈-public-5",
+          "claim": "凶手就在六名住客之中，并会隐藏作案信息、误导他人或秘密下毒。",
+          "source": "public-fact-5",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-左慈-public-6",
+          "claim": "游戏期间无人离开客栈；天明前每名仍能表达意见的人都要独立投票指认凶手。",
+          "source": "public-fact-6",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-左慈-secret-zuoci-toxin",
+          "claim": "左慈的药匣夹层存有少量迟发针毒样本，原本用于研制解药；若被发现，他会成为极有说服力的错误嫌疑人。",
+          "source": "个人秘密",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": "secret:secret-zuoci-toxin",
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "private_secret",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-左慈-timeline-arrival-zuoci",
+          "claim": "未正，左慈背着药匣进店避雨，向掌柜说明药匣里有易碎药瓶，之后借用后厨整理药材。",
+          "source": "timeline:arrival-zuoci",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-左慈-timeline-liubian-zuoci-tea",
+          "claim": "申初，刘辩到后厨找热水，左慈当着他的面从普通茶罐取茶、另用清水烫杯；两人共同确认当时后厨没有陌生人进出。",
+          "source": "timeline:liubian-zuoci-tea",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-左慈-timeline-six-person-supper",
+          "claim": "酉初，六人在大堂同桌用过晚饭；左慈没有碰酒，傅融中途翻看过账册，孙策提到驿道封死，袁基询问过驿卒何时换班，刘辩用玩笑岔开了宫中旧闻。",
+          "source": "timeline:six-person-supper",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-左慈-timeline-six-person-dispersal",
+          "claim": "酉初三刻，晚饭散席：广陵王留在大堂等急递，傅融去掌柜账房核账，刘辩回东字客房，孙策去马厩，左慈回后厨，袁基回西字客房。",
+          "source": "timeline:six-person-dispersal",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-左慈-timeline-courier-arrival-signal",
+          "claim": "酉正，正门传来驿卒通用的三短一长叩门声；六人都听见掌柜开门，并听见来客自称西驿送信人陆成。",
+          "source": "timeline:courier-arrival-signal",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-左慈-timeline-courier-asks-water",
+          "claim": "戌初，陆成到后厨向左慈讨了一碗清水；左慈注意到他的指甲边缘已经泛青，但陆成拒绝诊脉，只说旧伤遇雨。",
+          "source": "timeline:courier-asks-water",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-左慈-timeline-characters-at-start-positions",
+          "claim": "亥初后，客栈重新安静下来：广陵王仍在大堂读鸢报，傅融留在账房，刘辩在东字客房，孙策在马厩，左慈在后厨，袁基在西字客房。",
+          "source": "timeline:characters-at-start-positions",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-左慈-timeline-courier-collapse",
+          "claim": "亥正，大堂传来瓷碗碎裂和广陵王的呼喊；众人先后得知陆成倒在炭盆旁，临终只攥住广陵王的衣角说出“鸢报有假”。",
+          "source": "timeline:courier-collapse",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        }
+      ],
+      "public_role": "游方道者，暂借客栈躲雨。",
+      "resources": {},
+      "strategic_plan": {
+        "objective": "辨明死者所中之毒",
+        "horizon_rounds": 3,
+        "steps": [
+          "辨明死者所中之毒",
+          "阻止第二次下毒",
+          "观察谁在刻意制造错误因果"
+        ],
+        "contingencies": [],
+        "suspects": [],
+        "public_posture": "先观察，再根据可靠记忆调整行动。",
+        "revision_reason": "情景开始时形成的初步计划。",
+        "updated_round": 0,
+        "source": "scenario"
+      },
+      "plan_history": [],
+      "score": 0,
+      "score_breakdown": [],
+      "discovered_secret_ids": [],
+      "state_schema_version": 2,
+      "identity_state": {
+        "character_name": "左慈",
+        "faction": "",
+        "is_killer": false,
+        "known_role_information": [
+          {
+            "claim": "死者瞳色和指甲变化符合一种数个时辰后发作的针毒。",
+            "source": "验看尸体",
+            "confidence": 0.9,
+            "truth_id": "truth-poison"
+          },
+          {
+            "claim": "此毒并非饮食下毒，客栈后厨很可能只是被用来转移视线。",
+            "source": "医理判断",
+            "confidence": 0.85,
+            "truth_id": "truth-poison"
+          }
+        ],
+        "personal_secrets": [
+          "secret-zuoci-toxin"
+        ]
+      },
+      "location_state": {
+        "current_area": "kitchen",
+        "previous_area": null,
+        "movement_history": []
+      },
+      "inventory_state": {
+        "held_items": [
+          "antidote_case"
+        ],
+        "exchanged_items": [],
+        "publicly_revealed_items": []
+      },
+      "information_state": {
+        "facts": [
+          "belief-左慈-1",
+          "belief-左慈-2",
+          "belief-左慈-background-1",
+          "belief-左慈-background-2",
+          "belief-左慈-public-1",
+          "belief-左慈-public-2",
+          "belief-左慈-public-3",
+          "belief-左慈-public-4",
+          "belief-左慈-public-5",
+          "belief-左慈-public-6",
+          "belief-左慈-secret-zuoci-toxin"
+        ],
+        "testimonies": [],
+        "hypotheses": [],
+        "contradictions": [],
+        "unanswered_questions": []
+      },
+      "case_model": {
+        "victim": "陆成",
+        "suspected_cause_of_death": null,
+        "estimated_time_of_death": null,
+        "body_discovery_time": null,
+        "primary_crime_scene": null,
+        "possible_weapons": [],
+        "possible_methods": [],
+        "suspect_profiles": {},
+        "timeline": {},
+        "current_best_explanation": null
+      },
+      "social_model": {
+        "characters": {}
+      },
+      "strategy_state": {
+        "current_goal": "辨明死者所中之毒",
+        "next_action": null,
+        "reason": "情景开始",
+        "risk": null,
+        "expected_information_gain": null
+      },
+      "personal_tasks": [
+        {
+          "question": "辨明死者所中之毒",
+          "known_information": [],
+          "missing_information": [],
+          "related_characters": [],
+          "related_items": [],
+          "related_areas": [],
+          "current_hypothesis": null,
+          "next_action": null,
+          "confidence": 0
+        },
+        {
+          "question": "阻止第二次下毒",
+          "known_information": [],
+          "missing_information": [],
+          "related_characters": [],
+          "related_items": [],
+          "related_areas": [],
+          "current_hypothesis": null,
+          "next_action": null,
+          "confidence": 0
+        },
+        {
+          "question": "观察谁在刻意制造错误因果",
+          "known_information": [],
+          "missing_information": [],
+          "related_characters": [],
+          "related_items": [],
+          "related_areas": [],
+          "current_hypothesis": null,
+          "next_action": null,
+          "confidence": 0
+        }
+      ],
+      "public_story": {
+        "claimed_timeline": [],
+        "claimed_locations": [],
+        "claimed_contacts": [],
+        "admitted_items": [],
+        "admitted_secrets": [],
+        "denied_actions": [],
+        "witnesses_of_each_statement": []
+      }
+    },
+    "袁基": {
+      "agent_id": "袁基",
+      "display_name": "袁基",
+      "location_id": "room_west",
+      "life_state": "alive",
+      "conditions": [],
+      "inventory": [
+        "yuan_sealed_letter"
+      ],
+      "beliefs": [
+        {
+          "belief_id": "belief-袁基-1",
+          "claim": "三日前收到门客密信，称有人以袁氏旁支名义大量购买旧式腰牌。",
+          "source": "袁氏门客密信",
+          "confidence": 0.95,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": "truth-yuan-letter",
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored_memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-2",
+          "claim": "密信末尾的落款有一处不合家族规制，可能经过他人转抄。",
+          "source": "家族知识",
+          "confidence": 0.7,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored_memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 4,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-background-1",
+          "claim": "购买旧式腰牌的款项被拆成四笔，使用的中间人都与袁氏主家没有直接关系。",
+          "source": "往事回忆",
+          "confidence": 0.9,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 4,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-background-2",
+          "claim": "你曾绕过家族正式渠道回复涉事旁支门客，这件事若公开，会被视为私下经营旁支势力。",
+          "source": "往事回忆",
+          "confidence": 0.9,
+          "stance": "believes",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "memory",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 4,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-public-1",
+          "claim": "暴雨冲毁了通往广陵的驿道，天明前无人能够安全离开。",
+          "source": "public-fact-1",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-public-2",
+          "claim": "陌生死者携带一枚做工粗糙的绣衣楼腰牌。",
+          "source": "public-fact-2",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-public-3",
+          "claim": "死者临终前说出了“鸢报有假”四个字。",
+          "source": "public-fact-3",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-public-4",
+          "claim": "客栈正门已经落闩，后院马匹仍在马厩中。",
+          "source": "public-fact-4",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-public-5",
+          "claim": "凶手就在六名住客之中，并会隐藏作案信息、误导他人或秘密下毒。",
+          "source": "public-fact-5",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-public-6",
+          "claim": "游戏期间无人离开客栈；天明前每名仍能表达意见的人都要独立投票指认凶手。",
+          "source": "public-fact-6",
+          "confidence": 0.95,
+          "stance": "known",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "public_fact",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-secret-yuanji-contact",
+          "claim": "袁基曾绕过家族正式渠道与涉事旁支门客通信，虽然他不知道伪腰牌买主是谁，这种联络仍会损害袁氏声誉。",
+          "source": "个人秘密",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": "secret:secret-yuanji-contact",
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "private_secret",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-innocent-context",
+          "claim": "门客密信能证明有人借袁氏旁支名义购牌，却不能证明你知情；信末落款不合家规，很可能经过转抄或嫁祸。",
+          "source": "个人经历",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "personal_experience",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 5,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-timeline-arrival-yuanji",
+          "claim": "未初，袁基因西驿道积水折返客栈，登记时使用真名，随后把一封袁氏旁支来信锁进西字客房。",
+          "source": "timeline:arrival-yuanji",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-timeline-sunce-yuanji-road",
+          "claim": "申正，孙策从后院查看驿道回来，在袁基面前抖落蓑衣上的泥水；两人共同确认西驿道已经不能通车，但马厩后墙仍可能供一人翻越。",
+          "source": "timeline:sunce-yuanji-road",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-timeline-six-person-supper",
+          "claim": "酉初，六人在大堂同桌用过晚饭；左慈没有碰酒，傅融中途翻看过账册，孙策提到驿道封死，袁基询问过驿卒何时换班，刘辩用玩笑岔开了宫中旧闻。",
+          "source": "timeline:six-person-supper",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-timeline-six-person-dispersal",
+          "claim": "酉初三刻，晚饭散席：广陵王留在大堂等急递，傅融去掌柜账房核账，刘辩回东字客房，孙策去马厩，左慈回后厨，袁基回西字客房。",
+          "source": "timeline:six-person-dispersal",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-timeline-courier-arrival-signal",
+          "claim": "酉正，正门传来驿卒通用的三短一长叩门声；六人都听见掌柜开门，并听见来客自称西驿送信人陆成。",
+          "source": "timeline:courier-arrival-signal",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-timeline-courier-yuanji-contact",
+          "claim": "酉正三刻，陆成在西字客房门外向袁基询问旧式腰牌纹样；袁基替他擦去后颈雨水，看见信囊封口仍在，随后让他去找真正的收信人。",
+          "source": "timeline:courier-yuanji-contact",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-timeline-characters-at-start-positions",
+          "claim": "亥初后，客栈重新安静下来：广陵王仍在大堂读鸢报，傅融留在账房，刘辩在东字客房，孙策在马厩，左慈在后厨，袁基在西字客房。",
+          "source": "timeline:characters-at-start-positions",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        },
+        {
+          "belief_id": "belief-袁基-timeline-courier-collapse",
+          "claim": "亥正，大堂传来瓷碗碎裂和广陵王的呼喊；众人先后得知陆成倒在炭盆旁，临终只攥住广陵王的衣角说出“鸢报有假”。",
+          "source": "timeline:courier-collapse",
+          "confidence": 1.0,
+          "stance": "knows",
+          "learned_round": 0,
+          "truth_id": null,
+          "shared_with": [],
+          "information_type": "fact",
+          "source_type": "authored",
+          "speaker_id": null,
+          "learned_location": null,
+          "witnesses": [],
+          "confidence_score": 3,
+          "supporting_ids": [],
+          "opposing_ids": [],
+          "verification_questions": []
+        }
+      ],
+      "public_role": "因驿道中断而滞留的袁氏公子。",
+      "resources": {},
+      "strategic_plan": {
+        "objective": "查清谁在借袁氏名义购买假腰牌",
+        "horizon_rounds": 3,
+        "steps": [
+          "查清谁在借袁氏名义购买假腰牌",
+          "避免信件落入敌对势力",
+          "判断是否值得与广陵王交换情报"
+        ],
+        "contingencies": [],
+        "suspects": [],
+        "public_posture": "先观察，再根据可靠记忆调整行动。",
+        "revision_reason": "情景开始时形成的初步计划。",
+        "updated_round": 0,
+        "source": "scenario"
+      },
+      "plan_history": [],
+      "score": 0,
+      "score_breakdown": [],
+      "discovered_secret_ids": [],
+      "state_schema_version": 2,
+      "identity_state": {
+        "character_name": "袁基",
+        "faction": "",
+        "is_killer": false,
+        "known_role_information": [
+          {
+            "claim": "三日前收到门客密信，称有人以袁氏旁支名义大量购买旧式腰牌。",
+            "source": "袁氏门客密信",
+            "confidence": 0.95,
+            "truth_id": "truth-yuan-letter"
+          },
+          {
+            "claim": "密信末尾的落款有一处不合家族规制，可能经过他人转抄。",
+            "source": "家族知识",
+            "confidence": 0.7
+          }
+        ],
+        "personal_secrets": [
+          "secret-yuanji-contact"
+        ]
+      },
+      "location_state": {
+        "current_area": "room_west",
+        "previous_area": null,
+        "movement_history": []
+      },
+      "inventory_state": {
+        "held_items": [
+          "yuan_sealed_letter"
+        ],
+        "exchanged_items": [],
+        "publicly_revealed_items": []
+      },
+      "information_state": {
+        "facts": [
+          "belief-袁基-1",
+          "belief-袁基-2",
+          "belief-袁基-background-1",
+          "belief-袁基-background-2",
+          "belief-袁基-public-1",
+          "belief-袁基-public-2",
+          "belief-袁基-public-3",
+          "belief-袁基-public-4",
+          "belief-袁基-public-5",
+          "belief-袁基-public-6",
+          "belief-袁基-secret-yuanji-contact",
+          "belief-袁基-innocent-context"
+        ],
+        "testimonies": [],
+        "hypotheses": [],
+        "contradictions": [],
+        "unanswered_questions": []
+      },
+      "case_model": {
+        "victim": "陆成",
+        "suspected_cause_of_death": null,
+        "estimated_time_of_death": null,
+        "body_discovery_time": null,
+        "primary_crime_scene": null,
+        "possible_weapons": [],
+        "possible_methods": [],
+        "suspect_profiles": {},
+        "timeline": {},
+        "current_best_explanation": null
+      },
+      "social_model": {
+        "characters": {}
+      },
+      "strategy_state": {
+        "current_goal": "查清谁在借袁氏名义购买假腰牌",
+        "next_action": null,
+        "reason": "情景开始",
+        "risk": null,
+        "expected_information_gain": null
+      },
+      "personal_tasks": [
+        {
+          "question": "查清谁在借袁氏名义购买假腰牌",
+          "known_information": [],
+          "missing_information": [],
+          "related_characters": [],
+          "related_items": [],
+          "related_areas": [],
+          "current_hypothesis": null,
+          "next_action": null,
+          "confidence": 0
+        },
+        {
+          "question": "避免信件落入敌对势力",
+          "known_information": [],
+          "missing_information": [],
+          "related_characters": [],
+          "related_items": [],
+          "related_areas": [],
+          "current_hypothesis": null,
+          "next_action": null,
+          "confidence": 0
+        },
+        {
+          "question": "判断是否值得与广陵王交换情报",
+          "known_information": [],
+          "missing_information": [],
+          "related_characters": [],
+          "related_items": [],
+          "related_areas": [],
+          "current_hypothesis": null,
+          "next_action": null,
+          "confidence": 0
+        }
+      ],
+      "public_story": {
+        "claimed_timeline": [],
+        "claimed_locations": [],
+        "claimed_contacts": [],
+        "admitted_items": [],
+        "admitted_secrets": [],
+        "denied_actions": [],
+        "witnesses_of_each_statement": []
+      }
+    }
+  },
+  "objects": {
+    "courier_body": {
+      "object_id": "courier_body",
+      "name": "陌生驿卒的尸体",
+      "location_id": "lobby",
+      "holder_id": null,
+      "hidden": false,
+      "portable": false,
+      "discovered_by": [],
+      "tags": [
+        "body",
+        "evidence"
+      ],
+      "metadata": {
+        "npc_name": "陆成",
+        "search_priority": 12,
+        "clue_kind": "truth",
+        "truth_id": "truth-poison",
+        "clue_claim": "陆成颈后有一个极细的针孔，伤口周围毒色比口唇更深，说明毒物由针刺进入而非饮食入口。"
+      },
+      "original_location": "lobby",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "lobby",
+          "to_location": "lobby",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": false,
+          "hidden_after": false,
+          "public": true,
+          "witnesses": []
+        }
+      ]
+    },
+    "sealed_dispatch": {
+      "object_id": "sealed_dispatch",
+      "name": "未拆封的绣衣急报",
+      "location_id": null,
+      "holder_id": "广陵王",
+      "hidden": false,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "document",
+        "secret"
+      ],
+      "metadata": {},
+      "original_location": null,
+      "original_holder": "广陵王",
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": null,
+          "to_location": null,
+          "from_holder": "广陵王",
+          "to_holder": "广陵王",
+          "hidden_before": false,
+          "hidden_after": false,
+          "public": true,
+          "witnesses": []
+        },
+        {
+          "action": "scenario_assign",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": "广陵王",
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": null,
+          "to_location": null,
+          "from_holder": "广陵王",
+          "to_holder": "广陵王",
+          "hidden_before": false,
+          "hidden_after": false,
+          "public": false,
+          "witnesses": [
+            "广陵王"
+          ]
+        }
+      ]
+    },
+    "account_fragment": {
+      "object_id": "account_fragment",
+      "name": "残缺的军饷账页",
+      "location_id": null,
+      "holder_id": "傅融",
+      "hidden": false,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "document",
+        "financial"
+      ],
+      "metadata": {},
+      "original_location": null,
+      "original_holder": "傅融",
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": null,
+          "to_location": null,
+          "from_holder": "傅融",
+          "to_holder": "傅融",
+          "hidden_before": false,
+          "hidden_after": false,
+          "public": true,
+          "witnesses": []
+        },
+        {
+          "action": "scenario_assign",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": "傅融",
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": null,
+          "to_location": null,
+          "from_holder": "傅融",
+          "to_holder": "傅融",
+          "hidden_before": false,
+          "hidden_after": false,
+          "public": false,
+          "witnesses": [
+            "傅融"
+          ]
+        }
+      ]
+    },
+    "palace_token": {
+      "object_id": "palace_token",
+      "name": "太一宫旧符牌",
+      "location_id": null,
+      "holder_id": "刘辩",
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [
+        "刘辩"
+      ],
+      "tags": [
+        "identity",
+        "secret"
+      ],
+      "metadata": {},
+      "original_location": null,
+      "original_holder": "刘辩",
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": null,
+          "to_location": null,
+          "from_holder": "刘辩",
+          "to_holder": "刘辩",
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": [
+            "刘辩"
+          ]
+        },
+        {
+          "action": "scenario_assign",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": "刘辩",
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": null,
+          "to_location": null,
+          "from_holder": "刘辩",
+          "to_holder": "刘辩",
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": [
+            "刘辩"
+          ]
+        }
+      ]
+    },
+    "broken_arrow": {
+      "object_id": "broken_arrow",
+      "name": "带江东箭羽的断箭",
+      "location_id": null,
+      "holder_id": "孙策",
+      "hidden": false,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "weapon",
+        "misdirection"
+      ],
+      "metadata": {},
+      "original_location": null,
+      "original_holder": "孙策",
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": null,
+          "to_location": null,
+          "from_holder": "孙策",
+          "to_holder": "孙策",
+          "hidden_before": false,
+          "hidden_after": false,
+          "public": true,
+          "witnesses": []
+        },
+        {
+          "action": "scenario_assign",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": "孙策",
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": null,
+          "to_location": null,
+          "from_holder": "孙策",
+          "to_holder": "孙策",
+          "hidden_before": false,
+          "hidden_after": false,
+          "public": false,
+          "witnesses": [
+            "孙策"
+          ]
+        }
+      ]
+    },
+    "antidote_case": {
+      "object_id": "antidote_case",
+      "name": "左慈的解毒药匣",
+      "location_id": null,
+      "holder_id": "左慈",
+      "hidden": false,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "medicine"
+      ],
+      "metadata": {},
+      "original_location": null,
+      "original_holder": "左慈",
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": null,
+          "to_location": null,
+          "from_holder": "左慈",
+          "to_holder": "左慈",
+          "hidden_before": false,
+          "hidden_after": false,
+          "public": true,
+          "witnesses": []
+        },
+        {
+          "action": "scenario_assign",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": "左慈",
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": null,
+          "to_location": null,
+          "from_holder": "左慈",
+          "to_holder": "左慈",
+          "hidden_before": false,
+          "hidden_after": false,
+          "public": false,
+          "witnesses": [
+            "左慈"
+          ]
+        }
+      ]
+    },
+    "yuan_sealed_letter": {
+      "object_id": "yuan_sealed_letter",
+      "name": "袁氏门客密信",
+      "location_id": null,
+      "holder_id": "袁基",
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [
+        "袁基"
+      ],
+      "tags": [
+        "document",
+        "secret"
+      ],
+      "metadata": {},
+      "original_location": null,
+      "original_holder": "袁基",
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": null,
+          "to_location": null,
+          "from_holder": "袁基",
+          "to_holder": "袁基",
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": [
+            "袁基"
+          ]
+        },
+        {
+          "action": "scenario_assign",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": "袁基",
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": null,
+          "to_location": null,
+          "from_holder": "袁基",
+          "to_holder": "袁基",
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": [
+            "袁基"
+          ]
+        }
+      ]
+    },
+    "fake_badge": {
+      "object_id": "fake_badge",
+      "name": "伪造的绣衣楼腰牌",
+      "location_id": "lobby",
+      "holder_id": null,
+      "hidden": false,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "evidence",
+        "forgery"
+      ],
+      "metadata": {
+        "search_priority": 11,
+        "clue_kind": "truth",
+        "truth_id": "truth-report",
+        "clue_claim": "腰牌边缘留有翻模黑泥，编号笔势也与绣衣楼旧档不符；它是刻意做旧的伪物。"
+      },
+      "original_location": "lobby",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "lobby",
+          "to_location": "lobby",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": false,
+          "hidden_after": false,
+          "public": true,
+          "witnesses": []
+        }
+      ]
+    },
+    "poison_needle": {
+      "object_id": "poison_needle",
+      "name": "淬毒的细针",
+      "location_id": null,
+      "holder_id": "孙策",
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [
+        "孙策"
+      ],
+      "tags": [
+        "evidence",
+        "poison"
+      ],
+      "metadata": {
+        "search_priority": 14,
+        "clue_kind": "truth",
+        "truth_id": "truth-poison",
+        "clue_claim": "细针上的残毒与陆成颈后针孔形状吻合，是本案真正的凶器。"
+      },
+      "original_location": "kitchen",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "kitchen",
+          "to_location": "kitchen",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        },
+        {
+          "action": "scenario_assign",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": "孙策",
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "kitchen",
+          "to_location": null,
+          "from_holder": null,
+          "to_holder": "孙策",
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": [
+            "孙策"
+          ]
+        }
+      ]
+    },
+    "black_feather_token": {
+      "object_id": "black_feather_token",
+      "name": "刻有黑羽纹的铜片",
+      "location_id": "room_north",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "evidence",
+        "organization",
+        "misdirection"
+      ],
+      "metadata": {
+        "search_priority": 6,
+        "clue_kind": "decoy",
+        "clue_claim": "黑羽铜片像某个秘密组织的信物，但锈层表明它已在房中放了数月，未必与今夜凶案有关。"
+      },
+      "original_location": "room_north",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "room_north",
+          "to_location": "room_north",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "missing_ledger_page": {
+      "object_id": "missing_ledger_page",
+      "name": "失踪的完整账页",
+      "location_id": "cellar",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "evidence",
+        "financial",
+        "secret"
+      ],
+      "metadata": {
+        "search_priority": 10,
+        "clue_kind": "secret",
+        "reveals_secret_id": "secret-fu-safehouse-funds",
+        "clue_claim": "完整账页显示三笔军饷流向同一处用鸟名代称的安全屋，傅融亲笔改过经手人；这不像普通贪墨，却足以证明他隐瞒了用途。"
+      },
+      "original_location": "cellar",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "cellar",
+          "to_location": "cellar",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "wet_footprints": {
+      "object_id": "wet_footprints",
+      "name": "通往马厩的湿脚印",
+      "location_id": "courtyard",
+      "holder_id": null,
+      "hidden": false,
+      "portable": false,
+      "discovered_by": [],
+      "tags": [
+        "trace",
+        "evidence"
+      ],
+      "metadata": {
+        "search_priority": 10,
+        "clue_kind": "truth",
+        "truth_id": "truth-courier",
+        "clue_claim": "脚印从大堂方向通往马厩，却没有从墙外进入的连续痕迹；有人案发后赶到马厩，试图制造一直照看坐骑的行踪印象。"
+      },
+      "original_location": "courtyard",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "courtyard",
+          "to_location": "courtyard",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": false,
+          "hidden_after": false,
+          "public": true,
+          "witnesses": []
+        }
+      ]
+    },
+    "front_gate_latch_mud": {
+      "object_id": "front_gate_latch_mud",
+      "name": "门闩内侧的干泥",
+      "location_id": "front_gate",
+      "holder_id": null,
+      "hidden": true,
+      "portable": false,
+      "discovered_by": [],
+      "tags": [
+        "trace",
+        "timeline",
+        "evidence"
+      ],
+      "metadata": {
+        "search_priority": 10,
+        "clue_kind": "truth",
+        "truth_id": "truth-courier",
+        "clue_claim": "门闩内侧积泥完整，没有案发后重新开启的擦痕；凶手仍在客栈，至少没有走正门。"
+      },
+      "original_location": "front_gate",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "front_gate",
+          "to_location": "front_gate",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "front_gate_debt_note": {
+      "object_id": "front_gate_debt_note",
+      "name": "被雨打湿的欠款字条",
+      "location_id": "front_gate",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "document",
+        "misdirection"
+      ],
+      "metadata": {
+        "search_priority": 3,
+        "clue_kind": "decoy",
+        "clue_claim": "字条写着陆成欠过驿站赌债，却是半年前的旧账；它提供了一个看似合理、实际与今夜无关的私人仇杀方向。"
+      },
+      "original_location": "front_gate",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "front_gate",
+          "to_location": "front_gate",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "kitchen_bitter_ash": {
+      "object_id": "kitchen_bitter_ash",
+      "name": "灶边的苦艾药灰",
+      "location_id": "kitchen",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "medicine",
+        "evidence"
+      ],
+      "metadata": {
+        "search_priority": 11,
+        "clue_kind": "truth",
+        "truth_id": "truth-poison",
+        "clue_claim": "药灰能与死者体内的毒产生相似苦味，却不会造成针孔；有人可能故意把调查引向后厨下毒。"
+      },
+      "original_location": "kitchen",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "kitchen",
+          "to_location": "kitchen",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "zuoci_toxin_sample": {
+      "object_id": "zuoci_toxin_sample",
+      "name": "封在蜡管中的违禁毒样",
+      "location_id": "kitchen",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "medicine",
+        "secret",
+        "misdirection"
+      ],
+      "metadata": {
+        "search_priority": 8,
+        "clue_kind": "secret",
+        "reveals_secret_id": "secret-zuoci-toxin",
+        "clue_claim": "蜡管标签是左慈的笔迹，里面正是迟发针毒样本；药量不足以完成今夜谋杀，但足以让他成为嫌疑人。"
+      },
+      "original_location": "kitchen",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "kitchen",
+          "to_location": "kitchen",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "cellar_dispatch_seal": {
+      "object_id": "cellar_dispatch_seal",
+      "name": "酒瓮底的废弃鸢报封泥",
+      "location_id": "cellar",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "document",
+        "forgery",
+        "evidence"
+      ],
+      "metadata": {
+        "search_priority": 9,
+        "clue_kind": "truth",
+        "truth_id": "truth-report",
+        "clue_claim": "封泥使用客栈常见灯油软化，压纹却来自伪腰牌同一副旧模；假腰牌与假鸢报可能出自同一条线。"
+      },
+      "original_location": "cellar",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "cellar",
+          "to_location": "cellar",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "cellar_smuggler_receipt": {
+      "object_id": "cellar_smuggler_receipt",
+      "name": "走私酒商的收据",
+      "location_id": "cellar",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "document",
+        "misdirection"
+      ],
+      "metadata": {
+        "search_priority": 2,
+        "clue_kind": "decoy",
+        "clue_claim": "收据证明掌柜私购过一批酒，却早于众人投宿；这是一件真实丑事，但与陆成之死无关。"
+      },
+      "original_location": "cellar",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "cellar",
+          "to_location": "cellar",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "courtyard_mold_powder": {
+      "object_id": "courtyard_mold_powder",
+      "name": "井沿被冲淡的黑色模粉",
+      "location_id": "courtyard",
+      "holder_id": null,
+      "hidden": true,
+      "portable": false,
+      "discovered_by": [],
+      "tags": [
+        "forgery",
+        "evidence"
+      ],
+      "metadata": {
+        "search_priority": 9,
+        "clue_kind": "truth",
+        "truth_id": "truth-report",
+        "clue_claim": "黑粉与伪腰牌边缘残泥成分一致，说明伪造物曾在客栈后院被清洗或处理。"
+      },
+      "original_location": "courtyard",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "courtyard",
+          "to_location": "courtyard",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "sunce_spur_cloth": {
+      "object_id": "sunce_spur_cloth",
+      "name": "沾着马刺铜屑的擦布",
+      "location_id": "stable",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "trace",
+        "secret"
+      ],
+      "metadata": {
+        "search_priority": 9,
+        "clue_kind": "secret",
+        "reveals_secret_id": "secret-sunce-stable",
+        "clue_claim": "擦布结法是江东军中习惯，泥水已经干透，证明孙策昨夜便来过马厩，而不只是案发后才到。"
+      },
+      "original_location": "stable",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "stable",
+          "to_location": "stable",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "stable_strange_horseshoe": {
+      "object_id": "stable_strange_horseshoe",
+      "name": "不属于住客坐骑的旧马蹄铁",
+      "location_id": "stable",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "trace",
+        "misdirection"
+      ],
+      "metadata": {
+        "search_priority": 5,
+        "clue_kind": "decoy",
+        "clue_claim": "马蹄铁来自北方驿马，像是外部接应留下的东西，但锈迹表明它在草料下至少已有一个月。"
+      },
+      "original_location": "stable",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "stable",
+          "to_location": "stable",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "stairs_poison_oil": {
+      "object_id": "stairs_poison_oil",
+      "name": "扶手缝中的蓝黑油点",
+      "location_id": "stairs",
+      "holder_id": null,
+      "hidden": true,
+      "portable": false,
+      "discovered_by": [],
+      "tags": [
+        "poison",
+        "trace",
+        "evidence"
+      ],
+      "metadata": {
+        "search_priority": 10,
+        "clue_kind": "truth",
+        "truth_id": "truth-poison",
+        "clue_claim": "油点含有与凶针相同的封针蜡，位置说明携针者曾从二层下到大堂，但无法单独指向某一人。"
+      },
+      "original_location": "stairs",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "stairs",
+          "to_location": "stairs",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "stairs_torn_route": {
+      "object_id": "stairs_torn_route",
+      "name": "夹在踏板下的行程纸角",
+      "location_id": "stairs",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "document",
+        "secret"
+      ],
+      "metadata": {
+        "search_priority": 7,
+        "clue_kind": "secret",
+        "reveals_secret_id": "secret-guangling-itinerary",
+        "clue_claim": "纸角列出三条互不相同的巡视路线，批注笔迹属于广陵王；她显然在用行程测试某个内部泄密者。"
+      },
+      "original_location": "stairs",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "stairs",
+          "to_location": "stairs",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "upper_hall_courier_button": {
+      "object_id": "upper_hall_courier_button",
+      "name": "沾雨的驿卒衣扣",
+      "location_id": "upper_hall",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "trace",
+        "timeline",
+        "evidence"
+      ],
+      "metadata": {
+        "search_priority": 10,
+        "clue_kind": "truth",
+        "truth_id": "truth-courier",
+        "clue_claim": "衣扣与陆成外衣缺口吻合，表明他倒毙前曾短暂上过二层；凶手有机会在客房或回廊与他近身。"
+      },
+      "original_location": "upper_hall",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "upper_hall",
+          "to_location": "upper_hall",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "upper_hall_false_message": {
+      "object_id": "upper_hall_false_message",
+      "name": "写着“江东接应”的无名纸条",
+      "location_id": "upper_hall",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "document",
+        "misdirection"
+      ],
+      "metadata": {
+        "search_priority": 4,
+        "clue_kind": "decoy",
+        "clue_claim": "纸条直接写着“江东接应”，措辞刻意得像在栽赃；纸张来自大堂公用账册，任何住客都能取得。"
+      },
+      "original_location": "upper_hall",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "upper_hall",
+          "to_location": "upper_hall",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "east_room_imperial_silk": {
+      "object_id": "east_room_imperial_silk",
+      "name": "绣有宫纹的内衬丝角",
+      "location_id": "room_east",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "identity",
+        "secret"
+      ],
+      "metadata": {
+        "search_priority": 9,
+        "clue_kind": "secret",
+        "reveals_secret_id": "secret-liubian-identity",
+        "clue_claim": "丝角采用停用已久的宫中内衬纹样，与刘辩衣箱里的旧符相互印证；他的身份远不只是微服贵公子。"
+      },
+      "original_location": "room_east",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "room_east",
+          "to_location": "room_east",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "east_room_old_stitch": {
+      "object_id": "east_room_old_stitch",
+      "name": "拆下的旧制针脚样布",
+      "location_id": "room_east",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "textile",
+        "evidence"
+      ],
+      "metadata": {
+        "search_priority": 7,
+        "clue_kind": "truth",
+        "truth_id": "truth-report",
+        "clue_claim": "样布针脚与死者袖口一致，却标着“两年前废止”；陆成身上的身份包装使用了过时的宫中知识。"
+      },
+      "original_location": "room_east",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "room_east",
+          "to_location": "room_east",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "west_room_burnt_letter": {
+      "object_id": "west_room_burnt_letter",
+      "name": "未烧尽的旁支回信",
+      "location_id": "room_west",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "document",
+        "secret"
+      ],
+      "metadata": {
+        "search_priority": 9,
+        "clue_kind": "secret",
+        "reveals_secret_id": "secret-yuanji-contact",
+        "clue_claim": "回信证明袁基绕过家族正式信使与涉事旁支保持联络；它不能证明杀人，却足以解释他为何隐瞒密信来源。"
+      },
+      "original_location": "room_west",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "room_west",
+          "to_location": "room_west",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "west_room_perfume_ash": {
+      "object_id": "west_room_perfume_ash",
+      "name": "混有水纹纸屑的香灰",
+      "location_id": "room_west",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "trace",
+        "misdirection"
+      ],
+      "metadata": {
+        "search_priority": 5,
+        "clue_kind": "decoy",
+        "clue_claim": "香灰中有袁氏常见水纹纸屑，但同类信纸可由旁支和门客使用，无法单凭它证明袁基作案。"
+      },
+      "original_location": "room_west",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "room_west",
+          "to_location": "room_west",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "north_room_cipher_draft": {
+      "object_id": "north_room_cipher_draft",
+      "name": "被弃用的鸢报暗码草稿",
+      "location_id": "room_north",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "document",
+        "evidence"
+      ],
+      "metadata": {
+        "search_priority": 10,
+        "clue_kind": "truth",
+        "truth_id": "truth-report",
+        "clue_claim": "草稿把真正军情与假鸢报逐句对照，最终目的不是传信，而是诱使绣衣楼调走城东守备。"
+      },
+      "original_location": "room_north",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "room_north",
+          "to_location": "room_north",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "study_private_transfer_stub": {
+      "object_id": "study_private_transfer_stub",
+      "name": "未入总账的转款存根",
+      "location_id": "study",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "financial",
+        "secret"
+      ],
+      "metadata": {
+        "search_priority": 9,
+        "clue_kind": "secret",
+        "reveals_secret_id": "secret-fu-safehouse-funds",
+        "clue_claim": "存根由傅融签押，钱款送往以鸟名代称的住址；这是他在正规账目之外调钱的直接证据。"
+      },
+      "original_location": "study",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "study",
+          "to_location": "study",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "study_guest_register": {
+      "object_id": "study_guest_register",
+      "name": "被改过时辰的住客名册",
+      "location_id": "study",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "timeline",
+        "evidence"
+      ],
+      "metadata": {
+        "search_priority": 8,
+        "clue_kind": "truth",
+        "truth_id": "truth-courier",
+        "clue_claim": "名册显示陆成入店时六名住客都已在客栈范围内；有人把时辰改晚一刻，试图模糊他与住客接触的窗口。"
+      },
+      "original_location": "study",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "study",
+          "to_location": "study",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    },
+    "jiangdong_forged_order": {
+      "object_id": "jiangdong_forged_order",
+      "name": "调动江东军的伪令正文",
+      "location_id": null,
+      "holder_id": "孙策",
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [
+        "孙策"
+      ],
+      "tags": [
+        "document",
+        "evidence",
+        "case_variant"
+      ],
+      "metadata": {
+        "case_id": "jiangdong-forged-order",
+        "description": "陆成携带的伪令正文，印泥和措辞都在刻意模仿江东军令。"
+      },
+      "original_location": null,
+      "original_holder": "孙策",
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": null,
+          "to_location": null,
+          "from_holder": "孙策",
+          "to_holder": "孙策",
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": [
+            "孙策"
+          ]
+        }
+      ]
+    },
+    "chipped_spur_buckle": {
+      "object_id": "chipped_spur_buckle",
+      "name": "带新鲜缺口的马刺扣",
+      "location_id": "courtyard",
+      "holder_id": null,
+      "hidden": true,
+      "portable": true,
+      "discovered_by": [],
+      "tags": [
+        "trace",
+        "evidence",
+        "case_variant"
+      ],
+      "metadata": {
+        "case_id": "jiangdong-forged-order",
+        "description": "扣面是江东常见式样，缺口可以与孙策马刺上的断面吻合，但同式马具并不罕见。",
+        "implicates": "孙策",
+        "clue_kind": "truth",
+        "truth_id": "truth-killer"
+      },
+      "original_location": "courtyard",
+      "original_holder": null,
+      "publicly_revealed_to": [],
+      "authenticity": "unknown",
+      "evidential_value": "",
+      "secret_value": "",
+      "history": [
+        {
+          "action": "initial",
+          "round_number": 0,
+          "action_step": 0,
+          "actor_id": null,
+          "counterparty_id": null,
+          "event_id": null,
+          "from_location": "courtyard",
+          "to_location": "courtyard",
+          "from_holder": null,
+          "to_holder": null,
+          "hidden_before": true,
+          "hidden_after": true,
+          "public": false,
+          "witnesses": []
+        }
+      ]
+    }
+  },
+  "secrets": {
+    "secret-guangling-itinerary": {
+      "secret_id": "secret-guangling-itinerary",
+      "owner_id": "广陵王",
+      "title": "三份互不相同的行程",
+      "claim": "广陵王出发前故意向三个据点放出不同版本的行程，用来排查绣衣楼内部泄密者；她不愿让同行者知道自己也在试探他们。",
+      "category": "personal",
+      "conceal_score": 3,
+      "discovery_score": 2,
+      "exposed_to": [
+        "广陵王"
+      ],
+      "publicly_exposed": false
+    },
+    "secret-fu-safehouse-funds": {
+      "secret_id": "secret-fu-safehouse-funds",
+      "owner_id": "傅融",
+      "title": "异常军饷的真实去向",
+      "claim": "傅融私自改动三笔军饷去向，将钱用于转移城东安全屋人员；目的并非贪墨，但手续足以让他获罪。",
+      "category": "personal",
+      "conceal_score": 3,
+      "discovery_score": 2,
+      "exposed_to": [
+        "傅融"
+      ],
+      "publicly_exposed": false
+    },
+    "secret-liubian-identity": {
+      "secret_id": "secret-liubian-identity",
+      "owner_id": "刘辩",
+      "title": "贵公子的宫中身份",
+      "claim": "刘辩并非普通贵公子，他熟悉宫中暗语与旧制，随身旧符足以暴露真实身份。",
+      "category": "personal",
+      "conceal_score": 4,
+      "discovery_score": 2,
+      "exposed_to": [
+        "刘辩"
+      ],
+      "publicly_exposed": false
+    },
+    "secret-sunce-stable": {
+      "secret_id": "secret-sunce-stable",
+      "owner_id": "孙策",
+      "title": "昨夜私自去过马厩",
+      "claim": "孙策昨夜没有告知任何人便去马厩检查坐骑，还看见披蓑衣的人翻墙；这段行踪让他很难证明自己与凶案无关。",
+      "category": "personal",
+      "conceal_score": 3,
+      "discovery_score": 2,
+      "exposed_to": [
+        "孙策"
+      ],
+      "publicly_exposed": false
+    },
+    "secret-zuoci-toxin": {
+      "secret_id": "secret-zuoci-toxin",
+      "owner_id": "左慈",
+      "title": "违禁毒样",
+      "claim": "左慈的药匣夹层存有少量迟发针毒样本，原本用于研制解药；若被发现，他会成为极有说服力的错误嫌疑人。",
+      "category": "personal",
+      "conceal_score": 3,
+      "discovery_score": 2,
+      "exposed_to": [
+        "左慈"
+      ],
+      "publicly_exposed": false
+    },
+    "secret-yuanji-contact": {
+      "secret_id": "secret-yuanji-contact",
+      "owner_id": "袁基",
+      "title": "未登记的旁支联络",
+      "claim": "袁基曾绕过家族正式渠道与涉事旁支门客通信，虽然他不知道伪腰牌买主是谁，这种联络仍会损害袁氏声誉。",
+      "category": "personal",
+      "conceal_score": 3,
+      "discovery_score": 2,
+      "exposed_to": [
+        "袁基"
+      ],
+      "publicly_exposed": false
+    },
+    "crime-孙策": {
+      "secret_id": "crime-孙策",
+      "owner_id": "孙策",
+      "title": "陆成之死的真相",
+      "claim": "孙策杀死了陆成。动机：陆成掌握一份足以引发广陵与江东误战的伪令。你判断公开它会害死更多士卒，于是选择灭口并独自追查幕后人。手段：你以检查死者肩伤为掩护，用缴获的淬毒细针刺伤他，并取走了伪令正文。",
+      "category": "crime",
+      "conceal_score": 0,
+      "discovery_score": 3,
+      "exposed_to": [
+        "孙策"
+      ],
+      "publicly_exposed": false
+    }
+  },
+  "notices": [],
+  "events": [],
+  "conversations": [],
+  "used_event_cards": [],
+  "seen_event_cards": [
+    "pressure-fever",
+    "information-guestbook-correction",
+    "relationship-public-accounts"
+  ],
+  "suggested_event_cards": [
+    {
+      "card_id": "pressure-fever",
+      "title": "旧伤骤发",
+      "category": "pressure",
+      "description": "刘辩脸色发白，旧伤与寒气令他一度站立不稳。",
+      "impact_preview": "治疗与保护需求上升，队伍可能围绕他的安全重新分配行动。",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "liubian_fever",
+          "value": true
+        },
+        {
+          "type": "set_life_state",
+          "agent_id": "刘辩",
+          "life_state": "injured",
+          "summary": "刘辩旧伤骤发，当前受伤，在接受救治前无法搜查。"
+        },
+        {
+          "type": "public_fact",
+          "claim": "刘辩因旧伤与寒气一度站立不稳。"
+        }
+      ],
+      "preconditions": {},
+      "once": true,
+      "hidden_consequence": "这是旧伤发作，不是第二次投毒。"
+    },
+    {
+      "card_id": "information-guestbook-correction",
+      "title": "名册改笔",
+      "category": "information",
+      "description": "投宿名册中一处时辰被改写，原字仍可从墨迹下辨认。",
+      "impact_preview": "公开一段可能被篡改的时间线，促使人物互相核对行踪。",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "guestbook_altered",
+          "value": true
+        },
+        {
+          "type": "public_fact",
+          "claim": "投宿名册中有一处时辰遭到改写。",
+          "location_id": "study"
+        }
+      ],
+      "preconditions": {},
+      "once": true,
+      "hidden_consequence": "改笔可能出于掌柜记错，不一定由凶手所为。"
+    },
+    {
+      "card_id": "relationship-public-accounts",
+      "title": "公开账目",
+      "category": "relationship",
+      "description": "掌柜提议将所有住客的投宿与货物记录贴到公告板上。",
+      "impact_preview": "部分行踪公开，可能减少猜疑，也可能暴露谎言。",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "guest_records_public",
+          "value": true
+        },
+        {
+          "type": "public_fact",
+          "claim": "客栈住客名册与投宿时间已经公开。",
+          "location_id": "lobby"
+        }
+      ],
+      "preconditions": {
+        "min_round": 1,
+        "flag_absent": "guest_records_public"
+      },
+      "once": true,
+      "hidden_consequence": "袁基的投宿时间与密信送达时间存在值得追问的重合。"
+    }
+  ],
+  "active_event_card": null,
+  "suggested_public_intel": [
+    {
+      "id": "intel-poison-window",
+      "title": "毒发时限",
+      "category": "forensic",
+      "source": "左慈的初步判断",
+      "claim": "此类针毒通常在受伤后半个时辰至一个时辰发作。",
+      "reliability": 0.8
+    },
+    {
+      "id": "intel-palace-stitch",
+      "title": "宫制针脚",
+      "category": "identity",
+      "source": "旧衣铺辨认",
+      "claim": "死者袖口的针脚仿照宫中旧制，却有两处外行人才会犯的错。",
+      "reliability": 0.76
+    },
+    {
+      "id": "intel-wall-height",
+      "title": "后墙旧痕",
+      "category": "route",
+      "source": "客栈结构图",
+      "claim": "马厩后的矮墙留有借助短梯或马背翻越形成的旧痕，可用于核对昨夜行踪。",
+      "reliability": 0.9
+    }
+  ],
+  "used_public_intel": [],
+  "public_intel_history": [],
+  "active_public_intel": null,
+  "votes": [],
+  "final_submissions": {},
+  "model_usage": [
+    {
+      "usage_id": "usage-entry-smoke-20260822-00001",
+      "agent_id": "广陵王",
+      "stage": "assignment",
+      "round_number": 0,
+      "action_step": 0,
+      "provider_name": "heuristic",
+      "actual_source": "configured",
+      "succeeded": true
+    },
+    {
+      "usage_id": "usage-entry-smoke-20260822-00002",
+      "agent_id": "傅融",
+      "stage": "assignment",
+      "round_number": 0,
+      "action_step": 0,
+      "provider_name": "heuristic",
+      "actual_source": "configured",
+      "succeeded": true
+    },
+    {
+      "usage_id": "usage-entry-smoke-20260822-00003",
+      "agent_id": "刘辩",
+      "stage": "assignment",
+      "round_number": 0,
+      "action_step": 0,
+      "provider_name": "heuristic",
+      "actual_source": "configured",
+      "succeeded": true
+    },
+    {
+      "usage_id": "usage-entry-smoke-20260822-00004",
+      "agent_id": "孙策",
+      "stage": "assignment",
+      "round_number": 0,
+      "action_step": 0,
+      "provider_name": "heuristic",
+      "actual_source": "configured",
+      "succeeded": true
+    },
+    {
+      "usage_id": "usage-entry-smoke-20260822-00005",
+      "agent_id": "左慈",
+      "stage": "assignment",
+      "round_number": 0,
+      "action_step": 0,
+      "provider_name": "heuristic",
+      "actual_source": "configured",
+      "succeeded": true
+    },
+    {
+      "usage_id": "usage-entry-smoke-20260822-00006",
+      "agent_id": "袁基",
+      "stage": "assignment",
+      "round_number": 0,
+      "action_step": 0,
+      "provider_name": "heuristic",
+      "actual_source": "configured",
+      "succeeded": true
+    }
+  ],
+  "flags": {
+    "road_blocked": true,
+    "front_gate_locked": true,
+    "courier_death_known": true,
+    "guards_arrival_round": null,
+    "second_poisoning_risk": false,
+    "seed": 7,
+    "bulletin_location_id": "lobby",
+    "killer_id": "孙策",
+    "killer_profile": {
+      "agent_id": "孙策",
+      "case_id": "jiangdong-forged-order",
+      "motive": "陆成掌握一份足以引发广陵与江东误战的伪令。你判断公开它会害死更多士卒，于是选择灭口并独自追查幕后人。",
+      "method": "你以检查死者肩伤为掩护，用缴获的淬毒细针刺伤他，并取走了伪令正文。",
+      "cover_plan": "利用自己熟悉马匹的事实解释马厩行踪，并把怀疑引向伪造江东痕迹的人。",
+      "private_facts": [
+        "你取走的伪令正文能调动一支冒充江东军的队伍，现在被你折在护腕夹层中。",
+        "你行凶后赶去马厩制造自己一直在照看坐骑的印象，途中马刺扣磕在石阶上缺了一角。"
+      ],
+      "stolen_item": {
+        "id": "jiangdong_forged_order",
+        "name": "调动江东军的伪令正文",
+        "holder_id": "$killer",
+        "hidden": true,
+        "discovered_by": [
+          "$killer"
+        ],
+        "tags": [
+          "document",
+          "evidence",
+          "case_variant"
+        ],
+        "metadata": {
+          "case_id": "jiangdong-forged-order",
+          "description": "陆成携带的伪令正文，印泥和措辞都在刻意模仿江东军令。"
+        }
+      },
+      "evidence_objects": [
+        {
+          "id": "chipped_spur_buckle",
+          "name": "带新鲜缺口的马刺扣",
+          "location_id": "courtyard",
+          "hidden": true,
+          "tags": [
+            "trace",
+            "evidence",
+            "case_variant"
+          ],
+          "metadata": {
+            "case_id": "jiangdong-forged-order",
+            "description": "扣面是江东常见式样，缺口可以与孙策马刺上的断面吻合，但同式马具并不罕见。",
+            "implicates": "孙策"
+          }
+        }
+      ],
+      "innocent_explanation": "断箭使用江东箭羽，却不是江东军制；你昨夜去马厩只是检查坐骑，并亲眼看见披蓑衣的人翻过后墙。"
+    },
+    "case_manifest": {
+      "case_id": "jiangdong-forged-order",
+      "killer_id": "孙策",
+      "motive": "陆成掌握一份足以引发广陵与江东误战的伪令。你判断公开它会害死更多士卒，于是选择灭口并独自追查幕后人。",
+      "method": "你以检查死者肩伤为掩护，用缴获的淬毒细针刺伤他，并取走了伪令正文。",
+      "cover_plan": "利用自己熟悉马匹的事实解释马厩行踪，并把怀疑引向伪造江东痕迹的人。",
+      "stolen_item_id": "jiangdong_forged_order",
+      "evidence_object_ids": [
+        "chipped_spur_buckle"
+      ]
+    },
+    "killer_revealed": false,
+    "voting_complete": false,
+    "scores_finalized": false,
+    "crime_secret_id": "crime-孙策",
+    "character_timelines": {
+      "广陵王": [
+        {
+          "id": "arrival-guangling-furong",
+          "order": 30,
+          "time": "当日·巳正",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融"
+          ],
+          "kind": "shared",
+          "text": "巳正，广陵王与傅融冒雨一同抵达停云客栈；傅融登记两间客房并接过行程账册，广陵王当着他的面吩咐掌柜：任何急递先送到大堂。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "arrival-liubian",
+          "order": 40,
+          "time": "当日·午初",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "刘辩"
+          ],
+          "kind": "shared",
+          "text": "午初，刘辩以刘姓贵公子的身份来到客栈；广陵王亲自迎他入门，两人约定在人前只谈旅途，不提宫中旧事。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "six-person-supper",
+          "order": 90,
+          "time": "当日·酉初",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "酉初，六人在大堂同桌用过晚饭；左慈没有碰酒，傅融中途翻看过账册，孙策提到驿道封死，袁基询问过驿卒何时换班，刘辩用玩笑岔开了宫中旧闻。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "six-person-dispersal",
+          "order": 100,
+          "time": "当日·酉初三刻",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "酉初三刻，晚饭散席：广陵王留在大堂等急递，傅融去掌柜账房核账，刘辩回东字客房，孙策去马厩，左慈回后厨，袁基回西字客房。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-arrival-signal",
+          "order": 110,
+          "time": "当日·酉正",
+          "location_id": "front_gate",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "case",
+          "text": "酉正，正门传来驿卒通用的三短一长叩门声；六人都听见掌柜开门，并听见来客自称西驿送信人陆成。",
+          "location_name": "客栈正门",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-meets-guangling",
+          "order": 120,
+          "time": "当日·酉正一刻",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王"
+          ],
+          "kind": "case",
+          "text": "酉正一刻，广陵王在大堂接到浑身湿透的陆成；陆成没有叫出她的身份，只护住信囊、先看向二层回廊，说要核对一处收信记号后再交件。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-final-return",
+          "order": 180,
+          "time": "当日·戌初一刻",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王"
+          ],
+          "kind": "case",
+          "text": "戌初一刻，陆成回到大堂，将那封绝密鸢报递给广陵王；他反复摸索明显变轻的信囊，却没有说明二层见过谁。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "characters-at-start-positions",
+          "order": 190,
+          "time": "当日·亥初后",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "亥初后，客栈重新安静下来：广陵王仍在大堂读鸢报，傅融留在账房，刘辩在东字客房，孙策在马厩，左慈在后厨，袁基在西字客房。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-collapse",
+          "order": 200,
+          "time": "当日·亥正",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "case",
+          "text": "亥正，大堂传来瓷碗碎裂和广陵王的呼喊；众人先后得知陆成倒在炭盆旁，临终只攥住广陵王的衣角说出“鸢报有假”。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        }
+      ],
+      "傅融": [
+        {
+          "id": "arrival-guangling-furong",
+          "order": 30,
+          "time": "当日·巳正",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融"
+          ],
+          "kind": "shared",
+          "text": "巳正，广陵王与傅融冒雨一同抵达停云客栈；傅融登记两间客房并接过行程账册，广陵王当着他的面吩咐掌柜：任何急递先送到大堂。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "six-person-supper",
+          "order": 90,
+          "time": "当日·酉初",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "酉初，六人在大堂同桌用过晚饭；左慈没有碰酒，傅融中途翻看过账册，孙策提到驿道封死，袁基询问过驿卒何时换班，刘辩用玩笑岔开了宫中旧闻。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "six-person-dispersal",
+          "order": 100,
+          "time": "当日·酉初三刻",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "酉初三刻，晚饭散席：广陵王留在大堂等急递，傅融去掌柜账房核账，刘辩回东字客房，孙策去马厩，左慈回后厨，袁基回西字客房。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-arrival-signal",
+          "order": 110,
+          "time": "当日·酉正",
+          "location_id": "front_gate",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "case",
+          "text": "酉正，正门传来驿卒通用的三短一长叩门声；六人都听见掌柜开门，并听见来客自称西驿送信人陆成。",
+          "location_name": "客栈正门",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-furong-contact",
+          "order": 150,
+          "time": "当日·酉正四刻",
+          "location_id": "study",
+          "participants": [
+            "傅融"
+          ],
+          "kind": "case-contact",
+          "text": "酉正四刻，陆成在掌柜账房门口向傅融核对城东旧账的页码；傅融替他扶正被雨水压皱的衣领，看见信囊比寻常急报袋轻，随后指引他返回大堂。",
+          "location_name": "掌柜账房",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "characters-at-start-positions",
+          "order": 190,
+          "time": "当日·亥初后",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "亥初后，客栈重新安静下来：广陵王仍在大堂读鸢报，傅融留在账房，刘辩在东字客房，孙策在马厩，左慈在后厨，袁基在西字客房。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-collapse",
+          "order": 200,
+          "time": "当日·亥正",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "case",
+          "text": "亥正，大堂传来瓷碗碎裂和广陵王的呼喊；众人先后得知陆成倒在炭盆旁，临终只攥住广陵王的衣角说出“鸢报有假”。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        }
+      ],
+      "刘辩": [
+        {
+          "id": "arrival-liubian",
+          "order": 40,
+          "time": "当日·午初",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "刘辩"
+          ],
+          "kind": "shared",
+          "text": "午初，刘辩以刘姓贵公子的身份来到客栈；广陵王亲自迎他入门，两人约定在人前只谈旅途，不提宫中旧事。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "liubian-zuoci-tea",
+          "order": 70,
+          "time": "当日·申初",
+          "location_id": "kitchen",
+          "participants": [
+            "刘辩",
+            "左慈"
+          ],
+          "kind": "shared",
+          "text": "申初，刘辩到后厨找热水，左慈当着他的面从普通茶罐取茶、另用清水烫杯；两人共同确认当时后厨没有陌生人进出。",
+          "location_name": "后厨",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "six-person-supper",
+          "order": 90,
+          "time": "当日·酉初",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "酉初，六人在大堂同桌用过晚饭；左慈没有碰酒，傅融中途翻看过账册，孙策提到驿道封死，袁基询问过驿卒何时换班，刘辩用玩笑岔开了宫中旧闻。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "six-person-dispersal",
+          "order": 100,
+          "time": "当日·酉初三刻",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "酉初三刻，晚饭散席：广陵王留在大堂等急递，傅融去掌柜账房核账，刘辩回东字客房，孙策去马厩，左慈回后厨，袁基回西字客房。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-arrival-signal",
+          "order": 110,
+          "time": "当日·酉正",
+          "location_id": "front_gate",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "case",
+          "text": "酉正，正门传来驿卒通用的三短一长叩门声；六人都听见掌柜开门，并听见来客自称西驿送信人陆成。",
+          "location_name": "客栈正门",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-passes-liubian",
+          "order": 130,
+          "time": "当日·酉正二刻",
+          "location_id": "upper_hall",
+          "participants": [
+            "刘辩"
+          ],
+          "kind": "case",
+          "text": "酉正二刻，刘辩在东字客房门口看见陆成走上二层；陆成袖口用了过时的宫制针脚，收针方向却与真正宫制相反。",
+          "location_name": "二层回廊",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "characters-at-start-positions",
+          "order": 190,
+          "time": "当日·亥初后",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "亥初后，客栈重新安静下来：广陵王仍在大堂读鸢报，傅融留在账房，刘辩在东字客房，孙策在马厩，左慈在后厨，袁基在西字客房。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-collapse",
+          "order": 200,
+          "time": "当日·亥正",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "case",
+          "text": "亥正，大堂传来瓷碗碎裂和广陵王的呼喊；众人先后得知陆成倒在炭盆旁，临终只攥住广陵王的衣角说出“鸢报有假”。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        }
+      ],
+      "孙策": [
+        {
+          "id": "arrival-sunce",
+          "order": 10,
+          "time": "前一日·酉初",
+          "location_id": "front_gate",
+          "participants": [
+            "孙策"
+          ],
+          "kind": "arrival",
+          "text": "前一日酉初，孙策带着一匹青骢马投宿停云客栈，将马安置在马厩后住进北字客房。",
+          "location_name": "客栈正门",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "sunce-night-stable",
+          "order": 20,
+          "time": "前一日·子初",
+          "location_id": "stable",
+          "participants": [
+            "孙策"
+          ],
+          "kind": "personal",
+          "text": "前一日子初，孙策独自去马厩检查坐骑，看见披蓑衣的人翻过后墙；他在墙根捡到一支绑法刻意模仿江东军的断箭，没有惊动其他住客。",
+          "location_name": "马厩",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "sunce-yuanji-road",
+          "order": 80,
+          "time": "当日·申正",
+          "location_id": "courtyard",
+          "participants": [
+            "孙策",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "申正，孙策从后院查看驿道回来，在袁基面前抖落蓑衣上的泥水；两人共同确认西驿道已经不能通车，但马厩后墙仍可能供一人翻越。",
+          "location_name": "后院",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "six-person-supper",
+          "order": 90,
+          "time": "当日·酉初",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "酉初，六人在大堂同桌用过晚饭；左慈没有碰酒，傅融中途翻看过账册，孙策提到驿道封死，袁基询问过驿卒何时换班，刘辩用玩笑岔开了宫中旧闻。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "six-person-dispersal",
+          "order": 100,
+          "time": "当日·酉初三刻",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "酉初三刻，晚饭散席：广陵王留在大堂等急递，傅融去掌柜账房核账，刘辩回东字客房，孙策去马厩，左慈回后厨，袁基回西字客房。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-arrival-signal",
+          "order": 110,
+          "time": "当日·酉正",
+          "location_id": "front_gate",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "case",
+          "text": "酉正，正门传来驿卒通用的三短一长叩门声；六人都听见掌柜开门，并听见来客自称西驿送信人陆成。",
+          "location_name": "客栈正门",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-sunce-contact",
+          "order": 160,
+          "time": "当日·酉末",
+          "location_id": "upper_hall",
+          "participants": [
+            "孙策"
+          ],
+          "kind": "case-contact",
+          "text": "酉末，孙策从马厩返回二层时遇见陆成；陆成谎称肩伤复发，孙策隔着湿衣检查他的肩背，没有发现刀伤，随后看着他走下木梯。",
+          "location_name": "二层回廊",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "crime-sunce",
+          "order": 161,
+          "time": "当日·酉末",
+          "location_id": "upper_hall",
+          "participants": [
+            "孙策"
+          ],
+          "kind": "killer-private",
+          "text": "只有你知道：替陆成检查肩背时，你用缴获的淬毒细针刺入他的颈后，取走伪令正文折入护腕；事后赶去马厩制造自己一直照看坐骑的印象，马刺扣在石阶上磕掉一角。",
+          "location_name": "二层回廊",
+          "case_id": "jiangdong-forged-order",
+          "private": true
+        },
+        {
+          "id": "characters-at-start-positions",
+          "order": 190,
+          "time": "当日·亥初后",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "亥初后，客栈重新安静下来：广陵王仍在大堂读鸢报，傅融留在账房，刘辩在东字客房，孙策在马厩，左慈在后厨，袁基在西字客房。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-collapse",
+          "order": 200,
+          "time": "当日·亥正",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "case",
+          "text": "亥正，大堂传来瓷碗碎裂和广陵王的呼喊；众人先后得知陆成倒在炭盆旁，临终只攥住广陵王的衣角说出“鸢报有假”。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        }
+      ],
+      "左慈": [
+        {
+          "id": "arrival-zuoci",
+          "order": 60,
+          "time": "当日·未正",
+          "location_id": "lobby",
+          "participants": [
+            "左慈"
+          ],
+          "kind": "arrival",
+          "text": "未正，左慈背着药匣进店避雨，向掌柜说明药匣里有易碎药瓶，之后借用后厨整理药材。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "liubian-zuoci-tea",
+          "order": 70,
+          "time": "当日·申初",
+          "location_id": "kitchen",
+          "participants": [
+            "刘辩",
+            "左慈"
+          ],
+          "kind": "shared",
+          "text": "申初，刘辩到后厨找热水，左慈当着他的面从普通茶罐取茶、另用清水烫杯；两人共同确认当时后厨没有陌生人进出。",
+          "location_name": "后厨",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "six-person-supper",
+          "order": 90,
+          "time": "当日·酉初",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "酉初，六人在大堂同桌用过晚饭；左慈没有碰酒，傅融中途翻看过账册，孙策提到驿道封死，袁基询问过驿卒何时换班，刘辩用玩笑岔开了宫中旧闻。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "six-person-dispersal",
+          "order": 100,
+          "time": "当日·酉初三刻",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "酉初三刻，晚饭散席：广陵王留在大堂等急递，傅融去掌柜账房核账，刘辩回东字客房，孙策去马厩，左慈回后厨，袁基回西字客房。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-arrival-signal",
+          "order": 110,
+          "time": "当日·酉正",
+          "location_id": "front_gate",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "case",
+          "text": "酉正，正门传来驿卒通用的三短一长叩门声；六人都听见掌柜开门，并听见来客自称西驿送信人陆成。",
+          "location_name": "客栈正门",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-asks-water",
+          "order": 170,
+          "time": "当日·戌初",
+          "location_id": "kitchen",
+          "participants": [
+            "左慈"
+          ],
+          "kind": "case",
+          "text": "戌初，陆成到后厨向左慈讨了一碗清水；左慈注意到他的指甲边缘已经泛青，但陆成拒绝诊脉，只说旧伤遇雨。",
+          "location_name": "后厨",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "characters-at-start-positions",
+          "order": 190,
+          "time": "当日·亥初后",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "亥初后，客栈重新安静下来：广陵王仍在大堂读鸢报，傅融留在账房，刘辩在东字客房，孙策在马厩，左慈在后厨，袁基在西字客房。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-collapse",
+          "order": 200,
+          "time": "当日·亥正",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "case",
+          "text": "亥正，大堂传来瓷碗碎裂和广陵王的呼喊；众人先后得知陆成倒在炭盆旁，临终只攥住广陵王的衣角说出“鸢报有假”。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        }
+      ],
+      "袁基": [
+        {
+          "id": "arrival-yuanji",
+          "order": 50,
+          "time": "当日·未初",
+          "location_id": "front_gate",
+          "participants": [
+            "袁基"
+          ],
+          "kind": "arrival",
+          "text": "未初，袁基因西驿道积水折返客栈，登记时使用真名，随后把一封袁氏旁支来信锁进西字客房。",
+          "location_name": "客栈正门",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "sunce-yuanji-road",
+          "order": 80,
+          "time": "当日·申正",
+          "location_id": "courtyard",
+          "participants": [
+            "孙策",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "申正，孙策从后院查看驿道回来，在袁基面前抖落蓑衣上的泥水；两人共同确认西驿道已经不能通车，但马厩后墙仍可能供一人翻越。",
+          "location_name": "后院",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "six-person-supper",
+          "order": 90,
+          "time": "当日·酉初",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "酉初，六人在大堂同桌用过晚饭；左慈没有碰酒，傅融中途翻看过账册，孙策提到驿道封死，袁基询问过驿卒何时换班，刘辩用玩笑岔开了宫中旧闻。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "six-person-dispersal",
+          "order": 100,
+          "time": "当日·酉初三刻",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "酉初三刻，晚饭散席：广陵王留在大堂等急递，傅融去掌柜账房核账，刘辩回东字客房，孙策去马厩，左慈回后厨，袁基回西字客房。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-arrival-signal",
+          "order": 110,
+          "time": "当日·酉正",
+          "location_id": "front_gate",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "case",
+          "text": "酉正，正门传来驿卒通用的三短一长叩门声；六人都听见掌柜开门，并听见来客自称西驿送信人陆成。",
+          "location_name": "客栈正门",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-yuanji-contact",
+          "order": 140,
+          "time": "当日·酉正三刻",
+          "location_id": "room_west",
+          "participants": [
+            "袁基"
+          ],
+          "kind": "case-contact",
+          "text": "酉正三刻，陆成在西字客房门外向袁基询问旧式腰牌纹样；袁基替他擦去后颈雨水，看见信囊封口仍在，随后让他去找真正的收信人。",
+          "location_name": "西字客房",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "characters-at-start-positions",
+          "order": 190,
+          "time": "当日·亥初后",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "shared",
+          "text": "亥初后，客栈重新安静下来：广陵王仍在大堂读鸢报，傅融留在账房，刘辩在东字客房，孙策在马厩，左慈在后厨，袁基在西字客房。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        },
+        {
+          "id": "courier-collapse",
+          "order": 200,
+          "time": "当日·亥正",
+          "location_id": "lobby",
+          "participants": [
+            "广陵王",
+            "傅融",
+            "刘辩",
+            "孙策",
+            "左慈",
+            "袁基"
+          ],
+          "kind": "case",
+          "text": "亥正，大堂传来瓷碗碎裂和广陵王的呼喊；众人先后得知陆成倒在炭盆旁，临终只攥住广陵王的衣角说出“鸢报有假”。",
+          "location_name": "客栈大堂",
+          "case_id": null,
+          "private": false
+        }
+      ]
+    },
+    "objective_timeline": [
+      {
+        "id": "arrival-sunce",
+        "order": 10,
+        "time": "前一日·酉初",
+        "location_id": "front_gate",
+        "participants": [
+          "孙策"
+        ],
+        "kind": "arrival",
+        "text": "前一日酉初，孙策带着一匹青骢马投宿停云客栈，将马安置在马厩后住进北字客房。",
+        "location_name": "客栈正门",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "sunce-night-stable",
+        "order": 20,
+        "time": "前一日·子初",
+        "location_id": "stable",
+        "participants": [
+          "孙策"
+        ],
+        "kind": "personal",
+        "text": "前一日子初，孙策独自去马厩检查坐骑，看见披蓑衣的人翻过后墙；他在墙根捡到一支绑法刻意模仿江东军的断箭，没有惊动其他住客。",
+        "location_name": "马厩",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "arrival-guangling-furong",
+        "order": 30,
+        "time": "当日·巳正",
+        "location_id": "lobby",
+        "participants": [
+          "广陵王",
+          "傅融"
+        ],
+        "kind": "shared",
+        "text": "巳正，广陵王与傅融冒雨一同抵达停云客栈；傅融登记两间客房并接过行程账册，广陵王当着他的面吩咐掌柜：任何急递先送到大堂。",
+        "location_name": "客栈大堂",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "arrival-liubian",
+        "order": 40,
+        "time": "当日·午初",
+        "location_id": "lobby",
+        "participants": [
+          "广陵王",
+          "刘辩"
+        ],
+        "kind": "shared",
+        "text": "午初，刘辩以刘姓贵公子的身份来到客栈；广陵王亲自迎他入门，两人约定在人前只谈旅途，不提宫中旧事。",
+        "location_name": "客栈大堂",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "arrival-yuanji",
+        "order": 50,
+        "time": "当日·未初",
+        "location_id": "front_gate",
+        "participants": [
+          "袁基"
+        ],
+        "kind": "arrival",
+        "text": "未初，袁基因西驿道积水折返客栈，登记时使用真名，随后把一封袁氏旁支来信锁进西字客房。",
+        "location_name": "客栈正门",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "arrival-zuoci",
+        "order": 60,
+        "time": "当日·未正",
+        "location_id": "lobby",
+        "participants": [
+          "左慈"
+        ],
+        "kind": "arrival",
+        "text": "未正，左慈背着药匣进店避雨，向掌柜说明药匣里有易碎药瓶，之后借用后厨整理药材。",
+        "location_name": "客栈大堂",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "liubian-zuoci-tea",
+        "order": 70,
+        "time": "当日·申初",
+        "location_id": "kitchen",
+        "participants": [
+          "刘辩",
+          "左慈"
+        ],
+        "kind": "shared",
+        "text": "申初，刘辩到后厨找热水，左慈当着他的面从普通茶罐取茶、另用清水烫杯；两人共同确认当时后厨没有陌生人进出。",
+        "location_name": "后厨",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "sunce-yuanji-road",
+        "order": 80,
+        "time": "当日·申正",
+        "location_id": "courtyard",
+        "participants": [
+          "孙策",
+          "袁基"
+        ],
+        "kind": "shared",
+        "text": "申正，孙策从后院查看驿道回来，在袁基面前抖落蓑衣上的泥水；两人共同确认西驿道已经不能通车，但马厩后墙仍可能供一人翻越。",
+        "location_name": "后院",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "six-person-supper",
+        "order": 90,
+        "time": "当日·酉初",
+        "location_id": "lobby",
+        "participants": [
+          "广陵王",
+          "傅融",
+          "刘辩",
+          "孙策",
+          "左慈",
+          "袁基"
+        ],
+        "kind": "shared",
+        "text": "酉初，六人在大堂同桌用过晚饭；左慈没有碰酒，傅融中途翻看过账册，孙策提到驿道封死，袁基询问过驿卒何时换班，刘辩用玩笑岔开了宫中旧闻。",
+        "location_name": "客栈大堂",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "six-person-dispersal",
+        "order": 100,
+        "time": "当日·酉初三刻",
+        "location_id": "lobby",
+        "participants": [
+          "广陵王",
+          "傅融",
+          "刘辩",
+          "孙策",
+          "左慈",
+          "袁基"
+        ],
+        "kind": "shared",
+        "text": "酉初三刻，晚饭散席：广陵王留在大堂等急递，傅融去掌柜账房核账，刘辩回东字客房，孙策去马厩，左慈回后厨，袁基回西字客房。",
+        "location_name": "客栈大堂",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "courier-arrival-signal",
+        "order": 110,
+        "time": "当日·酉正",
+        "location_id": "front_gate",
+        "participants": [
+          "广陵王",
+          "傅融",
+          "刘辩",
+          "孙策",
+          "左慈",
+          "袁基"
+        ],
+        "kind": "case",
+        "text": "酉正，正门传来驿卒通用的三短一长叩门声；六人都听见掌柜开门，并听见来客自称西驿送信人陆成。",
+        "location_name": "客栈正门",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "courier-meets-guangling",
+        "order": 120,
+        "time": "当日·酉正一刻",
+        "location_id": "lobby",
+        "participants": [
+          "广陵王"
+        ],
+        "kind": "case",
+        "text": "酉正一刻，广陵王在大堂接到浑身湿透的陆成；陆成没有叫出她的身份，只护住信囊、先看向二层回廊，说要核对一处收信记号后再交件。",
+        "location_name": "客栈大堂",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "courier-passes-liubian",
+        "order": 130,
+        "time": "当日·酉正二刻",
+        "location_id": "upper_hall",
+        "participants": [
+          "刘辩"
+        ],
+        "kind": "case",
+        "text": "酉正二刻，刘辩在东字客房门口看见陆成走上二层；陆成袖口用了过时的宫制针脚，收针方向却与真正宫制相反。",
+        "location_name": "二层回廊",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "courier-yuanji-contact",
+        "order": 140,
+        "time": "当日·酉正三刻",
+        "location_id": "room_west",
+        "participants": [
+          "袁基"
+        ],
+        "kind": "case-contact",
+        "text": "酉正三刻，陆成在西字客房门外向袁基询问旧式腰牌纹样；袁基替他擦去后颈雨水，看见信囊封口仍在，随后让他去找真正的收信人。",
+        "location_name": "西字客房",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "courier-furong-contact",
+        "order": 150,
+        "time": "当日·酉正四刻",
+        "location_id": "study",
+        "participants": [
+          "傅融"
+        ],
+        "kind": "case-contact",
+        "text": "酉正四刻，陆成在掌柜账房门口向傅融核对城东旧账的页码；傅融替他扶正被雨水压皱的衣领，看见信囊比寻常急报袋轻，随后指引他返回大堂。",
+        "location_name": "掌柜账房",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "courier-sunce-contact",
+        "order": 160,
+        "time": "当日·酉末",
+        "location_id": "upper_hall",
+        "participants": [
+          "孙策"
+        ],
+        "kind": "case-contact",
+        "text": "酉末，孙策从马厩返回二层时遇见陆成；陆成谎称肩伤复发，孙策隔着湿衣检查他的肩背，没有发现刀伤，随后看着他走下木梯。",
+        "location_name": "二层回廊",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "crime-sunce",
+        "order": 161,
+        "time": "当日·酉末",
+        "location_id": "upper_hall",
+        "participants": [
+          "孙策"
+        ],
+        "kind": "killer-private",
+        "text": "只有你知道：替陆成检查肩背时，你用缴获的淬毒细针刺入他的颈后，取走伪令正文折入护腕；事后赶去马厩制造自己一直照看坐骑的印象，马刺扣在石阶上磕掉一角。",
+        "location_name": "二层回廊",
+        "case_id": "jiangdong-forged-order",
+        "private": true
+      },
+      {
+        "id": "courier-asks-water",
+        "order": 170,
+        "time": "当日·戌初",
+        "location_id": "kitchen",
+        "participants": [
+          "左慈"
+        ],
+        "kind": "case",
+        "text": "戌初，陆成到后厨向左慈讨了一碗清水；左慈注意到他的指甲边缘已经泛青，但陆成拒绝诊脉，只说旧伤遇雨。",
+        "location_name": "后厨",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "courier-final-return",
+        "order": 180,
+        "time": "当日·戌初一刻",
+        "location_id": "lobby",
+        "participants": [
+          "广陵王"
+        ],
+        "kind": "case",
+        "text": "戌初一刻，陆成回到大堂，将那封绝密鸢报递给广陵王；他反复摸索明显变轻的信囊，却没有说明二层见过谁。",
+        "location_name": "客栈大堂",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "characters-at-start-positions",
+        "order": 190,
+        "time": "当日·亥初后",
+        "location_id": "lobby",
+        "participants": [
+          "广陵王",
+          "傅融",
+          "刘辩",
+          "孙策",
+          "左慈",
+          "袁基"
+        ],
+        "kind": "shared",
+        "text": "亥初后，客栈重新安静下来：广陵王仍在大堂读鸢报，傅融留在账房，刘辩在东字客房，孙策在马厩，左慈在后厨，袁基在西字客房。",
+        "location_name": "客栈大堂",
+        "case_id": null,
+        "private": false
+      },
+      {
+        "id": "courier-collapse",
+        "order": 200,
+        "time": "当日·亥正",
+        "location_id": "lobby",
+        "participants": [
+          "广陵王",
+          "傅融",
+          "刘辩",
+          "孙策",
+          "左慈",
+          "袁基"
+        ],
+        "kind": "case",
+        "text": "亥正，大堂传来瓷碗碎裂和广陵王的呼喊；众人先后得知陆成倒在炭盆旁，临终只攥住广陵王的衣角说出“鸢报有假”。",
+        "location_name": "客栈大堂",
+        "case_id": null,
+        "private": false
+      }
+    ]
+  }
+}

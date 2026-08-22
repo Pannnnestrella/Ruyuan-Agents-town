@@ -10,7 +10,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from modules.interactive import LLMIntentPlanner, ScenarioLoader
+from agents_town.interactive import LLMIntentPlanner, ScenarioLoader
 
 
 def main() -> int:

@@ -1,7 +1,3 @@
-"""generative_agents.memory"""
+"""Compatibility exports for legacy memory components."""
 
-from .action import *
-from .associate import *
-from .event import *
-from .schedule import *
-from .spatial import *
+from agents_town.legacy.simulation.memory import *  # noqa: F401,F403

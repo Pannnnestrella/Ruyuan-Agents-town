@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from interactive_server import create_app
+from agents_town.interactive.web.app import create_app
 
 
 ROOT = Path(__file__).resolve().parents[1]

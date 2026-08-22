@@ -1,7 +1,3 @@
-"""generative_agents.utils"""
+"""Compatibility exports for :mod:`agents_town.common.utils`."""
 
-from .arguments import *
-from .log import *
-from .namespace import *
-from .register import *
-from .timer import *
+from agents_town.common.utils import *  # noqa: F401,F403
