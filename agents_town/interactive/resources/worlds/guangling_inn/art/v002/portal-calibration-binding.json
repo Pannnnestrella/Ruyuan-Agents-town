@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "projection": "orthogonal-side-elevation",
+  "grid": {"columns": 12, "rows": 8, "tile_size": 64, "width": 768, "height": 512},
+  "floors": [{"id": 1, "name": "lower"}, {"id": 2, "name": "upper"}],
+  "rooms": {},
+  "routes": [],
+  "asset_manifest": {
+    "schema_version": 1,
+    "render_scale": 2,
+    "source_root": "source/edited",
+    "prompt_ledger": "prompt-ledger.json",
+    "normalized_root": "normalized",
+    "composite_root": "composite",
+    "max_upscale": 1.25,
+    "assets": [
+      {
+        "id": "connection-door-standard",
+        "kind": "connection-kit",
+        "floor": 1,
+        "rect": {"x": 1, "y": 1, "w": 1, "h": 2},
+        "source": "connection-door-standard-v2-alpha.png",
+        "prompt_id": "connection-door-standard",
+        "fit": "contain",
+        "anchor": "bottom-center",
+        "trim_alpha": true,
+        "requires_alpha": true,
+        "z": 30,
+        "required": true
+      },
+      {
+        "id": "portal-main-stairs-lower-side",
+        "kind": "portal",
+        "floor": 1,
+        "rect": {"x": 2, "y": 1, "w": 3, "h": 2},
+        "source": "portal-main-stairs-lower-side-v2-alpha.png",
+        "prompt_id": "portal-main-stairs-lower-side",
+        "fit": "contain",
+        "anchor": "bottom-left",
+        "trim_alpha": true,
+        "requires_alpha": true,
+        "z": 30,
+        "required": true
+      },
+      {
+        "id": "portal-main-stairs-upper-side",
+        "kind": "portal",
+        "floor": 2,
+        "rect": {"x": 1, "y": 1, "w": 3, "h": 2},
+        "source": "portal-main-stairs-upper-side-v3-alpha.png",
+        "prompt_id": "portal-main-stairs-upper-side",
+        "fit": "contain",
+        "anchor": "top-right",
+        "trim_alpha": true,
+        "requires_alpha": true,
+        "z": 30,
+        "required": true
+      }
+    ]
+  }
+}

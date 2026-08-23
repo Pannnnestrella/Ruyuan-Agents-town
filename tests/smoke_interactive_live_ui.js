@@ -54,13 +54,15 @@ const { chromium } = require('playwright');
         const result = await livePage.evaluate(() => ({
             round: document.querySelector('#live-round')?.textContent,
             rooms: document.querySelectorAll('.live-room').length,
+            routes: new Set([...document.querySelectorAll('.map-route')].map(item => item.dataset.routeId)).size,
+            floors: document.querySelectorAll('[data-floor-target]').length,
             tokens: document.querySelectorAll('.agent-token').length,
             tracks: document.querySelectorAll('.track-card').length,
             feed: document.querySelectorAll('.feed-item').length,
             moves: [...document.querySelectorAll('.feed-item strong')].filter(item => item.textContent.includes('前往')).length,
             conversations: [...document.querySelectorAll('.feed-item strong')].filter(item => item.textContent.includes('说：“')).length,
         }));
-        if (result.round !== '4' || result.rooms !== 12 || result.tokens !== 6 || result.tracks !== 6 || result.moves < 1 || result.conversations < 1) {
+        if (result.round !== '4' || result.rooms !== 12 || result.routes !== 13 || result.floors !== 2 || result.tokens !== 6 || result.tracks !== 6 || result.moves < 1 || result.conversations < 1) {
             throw new Error(`Unexpected live UI state: ${JSON.stringify(result)}`);
         }
         if (browserErrors.length) throw new Error(`Browser errors:\n${browserErrors.join('\n')}`);

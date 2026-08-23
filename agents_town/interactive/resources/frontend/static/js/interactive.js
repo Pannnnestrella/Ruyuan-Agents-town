@@ -255,19 +255,13 @@ function renderDirectorMap(state) {
 }
 
 async function animateDirectorMapMove(event) {
-    const actorId = event.actors?.[0];
-    const destination = event.payload?.destination_id || event.state_changes?.find(change => change.agent_id === actorId)?.location_id;
-    const token = ui.locations.querySelector(`[data-agent-id="${CSS.escape(actorId || '')}"]`);
-    const destinationLayer = ui.locations.querySelector(`[data-location-id="${CSS.escape(destination || '')}"] .token-layer`);
-    if (!token || !destinationLayer) return;
-    const before = token.getBoundingClientRect();
-    destinationLayer.appendChild(token);
-    const after = token.getBoundingClientRect();
-    directorMapVisualLocations[actorId] = destination;
-    await token.animate([
-        {transform: `translate(${before.left - after.left}px, ${before.top - after.top}px)`, zIndex: 30},
-        {transform: 'translate(0, 0)', zIndex: 30},
-    ], {duration: 780, easing: 'cubic-bezier(.2,.78,.25,1)'}).finished.catch(() => {});
+    await window.InteractiveMap.animateMove(
+        ui.locations,
+        event,
+        currentState,
+        directorMapVisualLocations,
+        {duration: 780},
+    );
 }
 
 function syncDirectorMap(state) {

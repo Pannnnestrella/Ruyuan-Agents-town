@@ -6,7 +6,7 @@
     <title>停云客栈 · 实时地图</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/interactive_live.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/interactive_map.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/interactive_map.css', v='connectivity-r9') }}">
 </head>
 <body>
     <section id="live-landing" class="live-landing">
@@ -299,7 +299,7 @@
 
     <div id="live-dispatch-layer" class="dispatch-layer" aria-live="polite"></div>
     <div id="live-toast" class="toast hidden"></div>
-    <script src="{{ url_for('static', filename='js/interactive_map.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/interactive_map.js', v='connectivity-r9') }}"></script>
     <script src="{{ url_for('static', filename='js/interactive_live.js') }}"></script>
 </body>
 </html>

@@ -1,0 +1,110 @@
+{
+  "status": "built",
+  "binding": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\portal-calibration-binding.json",
+  "source_root": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\edited",
+  "output_root": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\portal-calibration-build",
+  "render_scale": 2,
+  "floor_size": [
+    1536,
+    1024
+  ],
+  "assets": [
+    {
+      "id": "connection-door-standard",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\edited\\connection-door-standard-v2-alpha.png",
+      "source_mode": "RGBA",
+      "source_size": [
+        887,
+        1774
+      ],
+      "source_has_transparency": true,
+      "target": {
+        "floor": 1,
+        "x": 0,
+        "y": 0,
+        "width": 128,
+        "height": 256
+      },
+      "operation": {
+        "fit": "contain",
+        "scale": 0.151122,
+        "resized": [
+          128,
+          255
+        ],
+        "offset": [
+          0,
+          1
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\portal-calibration-build\\normalized\\connection-door-standard.png"
+    },
+    {
+      "id": "portal-main-stairs-lower-side",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\edited\\portal-main-stairs-lower-side-v2-alpha.png",
+      "source_mode": "RGBA",
+      "source_size": [
+        1536,
+        1024
+      ],
+      "source_has_transparency": true,
+      "target": {
+        "floor": 1,
+        "x": 128,
+        "y": 0,
+        "width": 384,
+        "height": 256
+      },
+      "operation": {
+        "fit": "contain",
+        "scale": 0.266482,
+        "resized": [
+          384,
+          256
+        ],
+        "offset": [
+          0,
+          0
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\portal-calibration-build\\normalized\\portal-main-stairs-lower-side.png"
+    },
+    {
+      "id": "portal-main-stairs-upper-side",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\edited\\portal-main-stairs-upper-side-v3-alpha.png",
+      "source_mode": "RGBA",
+      "source_size": [
+        1536,
+        1024
+      ],
+      "source_has_transparency": true,
+      "target": {
+        "floor": 2,
+        "x": 0,
+        "y": 0,
+        "width": 384,
+        "height": 256
+      },
+      "operation": {
+        "fit": "contain",
+        "scale": 0.494845,
+        "resized": [
+          384,
+          231
+        ],
+        "offset": [
+          0,
+          0
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\portal-calibration-build\\normalized\\portal-main-stairs-upper-side.png"
+    }
+  ],
+  "composites": {
+    "1": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\portal-calibration-build\\composite\\floor-1.png",
+    "2": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\portal-calibration-build\\composite\\floor-2.png"
+  }
+}

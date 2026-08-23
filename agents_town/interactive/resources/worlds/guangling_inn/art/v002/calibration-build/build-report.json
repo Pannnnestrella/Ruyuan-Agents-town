@@ -1,0 +1,50 @@
+{
+  "status": "built",
+  "binding": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\map_binding.json",
+  "source_root": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\generated",
+  "output_root": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\calibration-build",
+  "render_scale": 2,
+  "floor_size": [
+    1536,
+    1024
+  ],
+  "assets": [
+    {
+      "id": "room-lobby-base",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\generated\\room-lobby-base.png",
+      "source_mode": "RGB",
+      "source_size": [
+        1619,
+        971
+      ],
+      "source_has_transparency": false,
+      "target": {
+        "floor": 1,
+        "x": 384,
+        "y": 384,
+        "width": 640,
+        "height": 384
+      },
+      "operation": {
+        "fit": "cover",
+        "scale": 0.395469,
+        "resized": [
+          641,
+          384
+        ],
+        "crop": [
+          0,
+          0,
+          640,
+          384
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\calibration-build\\normalized\\room-lobby-base.png"
+    }
+  ],
+  "composites": {
+    "1": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\calibration-build\\composite\\floor-1.png",
+    "2": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\calibration-build\\composite\\floor-2.png"
+  }
+}

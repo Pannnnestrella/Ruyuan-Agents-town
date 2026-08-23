@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "status": "superseded_by_v002_side_elevation",
+  "superseded_by": "../v002/prompt-ledger.json",
+  "style_anchor": {
+    "id": "dark-han-inn-anchor",
+    "status": "selected",
+    "prompt": "Use case: stylized-concept. Asset type: orthogonal top-down game-map material anchor. A compact late-Han roadside inn material study showing dark weathered timber, worn blue-gray stone, muted clay and linen, storm-damp edges, and one restrained warm lantern accent. Strict orthogonal top-down view, no isometric tilt, no horizon, hand-painted strategy-game environment, crisp readable material scale. No room labels, text, arrows, routes, UI, characters, clues, logos, signatures, or watermark.",
+    "selected_file": "source/dark-han-inn-anchor.png",
+    "review": "Passed projection, palette, material separation, restrained warm-light accent, and forbidden-content checks. Selected as the sole v001 style reference."
+  },
+  "shared_constraints": "Strict orthogonal top-down projection; consistent camera scale and light direction; crop-safe composition; readable walkable floor; no text, labels, letters, arrows, route lines, door icons, UI, characters, clues, signatures, logos, watermark, isometric tilt, horizon, fisheye, giant props, or hard vignette.",
+  "prompts": {
+    "floor-1-base": {
+      "status": "planned",
+      "reference_role": "dark-han-inn-anchor as style-only reference",
+      "candidates": 2,
+      "prompt": "Full-floor neutral foundation for the first storey of a stormbound late-Han roadside inn, 12:8 aspect. Subdued dark earth, weathered timber perimeter tone, rain-darkened stone margins, and soft ambient shadow only. No room-specific furniture or passages; the individual room assets will cover occupied regions. Full bleed and low contrast."
+    },
+    "floor-2-base": {
+      "status": "planned",
+      "reference_role": "selected floor-1-base plus dark-han-inn-anchor for palette and material continuity",
+      "candidates": 1,
+      "prompt": "Full-floor neutral foundation for the second storey of the same late-Han inn, 12:8 aspect. Dark timber subfloor, muted plaster edge tone, controlled warm spill from below, and soft storm-night ambient shadow only. No room-specific furniture, stairs, openings, or passages. Full bleed and low contrast."
+    },
+    "room-stable-base": {
+      "status": "planned",
+      "reference_role": "dark-han-inn-anchor as style-only reference",
+      "candidates": 2,
+      "prompt": "Modular stable room base, 3:3 aspect, late-Han roadside inn. Weathered plank floor with muddy hoof traces, two restrained stall partitions, straw and one tack rack; keep the central walkable area clear. Full-bleed room decoration, crop-safe edges, no horses or people, no generated passage indicators."
+    },
+    "room-courtyard-base": {
+      "status": "planned",
+      "reference_role": "dark-han-inn-anchor as style-only reference",
+      "candidates": 2,
+      "prompt": "Open inn courtyard room base, 5:3 aspect. Rain-wet blue-gray flagstones, a modest stone well, a covered wood stack, and thin roof runoff along one edge; broad clear walking space and restrained reflections. Full bleed, no people, animals, arrows, or false passages."
+    },
+    "room-kitchen-base": {
+      "status": "planned",
+      "reference_role": "dark-han-inn-anchor as style-only reference",
+      "candidates": 2,
+      "prompt": "Late-Han inn kitchen room base, 3:4 aspect. Dark clay stove with low ember glow, narrow preparation table, and orderly jars on a wall shelf; soot and worn stone without cluttering the central path. Full bleed, crop-safe, no people, food labels, clues, doors, or route markings."
+    },
+    "room-stairs-base": {
+      "status": "planned",
+      "reference_role": "dark-han-inn-anchor as style-only reference",
+      "candidates": 1,
+      "prompt": "Wooden stair-room foundation only, 3:2 aspect. Plain worn plank landing, supporting beams at the perimeter, and subtle warm/cool light transition. Leave the middle and bottom-center visually clear for a separately generated complete staircase overlay. Do not draw stairs, ladders, openings, arrows, or characters in this base."
+    },
+    "room-lobby-base": {
+      "status": "selected",
+      "reference_role": "dark-han-inn-anchor as style-only reference",
+      "candidates": 3,
+      "prompt": "Main lobby room base of a late-Han roadside inn, 5:3 aspect. Broad worn timber floor, modest inn counter on one edge, small charcoal brazier with restrained warm glow, and one low communal table; preserve a large uncluttered central circulation area for ten tokens. Full bleed, no people, signs, written notices, doors, or route lines.",
+      "candidate_files": [
+        "source/candidates/room-lobby-base-v1.png",
+        "source/candidates/room-lobby-base-v2.png",
+        "source/candidates/room-lobby-base-v3.png"
+      ],
+      "selected_file": "source/room-lobby-base.png",
+      "normalized_file": "calibration-build/normalized/room-lobby-base.png",
+      "review": "Candidate 3 selected for the largest clear token area, lowest perimeter clutter, stable 5:3 crop, and closest style match. Normalized successfully to 640x384."
+    },
+    "room-cellar-base": {
+      "status": "planned",
+      "reference_role": "dark-han-inn-anchor as style-only reference",
+      "candidates": 2,
+      "prompt": "Damp inn cellar room base, 3:2 aspect. Rough dark stone floor, a few wine jars and wooden crates against the sides, cool low light, subtle moisture. Keep the top-center clear for a separate descending stone-step overlay. No steps in this base, no people, labels, clues, or false openings."
+    },
+    "room-front-gate-base": {
+      "status": "planned",
+      "reference_role": "dark-han-inn-anchor as style-only reference",
+      "candidates": 2,
+      "prompt": "Covered front-gate threshold area, 3:2 aspect. Heavy dark timber threshold structure, rain-wet flagstones, narrow eave shadow, and windblown water at the outer edge; clear central approach. No readable signboard, characters, arrows, route lines, or invented exits."
+    },
+    "room-east-base": {
+      "status": "planned",
+      "reference_role": "dark-han-inn-anchor as style-only reference",
+      "candidates": 1,
+      "prompt": "East guest room base, 3:3 aspect. Restrained late-Han lodging with a simple bed, low table, folded linen, and broad uncluttered plank floor. Warm low lantern ambience, crop-safe full bleed, no people, text, doors, or route markings."
+    },
+    "room-west-base": {
+      "status": "planned",
+      "reference_role": "selected east guest room as layout/style family reference",
+      "candidates": 1,
+      "prompt": "West guest room base in the same inn and visual family, 4:3 aspect. Slightly wider lodging with simple bed, low writing table, and plain folding screen at the perimeter; preserve open floor and the same camera, scale, palette, and light direction as the east room. No people, text, doors, or route markings."
+    },
+    "room-north-base": {
+      "status": "planned",
+      "reference_role": "selected east and west guest-room family reference",
+      "candidates": 1,
+      "prompt": "North guest room base in the same inn and visual family, 5:3 aspect. Wider floor plan with simple bed, travel chest, and one low tea table placed around a clear central space; identical camera, material scale, palette, and lighting family. No people, text, doors, or route markings."
+    },
+    "room-upper-hall-base": {
+      "status": "planned",
+      "reference_role": "dark-han-inn-anchor and selected floor-2-base for continuity",
+      "candidates": 2,
+      "prompt": "Long second-floor gallery base, 12:2 aspect. Continuous worn timber boards, dark structural beams and restrained railing rhythm, with clear uninterrupted circulation. Keep the leftmost 3:2 segment free of focal props for a separate upper stair opening overlay. No stairs or holes in this base, no text, arrows, characters, or route lines."
+    },
+    "room-study-base": {
+      "status": "planned",
+      "reference_role": "dark-han-inn-anchor as style-only reference",
+      "candidates": 2,
+      "prompt": "Innkeeper's accounting study room base, 3:3 aspect. Dark timber floor, compact writing desk, closed ledger shelf with no readable writing, and one shaded lamp; preserve clear floor for movement. No people, readable papers, clues, text, doors, or route lines."
+    },
+    "decoration-upper-atrium": {
+      "status": "planned",
+      "reference_role": "selected lobby and floor-2 materials as continuity references",
+      "candidates": 2,
+      "prompt": "Second-floor decorative atrium void above the lobby, 9:3 aspect. Dark open depth with softly visible lower-storey warm light, restrained timber perimeter and railing shadow, readable as non-walkable architectural void. Full bleed, no people, stairs, labels, arrows, routes, or UI glow."
+    },
+    "portal-cellar-steps": {
+      "status": "planned",
+      "reference_role": "dark-han-inn-anchor as style-only reference",
+      "candidates": 3,
+      "prompt": "Transparent game-map portal overlay: complete narrow descending cellar stone steps for a 3:2 target, strict orthogonal top-down view. Damp worn masonry, clearly separated treads, small side curb, cool shadow toward the descent. Top-center anchor; all first and last treads visible; genuine transparent background; no arrow, text, icon, people, room floor, checkerboard, or clipped geometry."
+    },
+    "portal-main-stairs-lower": {
+      "status": "selected",
+      "reference_role": "dark-han-inn-anchor as style-only reference",
+      "candidates": 3,
+      "prompt": "Transparent game-map portal overlay: complete late-Han wooden staircase lower flight for a 3:2 target, strict orthogonal top-down view. Dark timber treads, two modest side rails, credible landing connection, readable ascent through geometry alone. Bottom-center anchor; first tread, last tread, and both rails fully visible; genuine transparent background; no arrow, text, icon, people, checkerboard, or clipped structure.",
+      "candidate_files": [
+        "source/candidates/portal-main-stairs-lower-v1-rgb.png",
+        "source/candidates/portal-main-stairs-lower-v2-rgb.png",
+        "source/candidates/portal-main-stairs-lower-v3-rgb.png"
+      ],
+      "structural_selection": "source/candidates/portal-main-stairs-lower-v1-rgb.png",
+      "alpha_attempt": "source/candidates/portal-main-stairs-lower-v1-alpha-attempt-rgb.png",
+      "selected_file": "source/portal-main-stairs-lower.png",
+      "normalized_file": "calibration-build/normalized/portal-main-stairs-lower.png",
+      "alpha_extraction": {
+        "method": "authorized deterministic border-connected light-neutral background extraction with white-matte decontamination",
+        "source_file": "source/candidates/portal-main-stairs-lower-v1-rgb.png",
+        "parameters": {
+          "background_floor": 150,
+          "neutral_spread": 48,
+          "feather": 0.8,
+          "matte": 252,
+          "alpha_floor": 12
+        },
+        "qa_preview": "calibration-build/qa-stairs-lower-alpha.png"
+      },
+      "review": "Candidate 1 selected for its complete tread, rail, post, and landing geometry. User-authorized local extraction produced full-range RGBA; cream, charcoal, and magenta background checks found no checkerboard residue or obvious white halo. Normalized successfully to 384x256."
+    },
+    "portal-main-stairs-upper": {
+      "status": "selected",
+      "reference_role": "selected portal-main-stairs-lower as structure/style reference plus dark-han-inn-anchor",
+      "candidates": 2,
+      "prompt": "Transparent game-map portal overlay: matching upper landing and stairwell opening for the approved lower wooden staircase, fitting a 3:2 target. Preserve identical timber species, tread width, railing design, camera scale, palette, and light direction. Show a complete floor opening, arrival edge, and safety rail; top-center anchor; genuine transparent background; no second staircase, arrow, text, icon, people, checkerboard, or clipped geometry.",
+      "candidate_files": [
+        "source/candidates/portal-main-stairs-upper-v1-rgb.png",
+        "source/candidates/portal-main-stairs-upper-v2-rgb.png"
+      ],
+      "structural_selection": "source/candidates/portal-main-stairs-upper-v1-rgb.png",
+      "selected_file": "source/portal-main-stairs-upper.png",
+      "normalized_file": "calibration-build/normalized/portal-main-stairs-upper.png",
+      "alpha_extraction": {
+        "method": "authorized deterministic border-connected light-neutral background extraction with white-matte decontamination",
+        "source_file": "source/candidates/portal-main-stairs-upper-v1-rgb.png",
+        "parameters": {
+          "background_floor": 150,
+          "neutral_spread": 48,
+          "feather": 0.8,
+          "matte": 252,
+          "alpha_floor": 12
+        },
+        "qa_preview": "calibration-build/qa-stairs-upper-alpha.png"
+      },
+      "review": "Candidate 1 selected for its match to the lower flight's squared posts, rail thickness, opening width, and dark timber finish. User-authorized local extraction produced full-range RGBA; cream, charcoal, and magenta background checks found no checkerboard residue or obvious white halo. Normalized successfully to 384x256."
+    }
+  }
+}

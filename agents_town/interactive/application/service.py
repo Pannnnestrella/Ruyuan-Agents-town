@@ -9,6 +9,7 @@ import re
 import secrets as token_secrets
 import threading
 import uuid
+from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Callable
@@ -177,6 +178,7 @@ class GameSession:
 
     def public_state(self) -> dict[str, Any]:
         data = self.state.public_view()
+        data["map"] = deepcopy(self.loaded.map_binding)
         data["title"] = self.loaded.scenario["title"]
         data["premise"] = self.loaded.scenario["premise"]
         data["planner"] = self.planner.__class__.__name__
@@ -891,6 +893,7 @@ class GameSession:
             "phase": self.state.phase.value,
             "active_event_card": self.state.active_event_card,
             "locations": self.state.locations,
+            "map": deepcopy(self.loaded.map_binding),
             "self": own_data,
             "visible_agents": visible_agents,
             "visible_objects": objects,

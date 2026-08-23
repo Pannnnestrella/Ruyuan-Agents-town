@@ -407,9 +407,13 @@ function eventLocationName(event) {
 }
 
 function buildMap(state) {
+    const moves = state.available_actions?.moves || [];
     window.InteractiveMap.render(liveUi.map, state, {
         visualLocations,
         colors: agentColors,
+        activeLocation: state.self?.location_id,
+        availableDestinations: moves.map(item => item.id),
+        onSelectLocation: viewMode === 'player' ? selectMapDestination : null,
     });
 }
 
@@ -436,19 +440,10 @@ function updateBulletinMarker(state) {
 }
 
 async function animateMove(event) {
-    const actorId = event.actors?.[0];
-    const destination = event.payload?.destination_id || event.state_changes?.find(change => change.agent_id === actorId)?.location_id;
-    const token = liveUi.map.querySelector(`[data-agent-id="${CSS.escape(actorId || '')}"]`);
-    const destinationLayer = liveUi.map.querySelector(`[data-location-id="${CSS.escape(destination || '')}"] .token-layer`);
-    if (!token || !destinationLayer) return;
-    const before = token.getBoundingClientRect();
-    destinationLayer.appendChild(token);
-    const after = token.getBoundingClientRect();
-    visualLocations[actorId] = destination;
-    await token.animate([
-        {transform: `translate(${before.left - after.left}px, ${before.top - after.top}px)`, zIndex: 30},
-        {transform: 'translate(0, 0)', zIndex: 30},
-    ], {duration: 780 * playbackScale, easing: 'cubic-bezier(.2,.78,.25,1)'}).finished.catch(() => {});
+    await window.InteractiveMap.animateMove(liveUi.map, event, liveState, visualLocations, {
+        colors: agentColors,
+        duration: 780 * playbackScale,
+    });
 }
 
 async function showConversation(event) {
@@ -468,6 +463,8 @@ async function showConversation(event) {
 function highlightLocation(locationId) {
     liveUi.map.querySelectorAll('.live-room.active').forEach(room => room.classList.remove('active'));
     if (!locationId) return;
+    const floor = liveState?.map?.rooms?.[locationId]?.floor;
+    if (floor) window.InteractiveMap.showFloor(liveUi.map, floor);
     liveUi.map.querySelector(`[data-location-id="${CSS.escape(locationId)}"]`)?.classList.add('active');
 }
 
@@ -771,6 +768,19 @@ function renderBulletin(state) {
             : '主持人公开信息会即时同步；普通张贴仍需前往大堂阅读';
 }
 
+function selectMapDestination(locationId) {
+    if (viewMode !== 'player' || !liveState?.available_actions?.can_submit) return;
+    const allowed = (liveState.available_actions.moves || []).some(item => item.id === locationId);
+    if (!allowed) return;
+    selectedActionType = 'move';
+    selectedAbilityId = null;
+    selectActionType('move', liveState);
+    liveUi.destination.value = locationId;
+    liveUi.submitAction.disabled = false;
+    const name = liveState.locations?.[locationId]?.name || locationId;
+    liveUi.decisionHint.textContent = `已从地图选择前往「${name}」，确认后提交移动。`;
+}
+
 function renderActionComposer(state) {
     const available = state.available_actions || {};
     const actor = state.self;
@@ -830,6 +840,11 @@ function renderActionComposer(state) {
     if (selectedActionType === 'treat') {
         liveUi.target.innerHTML = `<option value="${escapeHtml(actor.agent_id)}">${escapeHtml(actor.display_name)}（自己）</option>` + liveUi.target.innerHTML;
     }
+    window.InteractiveMap.setInteraction(liveUi.map, {
+        activeLocation: actor.location_id,
+        availableDestinations: available.can_submit ? (available.moves || []).map(item => item.id) : [],
+        onSelectLocation: selectMapDestination,
+    });
 }
 
 function selectActionType(type, state, abilityId = null) {

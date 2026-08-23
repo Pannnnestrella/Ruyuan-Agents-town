@@ -1,0 +1,539 @@
+{
+  "status": "built",
+  "binding": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\map_binding.json",
+  "source_root": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\selected",
+  "output_root": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2",
+  "render_scale": 2,
+  "floor_size": [
+    1536,
+    1024
+  ],
+  "assets": [
+    {
+      "id": "room-stable-base",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\selected\\room-stable-base.png",
+      "source_mode": "RGBA",
+      "source_size": [
+        384,
+        384
+      ],
+      "source_has_transparency": false,
+      "target": {
+        "floor": 1,
+        "x": 0,
+        "y": 0,
+        "width": 384,
+        "height": 384
+      },
+      "operation": {
+        "fit": "cover",
+        "scale": 1.0,
+        "resized": [
+          384,
+          384
+        ],
+        "crop": [
+          0,
+          0,
+          384,
+          384
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2\\normalized\\room-stable-base.png"
+    },
+    {
+      "id": "room-courtyard-base",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\selected\\room-courtyard-base.png",
+      "source_mode": "RGBA",
+      "source_size": [
+        640,
+        384
+      ],
+      "source_has_transparency": false,
+      "target": {
+        "floor": 1,
+        "x": 384,
+        "y": 0,
+        "width": 640,
+        "height": 384
+      },
+      "operation": {
+        "fit": "cover",
+        "scale": 1.0,
+        "resized": [
+          640,
+          384
+        ],
+        "crop": [
+          0,
+          0,
+          640,
+          384
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2\\normalized\\room-courtyard-base.png"
+    },
+    {
+      "id": "room-kitchen-base",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\selected\\room-kitchen-base.png",
+      "source_mode": "RGB",
+      "source_size": [
+        1086,
+        1448
+      ],
+      "source_has_transparency": false,
+      "target": {
+        "floor": 1,
+        "x": 1024,
+        "y": 0,
+        "width": 384,
+        "height": 512
+      },
+      "operation": {
+        "fit": "cover",
+        "scale": 0.353591,
+        "resized": [
+          384,
+          512
+        ],
+        "crop": [
+          0,
+          0,
+          384,
+          512
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2\\normalized\\room-kitchen-base.png"
+    },
+    {
+      "id": "room-stairs-base",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\selected\\room-stairs-base.png",
+      "source_mode": "RGB",
+      "source_size": [
+        1536,
+        1024
+      ],
+      "source_has_transparency": false,
+      "target": {
+        "floor": 1,
+        "x": 0,
+        "y": 384,
+        "width": 384,
+        "height": 256
+      },
+      "operation": {
+        "fit": "cover",
+        "scale": 0.25,
+        "resized": [
+          384,
+          256
+        ],
+        "crop": [
+          0,
+          0,
+          384,
+          256
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2\\normalized\\room-stairs-base.png"
+    },
+    {
+      "id": "room-lobby-base",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\selected\\room-lobby-base.png",
+      "source_mode": "RGB",
+      "source_size": [
+        1619,
+        971
+      ],
+      "source_has_transparency": false,
+      "target": {
+        "floor": 1,
+        "x": 384,
+        "y": 384,
+        "width": 640,
+        "height": 384
+      },
+      "operation": {
+        "fit": "cover",
+        "scale": 0.395469,
+        "resized": [
+          641,
+          384
+        ],
+        "crop": [
+          0,
+          0,
+          640,
+          384
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2\\normalized\\room-lobby-base.png"
+    },
+    {
+      "id": "room-cellar-base",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\selected\\room-cellar-base.png",
+      "source_mode": "RGB",
+      "source_size": [
+        1536,
+        1024
+      ],
+      "source_has_transparency": false,
+      "target": {
+        "floor": 1,
+        "x": 1024,
+        "y": 512,
+        "width": 384,
+        "height": 256
+      },
+      "operation": {
+        "fit": "cover",
+        "scale": 0.25,
+        "resized": [
+          384,
+          256
+        ],
+        "crop": [
+          0,
+          0,
+          384,
+          256
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2\\normalized\\room-cellar-base.png"
+    },
+    {
+      "id": "room-front-gate-base",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\selected\\room-front-gate-base.png",
+      "source_mode": "RGB",
+      "source_size": [
+        1536,
+        1024
+      ],
+      "source_has_transparency": false,
+      "target": {
+        "floor": 1,
+        "x": 512,
+        "y": 768,
+        "width": 384,
+        "height": 256
+      },
+      "operation": {
+        "fit": "cover",
+        "scale": 0.25,
+        "resized": [
+          384,
+          256
+        ],
+        "crop": [
+          0,
+          0,
+          384,
+          256
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2\\normalized\\room-front-gate-base.png"
+    },
+    {
+      "id": "room-east-base",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\selected\\room-east-base.png",
+      "source_mode": "RGB",
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_has_transparency": false,
+      "target": {
+        "floor": 2,
+        "x": 0,
+        "y": 0,
+        "width": 384,
+        "height": 384
+      },
+      "operation": {
+        "fit": "cover",
+        "scale": 0.30622,
+        "resized": [
+          384,
+          384
+        ],
+        "crop": [
+          0,
+          0,
+          384,
+          384
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2\\normalized\\room-east-base.png"
+    },
+    {
+      "id": "room-west-base",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\selected\\room-west-base.png",
+      "source_mode": "RGB",
+      "source_size": [
+        1448,
+        1086
+      ],
+      "source_has_transparency": false,
+      "target": {
+        "floor": 2,
+        "x": 384,
+        "y": 0,
+        "width": 512,
+        "height": 384
+      },
+      "operation": {
+        "fit": "cover",
+        "scale": 0.353591,
+        "resized": [
+          512,
+          384
+        ],
+        "crop": [
+          0,
+          0,
+          512,
+          384
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2\\normalized\\room-west-base.png"
+    },
+    {
+      "id": "room-north-base",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\selected\\room-north-base.png",
+      "source_mode": "RGB",
+      "source_size": [
+        1619,
+        971
+      ],
+      "source_has_transparency": false,
+      "target": {
+        "floor": 2,
+        "x": 896,
+        "y": 0,
+        "width": 640,
+        "height": 384
+      },
+      "operation": {
+        "fit": "cover",
+        "scale": 0.395469,
+        "resized": [
+          641,
+          384
+        ],
+        "crop": [
+          0,
+          0,
+          640,
+          384
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2\\normalized\\room-north-base.png"
+    },
+    {
+      "id": "room-upper-hall-base",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\selected\\room-upper-hall-base.png",
+      "source_mode": "RGBA",
+      "source_size": [
+        1536,
+        256
+      ],
+      "source_has_transparency": false,
+      "target": {
+        "floor": 2,
+        "x": 0,
+        "y": 384,
+        "width": 1536,
+        "height": 256
+      },
+      "operation": {
+        "fit": "cover",
+        "scale": 1.0,
+        "resized": [
+          1536,
+          256
+        ],
+        "crop": [
+          0,
+          0,
+          1536,
+          256
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2\\normalized\\room-upper-hall-base.png"
+    },
+    {
+      "id": "room-study-base",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\selected\\room-study-base.png",
+      "source_mode": "RGB",
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_has_transparency": false,
+      "target": {
+        "floor": 2,
+        "x": 0,
+        "y": 640,
+        "width": 384,
+        "height": 384
+      },
+      "operation": {
+        "fit": "cover",
+        "scale": 0.30622,
+        "resized": [
+          384,
+          384
+        ],
+        "crop": [
+          0,
+          0,
+          384,
+          384
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2\\normalized\\room-study-base.png"
+    },
+    {
+      "id": "decoration-upper-atrium",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\selected\\decoration-upper-atrium.png",
+      "source_mode": "RGBA",
+      "source_size": [
+        1152,
+        384
+      ],
+      "source_has_transparency": false,
+      "target": {
+        "floor": 2,
+        "x": 384,
+        "y": 640,
+        "width": 1152,
+        "height": 384
+      },
+      "operation": {
+        "fit": "cover",
+        "scale": 1.0,
+        "resized": [
+          1152,
+          384
+        ],
+        "crop": [
+          0,
+          0,
+          1152,
+          384
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2\\normalized\\decoration-upper-atrium.png"
+    },
+    {
+      "id": "portal-cellar-steps",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\selected\\portal-cellar-steps.png",
+      "source_mode": "RGBA",
+      "source_size": [
+        1536,
+        1024
+      ],
+      "source_has_transparency": true,
+      "target": {
+        "floor": 1,
+        "x": 1024,
+        "y": 512,
+        "width": 384,
+        "height": 256
+      },
+      "operation": {
+        "fit": "contain",
+        "scale": 0.268156,
+        "resized": [
+          384,
+          184
+        ],
+        "offset": [
+          0,
+          0
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2\\normalized\\portal-cellar-steps.png"
+    },
+    {
+      "id": "portal-main-stairs-lower",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\selected\\portal-main-stairs-lower.png",
+      "source_mode": "RGBA",
+      "source_size": [
+        1536,
+        1024
+      ],
+      "source_has_transparency": true,
+      "target": {
+        "floor": 1,
+        "x": 0,
+        "y": 384,
+        "width": 384,
+        "height": 256
+      },
+      "operation": {
+        "fit": "contain",
+        "scale": 0.266482,
+        "resized": [
+          384,
+          256
+        ],
+        "offset": [
+          0,
+          0
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2\\normalized\\portal-main-stairs-lower.png"
+    },
+    {
+      "id": "portal-main-stairs-upper",
+      "status": "built",
+      "source": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\source\\selected\\portal-main-stairs-upper.png",
+      "source_mode": "RGBA",
+      "source_size": [
+        1536,
+        1024
+      ],
+      "source_has_transparency": true,
+      "target": {
+        "floor": 2,
+        "x": 0,
+        "y": 384,
+        "width": 384,
+        "height": 256
+      },
+      "operation": {
+        "fit": "contain",
+        "scale": 0.494845,
+        "resized": [
+          384,
+          231
+        ],
+        "offset": [
+          0,
+          0
+        ]
+      },
+      "normalized": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2\\normalized\\portal-main-stairs-upper.png"
+    }
+  ],
+  "composites": {
+    "1": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2\\composite\\floor-1.png",
+    "2": "D:\\Projects\\Ruyuan-Agents-town\\agents_town\\interactive\\resources\\worlds\\guangling_inn\\art\\v002\\build-rev2\\composite\\floor-2.png"
+  }
+}

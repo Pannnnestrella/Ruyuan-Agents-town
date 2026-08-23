@@ -30,8 +30,10 @@ class ScenarioValidationError(ValueError):
 class LoadedScenario:
     world: dict[str, Any]
     scenario: dict[str, Any]
+    map_binding: dict[str, Any] | None
     world_path: Path
     scenario_path: Path
+    map_path: Path | None = None
 
     def create_game_state(
         self,
@@ -613,8 +615,17 @@ class ScenarioLoader:
         if not world_path.is_file():
             raise FileNotFoundError(f"World not found: {world_path}")
         world = self._read_json(world_path)
-        self.validate(world, scenario)
-        return LoadedScenario(world, scenario, world_path, scenario_path)
+        map_path = world_path.with_name("map_binding.json")
+        map_binding = self._read_json(map_path) if map_path.is_file() else None
+        self.validate(world, scenario, map_binding)
+        return LoadedScenario(
+            world,
+            scenario,
+            map_binding,
+            world_path,
+            scenario_path,
+            map_path if map_binding is not None else None,
+        )
 
     @staticmethod
     def _read_json(path: Path) -> dict[str, Any]:
@@ -643,7 +654,11 @@ class ScenarioLoader:
         scenario[list_key] = list(scenario.get(list_key, [])) + extra_items
 
     @staticmethod
-    def validate(world: dict[str, Any], scenario: dict[str, Any]) -> None:
+    def validate(
+        world: dict[str, Any],
+        scenario: dict[str, Any],
+        map_binding: dict[str, Any] | None = None,
+    ) -> None:
         errors: list[str] = []
         if world.get("id") != scenario.get("world_id"):
             errors.append("scenario.world_id does not match world.id")
@@ -663,6 +678,11 @@ class ScenarioLoader:
                     errors.append(
                         f"location {location.get('id')} connects to unknown location {connected_id}"
                     )
+
+        if map_binding is not None:
+            ScenarioLoader._validate_map_binding(
+                map_binding, locations, location_ids, errors
+            )
 
         participants = scenario.get("participants") or []
         participant_ids = {participant.get("id") for participant in participants}
@@ -842,3 +862,154 @@ class ScenarioLoader:
 
         if errors:
             raise ScenarioValidationError("Invalid scenario:\n- " + "\n- ".join(errors))
+
+    @staticmethod
+    def _validate_map_binding(
+        binding: dict[str, Any],
+        locations: list[dict[str, Any]],
+        location_ids: set[str | None],
+        errors: list[str],
+    ) -> None:
+        if binding.get("schema_version") != 1:
+            errors.append("map binding schema_version must be 1")
+        grid = binding.get("grid") or {}
+        columns, rows, tile_size = (
+            grid.get("columns"), grid.get("rows"), grid.get("tile_size")
+        )
+        if not all(
+            isinstance(value, int) and not isinstance(value, bool) and value > 0
+            for value in (columns, rows, tile_size)
+        ):
+            errors.append(
+                "map binding grid requires positive integer columns, rows and tile_size"
+            )
+            return
+
+        rooms = binding.get("rooms") or {}
+        if set(rooms) != location_ids:
+            missing = sorted(str(item) for item in location_ids - set(rooms))
+            extra = sorted(str(item) for item in set(rooms) - location_ids)
+            errors.append(
+                "map binding rooms must match world locations "
+                f"(missing={missing}, extra={extra})"
+            )
+
+        occupied: dict[int, list[tuple[str, int, int, int, int]]] = {}
+        capacities = {
+            item["id"]: int(item.get("capacity", 1)) for item in locations
+        }
+        for location_id, room in rooms.items():
+            floor = room.get("floor")
+            rect = room.get("rect") or {}
+            values = [rect.get(key) for key in ("x", "y", "w", "h")]
+            if not isinstance(floor, int) or not all(
+                isinstance(value, int) and not isinstance(value, bool)
+                for value in values
+            ):
+                errors.append(
+                    f"map room {location_id} requires integer floor/x/y/w/h"
+                )
+                continue
+            x, y, width, height = values
+            if x < 1 or y < 1 or width < 1 or height < 1:
+                errors.append(f"map room {location_id} has non-positive geometry")
+                continue
+            if x + width - 1 > columns or y + height - 1 > rows:
+                errors.append(f"map room {location_id} exceeds grid bounds")
+            for other_id, ox, oy, ow, oh in occupied.setdefault(floor, []):
+                overlaps = (
+                    x < ox + ow
+                    and x + width > ox
+                    and y < oy + oh
+                    and y + height > oy
+                )
+                if overlaps:
+                    errors.append(
+                        f"map rooms {other_id} and {location_id} overlap on floor {floor}"
+                    )
+            occupied[floor].append((location_id, x, y, width, height))
+            token_grid = room.get("token_grid") or {}
+            token_columns = token_grid.get("columns", 0)
+            token_rows = token_grid.get("rows", 0)
+            token_capacity = (
+                token_columns * token_rows
+                if isinstance(token_columns, int) and isinstance(token_rows, int)
+                else 0
+            )
+            if token_capacity < capacities.get(location_id, 1):
+                errors.append(
+                    f"map room {location_id} has {token_capacity} token slots "
+                    f"for capacity {capacities.get(location_id)}"
+                )
+
+        world_edges = {
+            frozenset((location["id"], connected_id))
+            for location in locations
+            for connected_id in location.get("connections", [])
+        }
+        route_ids: set[str] = set()
+        route_edges: set[frozenset[str]] = set()
+        room_floors = {
+            key: value.get("floor") for key, value in rooms.items()
+        }
+        for route in binding.get("routes") or []:
+            route_id = str(route.get("id") or "")
+            if not route_id or route_id in route_ids:
+                errors.append(
+                    f"map route id must be unique and non-empty: {route_id!r}"
+                )
+            route_ids.add(route_id)
+            source, target = route.get("from"), route.get("to")
+            edge = frozenset((source, target))
+            if (
+                source not in location_ids
+                or target not in location_ids
+                or len(edge) != 2
+            ):
+                errors.append(f"map route {route_id} has invalid endpoints")
+                continue
+            if edge in route_edges:
+                errors.append(
+                    f"map route {route_id} duplicates a world connection"
+                )
+            route_edges.add(edge)
+            crosses_floor = room_floors.get(source) != room_floors.get(target)
+            if crosses_floor and route.get("kind") != "stairs":
+                errors.append(
+                    f"cross-floor route {route_id} must use kind=stairs"
+                )
+            segments = route.get("segments") or []
+            expected_floors = {
+                room_floors.get(source), room_floors.get(target)
+            }
+            segment_floors = {segment.get("floor") for segment in segments}
+            if not expected_floors.issubset(segment_floors):
+                errors.append(
+                    f"map route {route_id} is missing a floor segment"
+                )
+            for segment in segments:
+                points = segment.get("points") or []
+                if len(points) < 2 or any(
+                    not isinstance(point, list)
+                    or len(point) != 2
+                    or not all(
+                        isinstance(value, (int, float))
+                        and not isinstance(value, bool)
+                        for value in point
+                    )
+                    for point in points
+                ):
+                    errors.append(
+                        f"map route {route_id} has invalid path points"
+                    )
+        if route_edges != world_edges:
+            missing = sorted(
+                "--".join(sorted(edge)) for edge in world_edges - route_edges
+            )
+            extra = sorted(
+                "--".join(sorted(edge)) for edge in route_edges - world_edges
+            )
+            errors.append(
+                "map routes must match world connections "
+                f"(missing={missing}, extra={extra})"
+            )

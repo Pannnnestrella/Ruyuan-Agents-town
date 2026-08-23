@@ -1,0 +1,7 @@
+interface:
+  display_name: "Agents Town Map Builder"
+  short_description: "Build validated 2D side-view interactive maps"
+  brand_color: "#D7A95F"
+  default_prompt: "Use $agents-town-map-builder to prepare a validated 2D side-elevation map with edge ports, exact-size assets, and a local-edit QA plan, then wait for approval before generating images."
+policy:
+  allow_implicit_invocation: true

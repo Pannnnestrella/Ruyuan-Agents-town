@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "projection": "orthogonal-side-elevation",
+  "grid": {"columns": 12, "rows": 8, "tile_size": 64, "width": 768, "height": 512},
+  "floors": [
+    {"id": 1, "name": "一层", "subtitle": "大堂、后院与正门", "art": "/static/assets/maps/guangling_inn/v002/floor-1-r7.png?v=connectivity-r7"},
+    {"id": 2, "name": "二层", "subtitle": "客房与回廊", "art": "/static/assets/maps/guangling_inn/v002/floor-2.png?v=connectivity-r7"}
+  ],
+  "rooms": {
+    "stable": {"floor": 1, "rect": {"x": 1, "y": 1, "w": 3, "h": 3}, "theme": "stable", "token_grid": {"columns": 3, "rows": 2}, "movement_baseline": 0.86, "edge_safe": {"left": 0.12, "right": 0.18}},
+    "courtyard": {"floor": 1, "rect": {"x": 4, "y": 1, "w": 5, "h": 3}, "theme": "rain-courtyard", "token_grid": {"columns": 5, "rows": 2}, "movement_baseline": 0.86, "edge_safe": {"left": 0.18, "right": 0.12}},
+    "kitchen": {"floor": 1, "rect": {"x": 9, "y": 1, "w": 3, "h": 4}, "theme": "kitchen", "token_grid": {"columns": 3, "rows": 2}, "movement_baseline": 0.90, "edge_safe": {"left": 0.12, "right": 0.12}},
+    "stairs": {"floor": 1, "rect": {"x": 1, "y": 4, "w": 3, "h": 2}, "theme": "stairs", "token_grid": {"columns": 2, "rows": 1}, "movement_baseline": 0.82, "edge_safe": {"left": 0.12, "right": 0.12}},
+    "lobby": {"floor": 1, "rect": {"x": 4, "y": 4, "w": 5, "h": 3}, "theme": "lobby", "token_grid": {"columns": 5, "rows": 2}, "movement_baseline": 0.86, "edge_safe": {"left": 0.12, "right": 0.12}},
+    "cellar": {"floor": 1, "rect": {"x": 9, "y": 5, "w": 3, "h": 2}, "theme": "cellar", "token_grid": {"columns": 3, "rows": 1}, "movement_baseline": 0.82, "edge_safe": {"left": 0.12, "right": 0.12}},
+    "front_gate": {"floor": 1, "rect": {"x": 5, "y": 7, "w": 3, "h": 2}, "theme": "gate", "token_grid": {"columns": 2, "rows": 2}, "movement_baseline": 0.82, "edge_safe": {"left": 0.12, "right": 0.12}},
+    "room_east": {"floor": 2, "rect": {"x": 1, "y": 1, "w": 3, "h": 3}, "theme": "guest-room", "token_grid": {"columns": 3, "rows": 1}, "movement_baseline": 0.86, "edge_safe": {"left": 0.12, "right": 0.12}},
+    "room_west": {"floor": 2, "rect": {"x": 4, "y": 1, "w": 4, "h": 3}, "theme": "guest-room", "token_grid": {"columns": 3, "rows": 1}, "movement_baseline": 0.86, "edge_safe": {"left": 0.12, "right": 0.12}},
+    "room_north": {"floor": 2, "rect": {"x": 8, "y": 1, "w": 5, "h": 3}, "theme": "guest-room", "token_grid": {"columns": 3, "rows": 1}, "movement_baseline": 0.86, "edge_safe": {"left": 0.12, "right": 0.12}},
+    "upper_hall": {"floor": 2, "rect": {"x": 1, "y": 4, "w": 12, "h": 2}, "theme": "gallery", "token_grid": {"columns": 6, "rows": 1}, "movement_baseline": 0.82, "edge_safe": {"left": 0.08, "right": 0.08}},
+    "study": {"floor": 2, "rect": {"x": 1, "y": 6, "w": 3, "h": 3}, "theme": "study", "token_grid": {"columns": 3, "rows": 1}, "movement_baseline": 0.86, "edge_safe": {"left": 0.12, "right": 0.12}}
+  },
+  "routes": [
+    {"id": "stable--courtyard", "from": "stable", "to": "courtyard", "kind": "door", "visual_join": "seam", "ports": {"from": {"room": "stable", "edge": "right", "offset": 0.86, "aperture": 0.18}, "to": {"room": "courtyard", "edge": "left", "offset": 0.86, "aperture": 0.18}}, "segments": [{"floor": 1, "points": [[192, 165], [192, 165]]}], "visual": {"mode": "seam-door", "label": "门", "endpoint_asset": "/static/assets/maps/guangling_inn/v002/connection-door-standard.png", "show_overview_path": false}},
+    {"id": "stable--front_gate", "from": "stable", "to": "front_gate", "kind": "covered-outdoor", "visual_join": "portal", "ports": {"from": {"room": "stable", "edge": "left", "offset": 0.86, "aperture": 0.18}, "to": {"room": "front_gate", "edge": "left", "offset": 0.82, "aperture": 0.24}}, "segments": [{"floor": 1, "points": [[0, 165], [24, 165], [24, 489], [256, 489]]}], "visual": {"mode": "covered-passage", "label": "有顶通道", "show_overview_path": true}},
+    {"id": "courtyard--kitchen", "from": "courtyard", "to": "kitchen", "kind": "door", "visual_join": "svg", "ports": {"from": {"room": "courtyard", "edge": "right", "offset": 0.86, "aperture": 0.18}, "to": {"room": "kitchen", "edge": "left", "offset": 0.90, "aperture": 0.18}}, "segments": [{"floor": 1, "points": [[512, 165], [512, 230]]}], "visual": {"mode": "paired-door", "label": "门", "shared_fixture_point": [512, 240], "render_fixture": false, "endpoint_asset": "/static/assets/maps/guangling_inn/v002/connection-door-standard.png", "show_overview_path": true}},
+    {"id": "courtyard--lobby", "from": "courtyard", "to": "lobby", "kind": "door", "visual_join": "svg", "ports": {"from": {"room": "courtyard", "edge": "bottom", "offset": 0.50, "aperture": 0.18}, "to": {"room": "lobby", "edge": "top", "offset": 0.50, "aperture": 0.18}}, "segments": [{"floor": 1, "points": [[352, 192], [360, 192], [352, 192]]}], "visual": {"mode": "paired-door", "label": "门", "endpoint_asset": "/static/assets/maps/guangling_inn/v002/connection-door-standard.png", "show_overview_path": true}},
+    {"id": "lobby--kitchen", "from": "lobby", "to": "kitchen", "kind": "door", "visual_join": "svg", "ports": {"from": {"room": "lobby", "edge": "right", "offset": 0.86, "aperture": 0.18}, "to": {"room": "kitchen", "edge": "right", "offset": 0.90, "aperture": 0.18}}, "segments": [{"floor": 1, "points": [[512, 357], [720, 357], [720, 230], [704, 230]]}], "visual": {"mode": "paired-door", "label": "门", "shared_fixture_point": [512, 240], "endpoint_asset": "/static/assets/maps/guangling_inn/v002/connection-door-standard.png", "show_overview_path": false}},
+    {"id": "kitchen--cellar", "from": "kitchen", "to": "cellar", "kind": "cellar-steps", "visual_join": "portal", "ports": {"from": {"room": "kitchen", "edge": "interior", "offset": 0.55, "aperture": 0.30, "point": [672, 230]}, "to": {"room": "cellar", "edge": "interior", "offset": 0.45, "aperture": 0.30, "point": [672, 384]}}, "segments": [{"floor": 1, "points": [[672, 230], [672, 384]]}], "visual": {"mode": "cellar-steps", "label": "向下 · 地窖", "endpoint_asset": "/static/assets/maps/guangling_inn/v002/portal-cellar-steps.png", "show_overview_path": false}},
+    {"id": "stairs--lobby", "from": "stairs", "to": "lobby", "kind": "door", "visual_join": "svg", "ports": {"from": {"room": "stairs", "edge": "right", "offset": 0.82, "aperture": 0.24}, "to": {"room": "lobby", "edge": "left", "offset": 0.86, "aperture": 0.18}}, "segments": [{"floor": 1, "points": [[192, 297], [192, 357]]}], "visual": {"mode": "paired-door", "label": "门", "endpoint_asset": "/static/assets/maps/guangling_inn/v002/connection-door-standard.png", "show_overview_path": true}},
+    {"id": "front_gate--lobby", "from": "front_gate", "to": "lobby", "kind": "door", "visual_join": "svg", "ports": {"from": {"room": "front_gate", "edge": "top", "offset": 0.50, "aperture": 0.24}, "to": {"room": "lobby", "edge": "bottom", "offset": 0.50, "aperture": 0.18}}, "segments": [{"floor": 1, "points": [[352, 384], [360, 384], [352, 384]]}], "visual": {"mode": "paired-door", "label": "门", "endpoint_asset": "/static/assets/maps/guangling_inn/v002/connection-door-standard.png", "show_overview_path": true}},
+    {"id": "stairs--upper_hall", "from": "stairs", "to": "upper_hall", "kind": "stairs", "visual_join": "portal", "ports": {"from": {"room": "stairs", "edge": "interior", "offset": 0.50, "aperture": 0.35, "point": [96, 297]}, "to": {"room": "upper_hall", "edge": "interior", "offset": 0.12, "aperture": 0.10, "point": [96, 224]}}, "segments": [{"floor": 1, "points": [[96, 297], [96, 224]]}, {"floor": 2, "points": [[96, 297], [96, 224]]}], "visual": {"mode": "stairs", "label": "楼梯", "fixture_points": {"from": [18, 288], "to": [18, 256]}, "endpoint_assets": {"from": "/static/assets/maps/guangling_inn/v002/portal-main-stairs-lower.png", "to": "/static/assets/maps/guangling_inn/v002/portal-main-stairs-upper.png"}, "show_overview_path": false}},
+    {"id": "room_east--upper_hall", "from": "room_east", "to": "upper_hall", "kind": "door", "visual_join": "svg", "ports": {"from": {"room": "room_east", "edge": "bottom", "offset": 0.50, "aperture": 0.18}, "to": {"room": "upper_hall", "edge": "top", "offset": 0.125, "aperture": 0.06}}, "segments": [{"floor": 2, "points": [[96, 192], [104, 192], [96, 192]]}], "visual": {"mode": "paired-door", "label": "门", "endpoint_asset": "/static/assets/maps/guangling_inn/v002/connection-door-standard.png", "show_overview_path": true}},
+    {"id": "room_west--upper_hall", "from": "room_west", "to": "upper_hall", "kind": "door", "visual_join": "svg", "ports": {"from": {"room": "room_west", "edge": "bottom", "offset": 0.50, "aperture": 0.18}, "to": {"room": "upper_hall", "edge": "top", "offset": 0.417, "aperture": 0.06}}, "segments": [{"floor": 2, "points": [[320, 192], [328, 192], [320.256, 192]]}], "visual": {"mode": "paired-door", "label": "门", "endpoint_asset": "/static/assets/maps/guangling_inn/v002/connection-door-standard.png", "show_overview_path": true}},
+    {"id": "room_north--upper_hall", "from": "room_north", "to": "upper_hall", "kind": "door", "visual_join": "svg", "ports": {"from": {"room": "room_north", "edge": "bottom", "offset": 0.50, "aperture": 0.18}, "to": {"room": "upper_hall", "edge": "top", "offset": 0.792, "aperture": 0.06}}, "segments": [{"floor": 2, "points": [[608, 192], [616, 192], [608.256, 192]]}], "visual": {"mode": "paired-door", "label": "门", "endpoint_asset": "/static/assets/maps/guangling_inn/v002/connection-door-standard.png", "show_overview_path": true}},
+    {"id": "study--upper_hall", "from": "study", "to": "upper_hall", "kind": "door", "visual_join": "svg", "ports": {"from": {"room": "study", "edge": "top", "offset": 0.50, "aperture": 0.18}, "to": {"room": "upper_hall", "edge": "bottom", "offset": 0.125, "aperture": 0.06}}, "segments": [{"floor": 2, "points": [[96, 320], [104, 320], [96, 320]]}], "visual": {"mode": "paired-door", "label": "门", "endpoint_asset": "/static/assets/maps/guangling_inn/v002/connection-door-standard.png", "show_overview_path": true}}
+  ],
+  "decorations": [
+    {"id": "upper-atrium", "floor": 2, "kind": "atrium", "label": "大堂挑空", "rect": {"x": 4, "y": 6, "w": 9, "h": 3}}
+  ],
+  "connection_fixtures": {
+    "same_floor": "/static/assets/maps/guangling_inn/v002/connector-door-bay-r8.png?v=connectivity-r9",
+    "cross_floor": "/static/assets/maps/guangling_inn/v002/connector-ladder-shaft-r8.png?v=connectivity-r9",
+    "shared_span_max": 96
+  },
+  "asset_manifest": {
+    "schema_version": 1,
+    "render_scale": 2,
+    "source_root": "art/v002/source/selected",
+    "prompt_ledger": "art/v002/prompt-ledger.json",
+    "normalized_root": "normalized",
+    "composite_root": "composite",
+    "max_upscale": 1.25,
+    "base_style": "bright-flat-side-elevation-v2",
+    "connection_kit": "art/v002/source/selected/connection-door-standard.png",
+    "rooms_are_data_driven": true,
+    "labels_baked_into_art": false,
+    "routes_baked_into_art": false,
+    "assets": [
+      {"id": "room-stable-base", "kind": "room-base", "room_id": "stable", "source": "room-stable-base.png", "prompt_id": "room-stable-base", "fit": "cover", "anchor": "center", "z": 10, "required": true},
+      {"id": "room-courtyard-base", "kind": "room-base", "room_id": "courtyard", "source": "room-courtyard-base.png", "prompt_id": "room-courtyard-base", "fit": "cover", "anchor": "center", "z": 10, "required": true},
+      {"id": "room-kitchen-base", "kind": "room-base", "room_id": "kitchen", "source": "room-kitchen-base.png", "prompt_id": "room-kitchen-base", "fit": "cover", "anchor": "center", "z": 10, "required": true},
+      {"id": "room-stairs-base", "kind": "room-base", "room_id": "stairs", "source": "room-stairs-base.png", "prompt_id": "room-stairs-base", "fit": "cover", "anchor": "center", "z": 10, "required": true},
+      {"id": "room-lobby-base", "kind": "room-base", "room_id": "lobby", "source": "room-lobby-base.png", "prompt_id": "room-lobby-base", "fit": "cover", "anchor": "center", "z": 10, "required": true},
+      {"id": "room-cellar-base", "kind": "room-base", "room_id": "cellar", "source": "room-cellar-base.png", "prompt_id": "room-cellar-base", "fit": "cover", "anchor": "center", "z": 10, "required": true},
+      {"id": "room-front-gate-base", "kind": "room-base", "room_id": "front_gate", "source": "room-front-gate-base.png", "prompt_id": "room-front-gate-base", "fit": "cover", "anchor": "center", "z": 10, "required": true},
+      {"id": "room-east-base", "kind": "room-base", "room_id": "room_east", "source": "room-east-base.png", "prompt_id": "room-east-base", "fit": "cover", "anchor": "center", "z": 10, "required": true},
+      {"id": "room-west-base", "kind": "room-base", "room_id": "room_west", "source": "room-west-base.png", "prompt_id": "room-west-base", "fit": "cover", "anchor": "center", "z": 10, "required": true},
+      {"id": "room-north-base", "kind": "room-base", "room_id": "room_north", "source": "room-north-base.png", "prompt_id": "room-north-base", "fit": "cover", "anchor": "center", "z": 10, "required": true},
+      {"id": "room-upper-hall-base", "kind": "room-base", "room_id": "upper_hall", "source": "room-upper-hall-base.png", "prompt_id": "room-upper-hall-base", "fit": "cover", "anchor": "center", "z": 10, "required": true},
+      {"id": "room-study-base", "kind": "room-base", "room_id": "study", "source": "room-study-base.png", "prompt_id": "room-study-base", "fit": "cover", "anchor": "center", "z": 10, "required": true},
+      {"id": "decoration-upper-atrium", "kind": "decoration-base", "floor": 2, "rect": {"x": 4, "y": 6, "w": 9, "h": 3}, "source": "decoration-upper-atrium.png", "prompt_id": "decoration-upper-atrium", "fit": "cover", "anchor": "center", "z": 10, "required": true},
+      {"id": "portal-cellar-steps", "kind": "portal", "route_id": "kitchen--cellar", "room_id": "cellar", "source": "portal-cellar-steps.png", "prompt_id": "portal-cellar-steps", "fit": "contain", "anchor": "top-center", "trim_alpha": true, "requires_alpha": true, "render_independent": false, "z": 30, "required": true},
+      {"id": "portal-main-stairs-lower", "kind": "portal", "route_id": "stairs--upper_hall", "room_id": "stairs", "source": "portal-main-stairs-lower.png", "prompt_id": "portal-main-stairs-lower", "fit": "contain", "anchor": "bottom-center", "trim_alpha": true, "requires_alpha": true, "render_independent": false, "z": 30, "required": true},
+      {"id": "portal-main-stairs-upper", "kind": "portal", "route_id": "stairs--upper_hall", "floor": 2, "rect": {"x": 1, "y": 4, "w": 3, "h": 2}, "source": "portal-main-stairs-upper.png", "prompt_id": "portal-main-stairs-upper", "fit": "contain", "anchor": "top-center", "trim_alpha": true, "requires_alpha": true, "render_independent": false, "z": 30, "required": true}
+    ]
+  }
+}

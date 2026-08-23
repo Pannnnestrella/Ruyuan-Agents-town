@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "status": "v2_production_selected",
+  "projection": "orthogonal-side-elevation",
+  "reference_policy": "Legacy artwork is a finish/material reference only. The accepted v2 lobby is the projection, palette, line-weight and value anchor.",
+  "shared_constraints": "Strict flat frontal side elevation / dollhouse room side view; camera perpendicular to the back wall; level horizontal character baseline; no bird's-eye, top-down, isometric, three-quarter, receding floor, vanishing point, perspective grid, camera tilt, photorealism, 3D render, text, UI, routes, characters, clues, logos or watermark. Full-bleed medium-bright art with clean dark ink contours, flat color blocks, only two or three cel-shading values and restrained paper grain.",
+  "local_edit_policy": "Generated masters stay immutable in source/generated. Alpha extraction and exact module resize/assembly are recorded revisions in source/edited. Final frozen inputs live in source/selected.",
+  "prompts": {
+    "room-stable-base": {
+      "status": "selected_after_seam_edit",
+      "generated_master": "source/generated/room-stable-base-v1.png",
+      "source_file": "source/edited/room-stable-base-v2-seam.png",
+      "edit_recipe": {"script": "scripts/apply_seam_door.py", "paired_with": "room-courtyard-base", "baseline": 0.86, "affected_bounds": [320, 74, 384, 330]},
+      "prompt": "Apply shared_constraints. Ancient Chinese inn stable, square 3x3 room: frontal stall partition, tack, feed trough and restrained straw; clear lower character band; quiet side edges; no doors or people."
+    },
+    "room-courtyard-base": {
+      "status": "selected_after_regeneration_and_seam_edit",
+      "generated_master": "source/generated/room-courtyard-base-v2.png",
+      "source_file": "source/edited/room-courtyard-base-v3-seam.png",
+      "edit_recipe": {"script": "scripts/apply_seam_door.py", "paired_with": "room-stable-base", "baseline": 0.86, "affected_bounds": [0, 74, 64, 330]},
+      "rejected_candidate": "source/candidates/room-courtyard-base-v1-rejected-perspective.png",
+      "prompt": "Apply shared_constraints. Rain courtyard, landscape 5x3 room: flat frontal plaster wall, horizontal stone strip, rain chain and restrained wet-stone accents; absolutely no receding tiled ground; quiet side edges; no doors or people."
+    },
+    "room-kitchen-base": {
+      "status": "selected",
+      "source_file": "source/generated/room-kitchen-base-v1.png",
+      "prompt": "Apply shared_constraints. Inn rear kitchen, portrait 3x4 room: frontal masonry stove, preparation counter, hanging utensils and ceramic jars along the back wall; clear lower character band; no doors or people."
+    },
+    "room-stairs-base": {
+      "status": "selected",
+      "source_file": "source/generated/room-stairs-base-v1.png",
+      "prompt": "Apply shared_constraints. Empty wooden stair-room shell, landscape 3x2: plain frontal timber/plaster wall and narrow floor strip, kept deliberately clear for a transparent stair overlay; no baked stairs, doors or people."
+    },
+    "room-lobby-base": {
+      "status": "selected_v2",
+      "source_file": "source/generated/room-lobby-base-v2.png",
+      "normalized_calibration": "calibration-build-v2/normalized/room-lobby-base.png",
+      "prompt": "Apply shared_constraints. Late-Han roadside inn lobby, landscape 5x3: frontal timber-and-plaster wall, paper lattice windows, modest counter, low brazier and one small table; central lower half clear; quiet side strips; no fake openings or people."
+    },
+    "room-cellar-base": {
+      "status": "selected",
+      "source_file": "source/generated/room-cellar-base-v1.png",
+      "prompt": "Apply shared_constraints. Damp inn cellar, landscape 3x2: frontal blue-grey stone wall, a few jars and crates grouped on the right, left side kept clear for the stair overlay; readable medium-dark values; no door or people."
+    },
+    "room-front-gate-base": {
+      "status": "selected",
+      "source_file": "source/generated/room-front-gate-base-v1.png",
+      "prompt": "Apply shared_constraints. Inn front gate, landscape 3x2: closed frontal timber double doors, stone sill and restrained brass fittings, no signboard or writing, clear lower baseline, no people."
+    },
+    "room-east-base": {
+      "status": "selected",
+      "source_file": "source/generated/room-east-base-v1.png",
+      "prompt": "Apply shared_constraints. East guest room, square 3x3: daybed on left, small tea table on right, pale linen and restrained decor, clear lower center, no doorway or people."
+    },
+    "room-west-base": {
+      "status": "selected",
+      "source_file": "source/generated/room-west-base-v1.png",
+      "prompt": "Apply shared_constraints. West guest room, landscape 4x3: folding screen center-left, small table left and bed right, muted green/umber accents, clear lower band, no doorway or people."
+    },
+    "room-north-base": {
+      "status": "selected",
+      "source_file": "source/generated/room-north-base-v1.png",
+      "prompt": "Apply shared_constraints. North guest room, wide 5x3: bed left, tea table center, chest right and frontal lattice windows, calm balanced composition, no doorway or people."
+    },
+    "room-upper-hall-base": {
+      "status": "selected_after_exact_assembly",
+      "generated_module": "source/generated/room-upper-hall-module-v1.png",
+      "source_file": "source/edited/room-upper-hall-base-v1.png",
+      "edit_recipe": {"script": "scripts/assemble_repeat_strip.py", "module_pixels": [384, 256], "repeat": 4, "alternate_mirror": true, "output_pixels": [1536, 256]},
+      "prompt": "Apply shared_constraints. Repeatable second-floor gallery module, landscape 3x2: frontal timber wall, windows, hanging lanterns and waist-high balustrade, edge bands matching for horizontal assembly, no doors, stairs or people."
+    },
+    "room-study-base": {
+      "status": "selected",
+      "source_file": "source/generated/room-study-base-v1.png",
+      "prompt": "Apply shared_constraints. Innkeeper accounting study, square 3x3: desk and lamp left, closed ledger shelf right, stool and blank rolled papers, clear lower center; no readable writing, clues, doorway or people."
+    },
+    "decoration-upper-atrium": {
+      "status": "selected_after_exact_assembly",
+      "generated_module": "source/generated/decoration-upper-atrium-module-v1.png",
+      "source_file": "source/edited/decoration-upper-atrium-v1.png",
+      "edit_recipe": {"script": "scripts/assemble_repeat_strip.py", "module_pixels": [384, 384], "repeat": 3, "alternate_mirror": true, "output_pixels": [1152, 384]},
+      "prompt": "Apply shared_constraints. Repeatable decorative double-height atrium module, square 3x3: tall frontal timber bays, broad plaster void, slim balustrade and small fixed lanterns, matching side bands, no traversable room cues, stairs or people."
+    },
+    "connection-door-standard": {
+      "status": "selected_after_authorized_alpha_extraction",
+      "generated_master": "source/generated/connection-door-standard-v1.png",
+      "source_file": "source/edited/connection-door-standard-v2-alpha.png",
+      "qa_file": "qa-alpha/connection-door-standard-v2-alpha-qa.png",
+      "edit_recipe": {"script": "scripts/extract_alpha.py", "background_floor": 215, "neutral_spread": 32, "feather": 0.8, "include_enclosed": true},
+      "prompt": "Apply shared_constraints. Complete reusable open timber doorway frame in strict frontal side elevation, tall 1x2, two full posts, lintel, brass fittings and thin level threshold; genuine transparency outside and inside; no wall, door leaf, checkerboard or people."
+    },
+    "portal-cellar-steps": {
+      "status": "selected_after_authorized_alpha_extraction",
+      "generated_master": "source/generated/portal-cellar-steps-v1.png",
+      "source_file": "source/edited/portal-cellar-steps-v2-alpha.png",
+      "qa_file": "qa-alpha/portal-cellar-steps-v2-alpha-qa.png",
+      "edit_recipe": {"script": "scripts/extract_alpha.py", "background_floor": 215, "neutral_spread": 32, "feather": 0.8, "include_enclosed": true},
+      "prompt": "Apply shared_constraints. Complete masonry cellar descent in flat side profile from upper left to lower right, every tread and retaining wall readable, transparent around the structure; no room background, checkerboard, railing, text or people."
+    },
+    "portal-main-stairs-lower": {
+      "status": "selected_after_authorized_alpha_extraction",
+      "generated_master": "source/generated/portal-main-stairs-lower-side-v1.png",
+      "source_file": "source/edited/portal-main-stairs-lower-side-v2-alpha.png",
+      "qa_file": "qa-alpha/portal-main-stairs-lower-side-v2-alpha-qa.png",
+      "edit_recipe": {"script": "scripts/extract_alpha.py", "background_floor": 215, "neutral_spread": 32, "feather": 0.8, "include_enclosed": true},
+      "prompt": "Apply shared_constraints. Complete wooden main staircase in strict flat side profile, ascending lower-left to upper-right, with every tread, stringer, rail, baluster, endpoint post and landing lip; transparent around and between structure; no checkerboard or people."
+    },
+    "portal-main-stairs-upper": {
+      "status": "selected_after_regeneration_and_authorized_alpha_extraction",
+      "rejected_candidate": "source/candidates/portal-main-stairs-upper-side-v1-rejected.png",
+      "generated_master": "source/generated/portal-main-stairs-upper-side-v2.png",
+      "source_file": "source/edited/portal-main-stairs-upper-side-v3-alpha.png",
+      "qa_file": "qa-alpha/portal-main-stairs-upper-side-v3-alpha-qa.png",
+      "edit_recipe": {"script": "scripts/extract_alpha.py", "background_floor": 215, "neutral_spread": 32, "feather": 0.8, "include_enclosed": true},
+      "prompt": "Apply shared_constraints. Matching upper arrival only: horizontal platform, level threshold, arrival post, safety rail, balusters, far endpoint and open drop; match lower stair timber/brass/line weight; do not redraw the lower flight; transparent background and rail gaps."
+    }
+  }
+}
