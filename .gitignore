@@ -156,3 +156,5 @@ results/interactive/server.stderr.log
 # 批量自博弈评估产物（scripts/selfplay_eval.py）
 results/selfplay_eval/
 results/legacy/
+results/interactive/connectivity-repair/
+results/interactive/entry-smoke-20260822
