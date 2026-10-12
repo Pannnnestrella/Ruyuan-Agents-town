@@ -1,6 +1,6 @@
 (function () {
     const defaultColors = ['#d7a95f', '#81a18e', '#c27868', '#8d9fc7', '#b994c1', '#d0b878'];
-    const rendererVersion = 'connectivity-r9';
+    const rendererVersion = 'doors-r11';
 
     function escapeHtml(value) {
         return String(value ?? '').replace(/[&<>"']/g, character => ({
@@ -85,7 +85,7 @@
     function endpointSymbol(binding, mode, asset) {
         const fixture = fixtureAsset(binding, mode, asset);
         if (mode === 'paired-door' || mode === 'seam-door') {
-            return fixture ? `<image class="route-endpoint-image fixture-door-bay" href="${escapeHtml(fixture)}" x="-18" y="-112" width="36" height="112" preserveAspectRatio="xMidYMax slice"></image>` : '';
+            return fixture ? `<image class="route-endpoint-image fixture-door-bay" href="${escapeHtml(fixture)}" x="-22" y="-74" width="44" height="74" preserveAspectRatio="xMidYMax meet"></image>` : '';
         }
         if (mode === 'covered-passage') {
             return '<path class="endpoint-shape endpoint-passage" d="M -13 10 V -3 Q 0 -18 13 -3 V 10 M -16 10 H 16 M -12 -7 H 12"></path>';
@@ -145,7 +145,7 @@
                 <g class="endpoint-symbol shared-connector-bay">
                     <circle class="endpoint-halo" r="19"></circle>
                     ${visual.render_fixture === false ? '' : endpointSymbol(binding, visual.mode, visual.endpoint_asset || '')}
-                    <text class="route-endpoint-label" text-anchor="middle" x="0" y="-118">${escapeHtml(label)}</text>
+                    <text class="route-endpoint-label" text-anchor="middle" x="0" y="${visual.render_fixture === false ? -25 : ['paired-door', 'seam-door'].includes(visual.mode) ? -80 : -118}">${escapeHtml(label)}</text>
                 </g>
             </g>`;
         }
@@ -264,7 +264,7 @@
                     </button>`).join('')}
                 </div>
                 <div class="map-tools">
-                    <span class="map-build-version" title="Map renderer ${rendererVersion}">&#36830;&#36890;&#20462;&#35746; R9</span>
+                    <span class="map-build-version" title="Map renderer ${rendererVersion}">&#36830;&#36890;&#20462;&#35746; R11</span>
                     <div class="map-legend"><span class="legend-endpoint">出口</span><span class="legend-reachable">当前可达</span><span class="legend-stairs">跨层</span></div>
                 </div>
             </div>

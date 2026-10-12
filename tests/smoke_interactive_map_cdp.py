@@ -129,6 +129,9 @@ def main() -> int:
                     apiHasMap: Boolean(observer.state?.map?.rooms),
                     floorArt: document.querySelectorAll('.floor-art').length,
                     floorArtLoaded: [...document.querySelectorAll('.floor-art')].filter(image => image.complete && image.naturalWidth > 0).length,
+                    floorArtSources: [...document.querySelectorAll('.floor-art')].map(image => ({
+                        url: image.getAttribute('src'), width: image.naturalWidth, height: image.naturalHeight,
+                    })),
                     portalArt: document.querySelectorAll('.portal-art').length,
                     portalArtLoaded: [...document.querySelectorAll('.portal-art')].filter(image => image.complete && image.naturalWidth > 0).length,
                     rendererVersion: document.querySelector('#live-map')?.dataset.mapRendererVersion,
@@ -286,18 +289,21 @@ def main() -> int:
                 raise AssertionError(f"v002 floor art did not load: {first_floor}")
             if first_floor["portalArt"] != 0 or first_floor["portalArtLoaded"] != 0:
                 raise AssertionError(f"room-scale portal art still rendered: {first_floor}")
-            if first_floor["rendererVersion"] != "connectivity-r9" or first_floor["versionLabel"] != "连通修订 R9":
-                raise AssertionError(f"R9 cache/version marker missing: {first_floor}")
-            if first_floor["portraitInitials"] != 6 or first_floor["portraitLoaded"] < 1:
+            if first_floor["rendererVersion"] != "doors-r11" or first_floor["versionLabel"] != "连通修订 R11":
+                raise AssertionError(f"R11 cache/version marker missing: {first_floor}")
+            if first_floor["portraitInitials"] != 6 or first_floor["portraitLoaded"] != 6:
                 raise AssertionError(f"portrait/fallback wiring failed: {first_floor}")
+            for floor, art in enumerate(first_floor["floorArtSources"], start=1):
+                if f"floor-{floor}-seams-r10.png" not in art["url"] or (art["width"], art["height"]) != (1536, 1024):
+                    raise AssertionError(f"Wrong seam artwork or canvas dimensions: {art}")
             expected_markup = {
                 "motionPaths": 14,
                 "endpointRoutes": 13,
                 "endpointCount": 15,
-                "doorEndpointImages": 9,
+                "doorEndpointImages": 7,
                 "ladderFixtureImages": 3,
-                "sharedFixtureImages": 9,
-                "doorFixtureSize": [36, 112],
+                "sharedFixtureImages": 7,
+                "doorFixtureSize": [44, 74],
                 "ladderFixtureSize": [28, 128],
                 "syntheticDoorShapes": 0,
                 "roomDoorHints": 0,
@@ -319,6 +325,24 @@ def main() -> int:
                 raise AssertionError(f"player reachability rendered debug connectors: {player_reachability}")
             if connectivity != {"toggles": 0, "connectorLayers": 0, "connectorLines": 0}:
                 raise AssertionError(f"debug connectivity layer still exists: {connectivity}")
+            painted_room_states = client.evaluate("""(() => {
+                const room = document.querySelector('.has-floor-art .live-room');
+                const original = room.className;
+                const states = ['', 'is-current', 'active', 'is-reachable', 'is-neighbor'];
+                const result = states.map(state => {
+                    room.className = original + ' ' + state;
+                    const style = getComputedStyle(room);
+                    return {state, transform: style.transform, border: style.borderTopWidth,
+                        shadow: style.boxShadow, animation: style.animationName};
+                });
+                room.className = original;
+                return result;
+            })()""")
+            for state in painted_room_states:
+                if any(state[key] != value for key, value in {
+                    "transform": "none", "border": "0px", "shadow": "none", "animation": "none",
+                }.items()):
+                    raise AssertionError(f"Painted room has a card seam: {state}")
             expected_neighbors = {
                 "stable": {
                     "neighbors": ["courtyard", "front_gate"],
@@ -373,6 +397,18 @@ def main() -> int:
                 if check["mapOverflow"] or check["canvasWidth"] <= 0 or check["activeFloors"] != 1:
                     raise AssertionError(f"viewport {width}x{height} failed: {check}")
                 viewport_checks.append({"viewport": f"{width}x{height}", **check})
+                if len(sys.argv) > 2:
+                    output_path = Path(sys.argv[2])
+                    output_path.parent.mkdir(parents=True, exist_ok=True)
+                    for floor in (1, 2):
+                        client.evaluate(f"document.querySelector('[data-floor-target=\"{floor}\"]')?.click(); true")
+                        client.evaluate("document.querySelector('#live-map').scrollIntoView({block: 'center'}); true")
+                        wait_until(client, "document.querySelectorAll('.agent-token .portrait img').length === 6 && [...document.querySelectorAll('.agent-token .portrait img')].every(image => image.complete && image.naturalWidth > 0)")
+                        time.sleep(.2)
+                        screenshot = client.call("Page.captureScreenshot", {"format": "png"})
+                        output_path.with_name(f"{output_path.stem}-floor-{floor}-{width}.png").write_bytes(
+                            base64.b64decode(screenshot["data"])
+                        )
             if client.exceptions:
                 raise AssertionError(f"browser exceptions: {client.exceptions}")
             if len(sys.argv) > 2:
@@ -397,6 +433,7 @@ def main() -> int:
                 "secondFloorVisible": True,
                 "secondFloorConnectivity": second_floor_connectivity,
                 "viewports": viewport_checks,
+                "paintedRoomStates": painted_room_states,
             }, ensure_ascii=False))
             return 0
         finally:

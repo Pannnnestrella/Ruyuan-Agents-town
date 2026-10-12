@@ -45,7 +45,11 @@
 .endpoint-stairs { fill: none; stroke: #8eb0a3; stroke-width: 3; }
 .endpoint-generic { fill: #5d5345; }
 .route-endpoint-image { opacity: .96; filter: drop-shadow(0 2px 2px rgba(0,0,0,.76)); }
-.fixture-door-bay, .fixture-ladder-shaft { clip-path: inset(1px round 2px); }
+.fixture-ladder-shaft { clip-path: inset(1px round 2px); }
+.fixture-door-bay { opacity: 1; filter: none; }
+.map-route:is(.is-reachable, .is-hovered, .is-active) .fixture-door-bay {
+    filter: drop-shadow(0 0 2px rgba(228,191,123,.65));
+}
 .route-mode-cellar-steps .endpoint-halo, .route-mode-stairs .endpoint-halo { opacity: 0; }
 .route-endpoint-label { opacity: 0; fill: #f0d7aa; paint-order: stroke; stroke: rgba(18,14,11,.94); stroke-width: 3px; font-size: 9px; letter-spacing: .05em; transition: opacity .18s; }
 .map-route.is-reachable .endpoint-halo, .map-route.is-hovered .endpoint-halo, .map-route.is-active .endpoint-halo { fill: rgba(215,169,95,.23); stroke: #e4bf7b; stroke-width: 2; }
@@ -76,6 +80,62 @@
 .live-room.is-reachable:hover, .live-room.is-reachable:focus-visible, .live-room.is-neighbor { z-index: 3; transform: scale(.98); border-color: #e7c98e; filter: brightness(1.13); }
 .live-map.has-map-focus .live-room:not(.is-focused-room):not(.is-neighbor) { filter: brightness(.55) saturate(.72); }
 .live-map.has-map-focus .live-room.is-focused-room { z-index: 3; transform: scale(.98); border-color: #f0d298; filter: brightness(1.12); }
+/* Painted rooms share one continuous background. State belongs to labels and
+   door endpoints, rather than scaled cards over the architecture. */
+.has-floor-art .live-room,
+.has-floor-art .live-room:is(.active, .is-current, .is-reachable, .is-neighbor, .has-unread-bulletin),
+.live-map.has-map-focus .has-floor-art .live-room {
+    transform: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    filter: none;
+    animation: none;
+}
+.has-floor-art .live-room .room-name {
+    width: fit-content;
+    max-width: 100%;
+    gap: 8px;
+    border: 1px solid rgba(226,195,139,.2);
+    background: rgba(20,17,14,.84);
+    transition: color .2s, border-color .2s, background .2s;
+}
+.has-floor-art .live-room.is-current .room-name {
+    border-color: #d7a95f;
+    color: #ffe0a4;
+    background: rgba(65,43,23,.94);
+}
+.has-floor-art .live-room.is-current .room-name::before {
+    content: "";
+    flex: 0 0 5px;
+    align-self: center;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #f0ca82;
+}
+.has-floor-art .live-room:is(.active, .is-focused-room, .is-neighbor, :hover) .room-name {
+    border-color: #f0cf91;
+    color: #ffe7ba;
+    background: rgba(65,43,23,.94);
+}
+.has-floor-art .live-room.active .room-name {
+    box-shadow: 0 0 0 1px rgba(240,207,145,.4);
+}
+.has-floor-art .live-room:focus-visible .room-name {
+    outline: 2px solid #ffe0a4;
+    outline-offset: 3px;
+}
+.has-floor-art .live-room.is-reachable .room-name {
+    border-bottom-color: #e4bf7b;
+}
+.has-floor-art .live-room .reachable-badge {
+    top: clamp(6px, 1.15vw, 11px);
+    bottom: auto;
+    box-shadow: none;
+}
+.has-floor-art .map-decoration { border: 0; border-radius: 0; }
 .room-name { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 6px; color: #ead6b6; font-size: clamp(9px, 1.05vw, 13px); font-weight: 650; }
 .room-name small { color: #927e64; font-size: clamp(7px, .72vw, 9px); font-weight: 500; }
 .room-description { position: relative; z-index: 1; display: -webkit-box; max-width: 84%; margin-top: 5px; overflow: hidden; color: #887b6b; font-size: clamp(7px, .72vw, 9px); line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }

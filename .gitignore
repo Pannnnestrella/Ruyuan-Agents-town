@@ -139,6 +139,10 @@ agents_town/legacy/resources/frontend/static/generated_music/
 agents_town/legacy/resources/frontend/static/assets/village/agents/
 agents_town/common/resources/characters/*
 !agents_town/common/resources/characters/.gitkeep
+# Keep UI portraits available in fresh checkouts; large sprite sheets stay local.
+!agents_town/common/resources/characters/*/
+agents_town/common/resources/characters/*/*
+!agents_town/common/resources/characters/*/portrait.png
 agents_town/common/resources/lore/形象素材/
 
 # 含 API 密钥，不入库
